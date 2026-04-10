@@ -1,13 +1,20 @@
 'use strict';
 
 const http = require('http');
-const manifest = require('./manifest');
-const { handleCatalog } = require('./catalog');
-const { handleStream } = require('./stream');
+const fs   = require('fs');
+const path = require('path');
 
-const PORT = Number(process.env.PORT) || 7000;
+const { decodeConfig, encodeConfig } = require('./config');
+const { buildManifest }             = require('./manifest');
+const { handleCatalog }             = require('./catalog');
+const { handleStream }              = require('./stream');
+const { getPackages }               = require('./justwatch');
 
-// ─── CORS + JSON response helper ─────────────────────────────────────────────
+const PORT           = Number(process.env.PORT) || 7000;
+const CONFIGURE_HTML = fs.readFileSync(path.join(__dirname, 'configure.html'), 'utf8');
+
+// ─── Response helpers ─────────────────────────────────────────────────────────
+
 function respond(res, data, status = 200) {
   const body = JSON.stringify(data);
   res.writeHead(status, {
@@ -20,7 +27,19 @@ function respond(res, data, status = 200) {
   res.end(body);
 }
 
-// ─── Parse Stremio extra params (key=value&key2=value2 embedded in path) ─────
+function respondHtml(res, html) {
+  const buf = Buffer.from(html, 'utf8');
+  res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8', 'Content-Length': buf.length });
+  res.end(buf);
+}
+
+function redirect(res, location) {
+  res.writeHead(302, { Location: location });
+  res.end();
+}
+
+// ─── Utilities ────────────────────────────────────────────────────────────────
+
 function parseExtra(raw) {
   if (!raw) return {};
   return Object.fromEntries(
@@ -29,54 +48,99 @@ function parseExtra(raw) {
       .filter((p) => p.includes('='))
       .map((pair) => {
         const eq = pair.indexOf('=');
-        return [
-          decodeURIComponent(pair.slice(0, eq)),
-          decodeURIComponent(pair.slice(eq + 1)),
-        ];
+        return [decodeURIComponent(pair.slice(0, eq)), decodeURIComponent(pair.slice(eq + 1))];
       })
   );
 }
 
-// ─── Request router ───────────────────────────────────────────────────────────
+function getAddonBaseUrl(req) {
+  const proto = req.headers['x-forwarded-proto'] || 'http';
+  const host  = req.headers['x-forwarded-host'] || req.headers['host'] || `127.0.0.1:${PORT}`;
+  return `${proto}://${host}`;
+}
+
+// ─── Router ───────────────────────────────────────────────────────────────────
+
 async function router(req, res) {
-  // Preflight
   if (req.method === 'OPTIONS') {
     res.writeHead(204, { 'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Headers': '*' });
     res.end();
     return;
   }
 
-  const path = req.url.replace(/\?.*$/, '').replace(/\/$/, '');
+  const rawPath  = req.url.replace(/\?.*$/, '').replace(/\/$/, '');
+  const qs       = req.url.includes('?') ? new URLSearchParams(req.url.split('?')[1]) : new URLSearchParams();
 
-  // GET /manifest.json
-  if (path === '/manifest.json') {
-    return respond(res, manifest);
+  // ── /configure  (config UI) ──────────────────────────────────────────────────
+  if (rawPath === '' || rawPath === '/configure') {
+    return respondHtml(res, CONFIGURE_HTML);
   }
 
-  // GET /catalog/{type}/{id}.json  (no extra params)
-  // GET /catalog/{type}/{id}/{extra}.json
-  const catalogRx = /^\/catalog\/([^/]+)\/([^/]+?)(?:\/([^/]+))?\.json$/;
-  const cm = path.match(catalogRx);
+  // ── /manifest.json  (redirect to configure) ──────────────────────────────────
+  if (rawPath === '/manifest.json') {
+    return redirect(res, '/configure');
+  }
+
+  // ── /api/packages?country=XX ─────────────────────────────────────────────────
+  if (rawPath === '/api/packages') {
+    const country = (qs.get('country') || 'US').toUpperCase();
+    if (!/^[A-Z]{2,3}$/.test(country)) {
+      return respond(res, { error: 'Invalid country code' }, 400);
+    }
+    try {
+      return respond(res, await getPackages(country));
+    } catch (err) {
+      console.error('[api/packages] Error:', err.message);
+      return respond(res, []);
+    }
+  }
+
+  // ── /{config}/* ───────────────────────────────────────────────────────────────
+  // Config segment is base64url: [A-Za-z0-9_-]+
+  const configMatch = rawPath.match(/^\/([A-Za-z0-9_-]+)\/(.*)/);
+  if (!configMatch) {
+    return respond(res, { error: 'Not found' }, 404);
+  }
+
+  const [, encodedConfig, rest] = configMatch;
+  const config = decodeConfig(encodedConfig);
+  if (!config) {
+    return respond(res, { error: 'Invalid configuration' }, 400);
+  }
+
+  // /{config}/manifest.json
+  if (rest === 'manifest.json') {
+    let pkgInfoMap = {};
+    try {
+      const pkgs = await getPackages(config.country);
+      pkgInfoMap = Object.fromEntries(pkgs.map((p) => [p.technicalName, p]));
+    } catch (e) {
+      console.error('[manifest] Could not fetch packages:', e.message);
+    }
+    return respond(res, buildManifest(config, encodedConfig, pkgInfoMap, getAddonBaseUrl(req)));
+  }
+
+  // /{config}/catalog/{type}/{id}[/{extra}].json
+  const catalogRx = /^catalog\/([^/]+)\/([^/]+?)(?:\/([^/]+))?\.json$/;
+  const cm        = rest.match(catalogRx);
   if (cm) {
     const [, type, id, extraRaw] = cm;
-    const extra = parseExtra(extraRaw);
-    const result = await handleCatalog({ type, id, extra });
-    return respond(res, result);
+    return respond(res, await handleCatalog({ type, id, extra: parseExtra(extraRaw) }, config));
   }
 
-  // GET /stream/{type}/{id}.json
-  const streamRx = /^\/stream\/([^/]+)\/(.+?)\.json$/;
-  const sm = path.match(streamRx);
+  // /{config}/stream/{type}/{id}.json
+  const streamRx = /^stream\/([^/]+)\/(.+?)\.json$/;
+  const sm       = rest.match(streamRx);
   if (sm) {
     const [, type, id] = sm;
-    const result = await handleStream({ type, id: decodeURIComponent(id) });
-    return respond(res, result);
+    return respond(res, await handleStream({ type, id: decodeURIComponent(id) }, config));
   }
 
-  respond(res, { error: 'Not found' }, 404);
+  return respond(res, { error: 'Not found' }, 404);
 }
 
 // ─── Server ───────────────────────────────────────────────────────────────────
+
 http
   .createServer(async (req, res) => {
     try {
@@ -87,17 +151,13 @@ http
     }
   })
   .listen(PORT, () => {
-    const country = process.env.JUSTWATCH_COUNTRY || 'ES';
     console.log(`
 ╔══════════════════════════════════════════╗
 ║       Stremio JustWatch Addon            ║
 ╠══════════════════════════════════════════╣
-║  Puerto  : ${String(PORT).padEnd(31)}║
-║  País    : ${country.padEnd(31)}║
+║  Puerto      : ${String(PORT).padEnd(26)}║
 ╠══════════════════════════════════════════╣
-║  Instalar en Stremio (local):            ║
-║  http://127.0.0.1:${String(PORT).padEnd(22)}║
-║  /manifest.json                          ║
+║  Configurar → http://127.0.0.1:${PORT}/configure
 ╚══════════════════════════════════════════╝
 `);
   });

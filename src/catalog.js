@@ -1,16 +1,10 @@
 'use strict';
 
 const { searchTitles } = require('./justwatch');
+const { GENRE_MAP, SORT_MAP } = require('./config');
 
-const COUNTRY = process.env.JUSTWATCH_COUNTRY || 'ES';
-
-// Map Stremio types → JustWatch objectType values
 const TYPE_TO_JW = { movie: 'MOVIE', series: 'SHOW' };
 
-/**
- * Convert a JustWatch title node to a Stremio Meta object.
- * Returns null when there is no IMDB ID (Stremio requires a resolvable ID).
- */
 function nodeToMeta(node) {
   const imdbId = node?.content?.externalIds?.imdbId;
   if (!imdbId) return null;
@@ -33,23 +27,44 @@ function nodeToMeta(node) {
 }
 
 /**
- * Catalog handler for stremio-addon-sdk.
- * Handles both "popular" and "search" modes.
+ * Catalog handler.
+ *
+ * Catalog ID format: jw_{sortKey}_{technicalName}
+ *   sortKey      = 'pop' | 'new'
+ *   technicalName = JustWatch package technical name (may contain underscores)
+ *
+ * @param {object} args
+ * @param {string} args.type   - 'movie' | 'series'
+ * @param {string} args.id     - Catalog ID (e.g. jw_pop_nfx)
+ * @param {object} args.extra  - { search?, genre?, skip? } from Stremio
+ * @param {object} config      - { country, language, packages }
  */
-async function handleCatalog({ type, extra }) {
-  const { search, skip } = extra || {};
+async function handleCatalog({ type, id, extra }, config) {
+  const { search, genre } = extra || {};
   const jwType = TYPE_TO_JW[type];
+
+  // Parse: jw_{sortKey}_{technicalName...}
+  // parts[0] = 'jw', parts[1] = sortKey, parts[2..] = technicalName (joined with _)
+  const parts   = id.split('_');
+  const sortKey = parts[1] || 'pop';
+  const pkgName = parts.slice(2).join('_');
+
+  const sortBy    = SORT_MAP[sortKey] || 'POPULAR';
+  const genreCode = genre ? (GENRE_MAP[genre] || null) : null;
 
   try {
     const titles = await searchTitles({
-      query: search || '',
+      query:       search || '',
       objectTypes: jwType ? [jwType] : [],
-      country: COUNTRY,
-      first: 20,
+      packages:    pkgName ? [pkgName] : [],
+      genres:      genreCode ? [genreCode] : [],
+      sortBy,
+      country:     config.country,
+      language:    config.language,
+      first:       50,
     });
 
     const metas = titles
-      // Client-side type filter as safety net
       .filter((n) => !jwType || n.objectType === jwType)
       .map(nodeToMeta)
       .filter(Boolean);

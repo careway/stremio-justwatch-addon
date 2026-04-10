@@ -6,12 +6,14 @@ const GRAPHQL_URL = 'https://apis.justwatch.com/graphql';
 
 // ─── GraphQL Queries ──────────────────────────────────────────────────────────
 
+// sortBy is passed as a variable so both POPULAR and NEWLY_ADDED work.
 const SEARCH_TITLES_QUERY = `
   query GetSearchTitles(
     $searchTitlesFilter: TitleFilter!
     $country: Country!
     $language: Language!
     $first: Int!
+    $sortBy: PopularTitlesSorting!
     $profile: PosterProfile
     $formatPoster: ImageFormat
   ) {
@@ -19,7 +21,7 @@ const SEARCH_TITLES_QUERY = `
       country: $country
       filter: $searchTitlesFilter
       first: $first
-      sortBy: POPULAR
+      sortBy: $sortBy
       sortRandomSeed: 0
     ) {
       edges {
@@ -44,10 +46,18 @@ const SEARCH_TITLES_QUERY = `
   }
 `;
 
-/**
- * Builds the GetTitleOffers query dynamically for a single country.
- * The country alias in the query must match the variable injection syntax.
- */
+const GET_PACKAGES_QUERY = `
+  query GetPackages($country: Country!, $platform: Platform! = WEB) {
+    packages(country: $country, platform: $platform) {
+      id
+      packageId
+      clearName
+      technicalName
+      icon(profile: S100)
+    }
+  }
+`;
+
 function buildOffersQuery(country) {
   const alias = country.toLowerCase();
   return `
@@ -125,29 +135,44 @@ async function gql(query, variables) {
 // ─── Public API ───────────────────────────────────────────────────────────────
 
 /**
- * Search (or browse popular) titles on JustWatch.
+ * Search (or browse) titles on JustWatch.
  *
- * @param {object} opts
- * @param {string}   opts.query       - Text to search. Pass '' for popular.
+ * @param {object}   opts
+ * @param {string}   opts.query       - Text search. Pass '' for browse.
  * @param {string[]} opts.objectTypes - ['MOVIE'] | ['SHOW'] | []
+ * @param {string[]} opts.packages    - JustWatch technicalName filters e.g. ['nfx']
+ * @param {string[]} opts.genres      - JustWatch shortName filters e.g. ['act']
+ * @param {string}   opts.sortBy      - 'POPULAR' | 'NEWLY_ADDED'
  * @param {string}   opts.country     - ISO country code (e.g. 'ES')
- * @param {number}   opts.first       - Max results (default 20)
- * @returns {Promise<Array>} Array of JustWatch title nodes
+ * @param {string}   opts.language    - BCP47 language code (e.g. 'es')
+ * @param {number}   opts.first       - Max results (capped at 50)
  */
-async function searchTitles({ query = '', objectTypes = [], country = 'US', first = 20 } = {}) {
-  const cacheKey = `search:${query}:${objectTypes.join(',')}:${country}:${first}`;
+async function searchTitles({
+  query = '',
+  objectTypes = [],
+  packages = [],
+  genres = [],
+  sortBy = 'POPULAR',
+  country = 'US',
+  language = 'en',
+  first = 50,
+} = {}) {
+  const cacheKey = `search:${query}:${objectTypes.join(',')}:${packages.join(',')}:${genres.join(',')}:${sortBy}:${country}:${language}:${first}`;
   const cached = cacheGet(cacheKey);
   if (cached) return cached;
 
   const filter = {};
   if (query) filter.searchQuery = query;
   if (objectTypes.length) filter.objectTypes = objectTypes;
+  if (packages.length) filter.packages = packages;
+  if (genres.length) filter.genres = genres;
 
   const data = await gql(SEARCH_TITLES_QUERY, {
     searchTitlesFilter: filter,
     country,
-    language: 'en',
-    first,
+    language,
+    first: Math.min(first, 50),
+    sortBy,
     profile: 'S718',
     formatPoster: 'JPG',
   });
@@ -160,18 +185,18 @@ async function searchTitles({ query = '', objectTypes = [], country = 'US', firs
 /**
  * Get streaming offers for a JustWatch node.
  *
- * @param {string} nodeId   - JustWatch internal node ID
- * @param {string} country  - ISO country code (e.g. 'ES')
- * @returns {Promise<Array>} Array of offer objects
+ * @param {string} nodeId    - JustWatch internal node ID
+ * @param {string} country   - ISO country code (e.g. 'ES')
+ * @param {string} language  - BCP47 language code (e.g. 'es')
  */
-async function getTitleOffers(nodeId, country = 'US') {
-  const cacheKey = `offers:${nodeId}:${country}`;
+async function getTitleOffers(nodeId, country = 'US', language = 'en') {
+  const cacheKey = `offers:${nodeId}:${country}:${language}`;
   const cached = cacheGet(cacheKey);
   if (cached) return cached;
 
   const data = await gql(buildOffersQuery(country), {
     nodeId,
-    language: 'en',
+    language,
     filterBuy: {},
     platform: 'WEB',
   });
@@ -181,4 +206,24 @@ async function getTitleOffers(nodeId, country = 'US') {
   return offers;
 }
 
-module.exports = { searchTitles, getTitleOffers };
+/**
+ * Get available streaming packages for a country.
+ *
+ * @param {string} country - ISO country code (e.g. 'ES')
+ * @returns {Promise<Array>} Array of package objects with iconUrl resolved
+ */
+async function getPackages(country = 'US') {
+  const cacheKey = `packages:${country}`;
+  const cached = cacheGet(cacheKey);
+  if (cached) return cached;
+
+  const data = await gql(GET_PACKAGES_QUERY, { country, platform: 'WEB' });
+  const pkgs = (data?.packages || []).map((pkg) => ({
+    ...pkg,
+    iconUrl: pkg.icon ? `https://images.justwatch.com${pkg.icon}` : null,
+  }));
+  cacheSet(cacheKey, pkgs);
+  return pkgs;
+}
+
+module.exports = { searchTitles, getTitleOffers, getPackages };

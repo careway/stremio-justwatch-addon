@@ -11,5 +11,3 @@ services:
         value: production
       - key: PORT
         value: 10000
-      - key: JUSTWATCH_COUNTRY
-        value: ES

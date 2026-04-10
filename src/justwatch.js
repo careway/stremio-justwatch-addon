@@ -6,42 +6,89 @@ const GRAPHQL_URL = 'https://apis.justwatch.com/graphql';
 
 // ─── GraphQL Queries ──────────────────────────────────────────────────────────
 
-// sortBy is passed as a variable so both POPULAR and NEWLY_ADDED work.
-const SEARCH_TITLES_QUERY = `
-  query GetSearchTitles(
-    $searchTitlesFilter: TitleFilter!
+const GET_POPULAR_TITLES_QUERY = `
+  query GetPopularTitles(
     $country: Country!
+    $first: Int! = 70
+    $format: ImageFormat
     $language: Language!
-    $first: Int!
-    $sortBy: PopularTitlesSorting!
+    $after: String
+    $popularTitlesFilter: TitleFilter
+    $popularTitlesSortBy: PopularTitlesSorting! = POPULAR
     $profile: PosterProfile
-    $formatPoster: ImageFormat
+    $sortRandomSeed: Int! = 0
+    $watchNowFilter: WatchNowOfferFilter!
+    $offset: Int = 0
   ) {
     popularTitles(
       country: $country
-      filter: $searchTitlesFilter
+      filter: $popularTitlesFilter
       first: $first
-      sortBy: $sortBy
-      sortRandomSeed: 0
+      sortBy: $popularTitlesSortBy
+      sortRandomSeed: $sortRandomSeed
+      offset: $offset
+      after: $after
     ) {
       edges {
         node {
-          id
-          objectType
-          content(country: $country, language: $language) {
-            title
-            originalReleaseYear
-            shortDescription
-            genres {
-              shortName
-            }
-            externalIds {
-              imdbId
-            }
-            posterUrl(profile: $profile, format: $formatPoster)
-          }
+          ...PopularTitleGraphql
+          __typename
         }
       }
+      pageInfo {
+        startCursor
+        endCursor
+        hasPreviousPage
+        hasNextPage
+      }
+      totalCount
+    }
+  }
+
+  fragment PopularTitleGraphql on MovieOrShow {
+    id
+    objectId
+    objectType
+    content(country: $country, language: $language) {
+      title
+      fullPath
+      originalReleaseYear
+      shortDescription
+      genres {
+        shortName
+      }
+      externalIds {
+        imdbId
+      }
+      scoring {
+        imdbVotes
+        imdbScore
+        tmdbPopularity
+        tmdbScore
+      }
+      posterUrl(profile: $profile, format: $format)
+      isReleased
+      runtime
+    }
+    watchNowOffer(country: $country, platform: WEB, filter: $watchNowFilter) {
+      id
+      standardWebURL
+      streamUrl
+      streamUrlExternalPlayer
+      package {
+        id
+        packageId
+        clearName
+        shortName
+        technicalName
+        icon
+      }
+      retailPrice(language: $language)
+      retailPriceValue
+      currency
+      presentationType
+      monetizationType
+      availableTo
     }
   }
 `;
@@ -167,14 +214,16 @@ async function searchTitles({
   if (packages.length) filter.packages = packages;
   if (genres.length) filter.genres = genres;
 
-  const data = await gql(SEARCH_TITLES_QUERY, {
-    searchTitlesFilter: filter,
+  const data = await gql(GET_POPULAR_TITLES_QUERY, {
+    popularTitlesFilter: filter,
     country,
     language,
     first: Math.min(first, 50),
-    sortBy,
+    popularTitlesSortBy: sortBy,
+    sortRandomSeed: 0,
+    watchNowFilter: {},
     profile: 'S718',
-    formatPoster: 'JPG',
+    format: 'JPG',
   });
 
   const nodes = (data?.popularTitles?.edges || []).map((e) => e.node);

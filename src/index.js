@@ -13,6 +13,31 @@ const { getPackages }               = require('./justwatch');
 const PORT           = Number(process.env.PORT) || 7000;
 const CONFIGURE_HTML = fs.readFileSync(path.join(__dirname, 'configure.html'), 'utf8');
 
+// ─── Logger ───────────────────────────────────────────────────────────────────
+
+const LOG_FILE = path.join(__dirname, '..', 'addon.log');
+const logStream = fs.createWriteStream(LOG_FILE, { flags: 'a' });
+
+function log(...args) {
+  const line = `[${new Date().toISOString()}] ${args.join(' ')}\n`;
+  process.stdout.write(line);
+  logStream.write(line);
+}
+
+function logError(...args) {
+  const line = `[${new Date().toISOString()}] ERROR ${args.join(' ')}\n`;
+  process.stderr.write(line);
+  logStream.write(line);
+}
+
+// Redirect console so module-level logs also go to file
+const _consoleLog   = console.log.bind(console);
+const _consoleError = console.error.bind(console);
+const _consoleWarn  = console.warn.bind(console);
+console.log   = (...a) => log(...a);
+console.error = (...a) => logError(...a);
+console.warn  = (...a) => log('[WARN]', ...a);
+
 // ─── Response helpers ─────────────────────────────────────────────────────────
 
 function respond(res, data, status = 200) {
@@ -108,6 +133,11 @@ async function router(req, res) {
     return respond(res, { error: 'Invalid configuration' }, 400);
   }
 
+  // /{config}/configure  (Stremio builds this URL itself from the manifest path)
+  if (rest === 'configure') {
+    return redirect(res, `/configure?config=${encodeURIComponent(encodedConfig)}`);
+  }
+
   // /{config}/manifest.json
   if (rest === 'manifest.json') {
     let pkgInfoMap = {};
@@ -143,21 +173,25 @@ async function router(req, res) {
 
 http
   .createServer(async (req, res) => {
+    const start = Date.now();
     try {
       await router(req, res);
+      log(`${req.method} ${req.url} → ${res.statusCode} (${Date.now() - start}ms)`);
     } catch (err) {
-      console.error('[server] Unhandled error:', err.message);
+      logError(`[server] Unhandled error on ${req.method} ${req.url}:`, err.stack || err.message);
       if (!res.headersSent) respond(res, { error: 'Internal server error' }, 500);
     }
   })
   .listen(PORT, () => {
-    console.log(`
+    log(`Addon listening on port ${PORT} — log: ${LOG_FILE}`);
+    _consoleLog(`
 ╔══════════════════════════════════════════╗
 ║       Stremio JustWatch Addon            ║
 ╠══════════════════════════════════════════╣
 ║  Puerto      : ${String(PORT).padEnd(26)}║
 ╠══════════════════════════════════════════╣
 ║  Configurar → http://127.0.0.1:${PORT}/configure
+║  Log         : addon.log
 ╚══════════════════════════════════════════╝
 `);
   });

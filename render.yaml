@@ -1,0 +1,15 @@
+services:
+  - type: web
+    name: stremio-justwatch-addon
+    runtime: node
+    buildCommand: npm install
+    startCommand: npm start
+    # Render free tier: 750 h/month, spins down after 15 min of inactivity
+    plan: free
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 10000
+      - key: JUSTWATCH_COUNTRY
+        value: ES

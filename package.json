@@ -1,0 +1,19 @@
+{
+  "name": "stremio-justwatch-addon",
+  "version": "1.0.0",
+  "description": "Stremio addon that shows where to watch content using JustWatch",
+  "main": "src/index.js",
+  "engines": {
+    "node": ">=18"
+  },
+  "scripts": {
+    "start": "node src/index.js",
+    "dev": "nodemon src/index.js"
+  },
+  "dependencies": {
+    "axios": "^1.7.0"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.0"
+  }
+}

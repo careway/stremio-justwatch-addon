@@ -214,25 +214,6 @@ const GENRES = [
     },
   },
   {
-    code: "trl",
-    names: {
-      es: "Misterio",
-      en: "Mystery",
-      de: "Mystery",
-      fr: "Mystère",
-      it: "Mistero",
-      pt: "Mistério",
-      nl: "Mysterie",
-      sv: "Mystery",
-      no: "Mystery",
-      da: "Mystery",
-      fi: "Mysteeri",
-      pl: "Tajemnica",
-      ja: "ミステリー",
-      ko: "미스터리",
-    },
-  },
-  {
     code: "rma",
     names: {
       es: "Romance",

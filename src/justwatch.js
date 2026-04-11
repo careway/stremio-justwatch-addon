@@ -100,6 +100,7 @@ const GET_PACKAGES_QUERY = `
       packageId
       clearName
       technicalName
+      shortName
       icon(profile: S100)
     }
   }
@@ -270,6 +271,7 @@ async function getPackages(country = 'US') {
   const pkgs = (data?.packages || []).map((pkg) => ({
     ...pkg,
     iconUrl: pkg.icon ? `https://images.justwatch.com${pkg.icon}` : null,
+    // shortName is the correct identifier for TitleFilter.packages (e.g. 'nfx', 'dnp', 'prv')
   }));
   cacheSet(cacheKey, pkgs);
   return pkgs;

@@ -143,7 +143,7 @@ async function router(req, res) {
     let pkgInfoMap = {};
     try {
       const pkgs = await getPackages(config.country);
-      pkgInfoMap = Object.fromEntries(pkgs.map((p) => [p.technicalName, p]));
+      pkgInfoMap = Object.fromEntries(pkgs.map((p) => [p.shortName, p]));
     } catch (e) {
       console.error('[manifest] Could not fetch packages:', e.message);
     }

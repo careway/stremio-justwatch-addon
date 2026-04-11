@@ -27,14 +27,14 @@ function buildManifest(config, encodedConfig, pkgInfoMap, addonBaseUrl) {
 
   const catalogs = [];
 
-  for (const techName of packages) {
-    const info = pkgInfoMap[techName] || { clearName: techName };
+  for (const shortName of packages) {
+    const info = pkgInfoMap[shortName] || { clearName: shortName };
 
     for (const [sortKey, sortLabel] of Object.entries(SORT_LABELS)) {
       for (const type of ['movie', 'series']) {
         catalogs.push({
           type,
-          id: `jw_${sortKey}_${techName}`,
+          id: `jw_${sortKey}_${shortName}`,
           name: `${info.clearName} · ${sortLabel}`,
           extra: [
             { name: 'genre', options: GENRE_NAMES },

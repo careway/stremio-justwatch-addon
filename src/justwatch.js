@@ -1,8 +1,7 @@
 'use strict';
 
 const axios = require('axios');
-const fs    = require('fs');
-const path  = require('path');
+const Redis = require('ioredis');
 
 const GRAPHQL_URL = 'https://apis.justwatch.com/graphql';
 
@@ -139,52 +138,93 @@ function buildOffersQuery(country) {
   `;
 }
 
-// ─── Persistent cache ─────────────────────────────────────────────────────────
+// ─── Cache ────────────────────────────────────────────────────────────────────
 
-const CACHE_TTL_MS   = 5 * 60 * 1000; // 5 minutes
-const CACHE_FILE     = path.join(__dirname, '..', 'cache.json');
-const CACHE_SAVE_MS  = 30 * 1000;      // flush to disk at most every 30 s
+const CACHE_TTL_S  = 12 * 60 * 60;        // 12 hours (Redis uses seconds)
+const CACHE_TTL_MS = CACHE_TTL_S * 1000;  // 12 hours in ms (in-memory)
 
-const _cache = new Map();
-let _cacheDirty = false;
+// L1 — in-memory
+const _mem = new Map();
 
-// Load persisted cache from disk on startup
-try {
-  const raw = fs.readFileSync(CACHE_FILE, 'utf8');
-  const entries = JSON.parse(raw);
-  const now = Date.now();
-  for (const [key, value] of Object.entries(entries)) {
-    if (now - value.ts < CACHE_TTL_MS) _cache.set(key, value);
+// L2 — Redis; connect lazily, errors are non-fatal
+let _redis = null;
+let _redisReady = false;
+
+(function initRedis() {
+  try {
+    const client = new Redis({
+      host: process.env.REDIS_HOST || '127.0.0.1',
+      port: Number(process.env.REDIS_PORT) || 6379,
+      lazyConnect: true,
+      enableOfflineQueue: false,
+      connectTimeout: 2000,
+      maxRetriesPerRequest: 1,
+    });
+
+    client.on('ready', () => {
+      _redisReady = true;
+      console.log('[cache] Redis connected');
+    });
+
+    client.on('error', (err) => {
+      if (_redisReady) console.error('[cache] Redis error:', err.message);
+      _redisReady = false;
+    });
+
+    client.on('close', () => { _redisReady = false; });
+
+    client.connect().catch(() => {
+      console.warn('[cache] Redis unavailable — L1 in-memory only');
+    });
+
+    _redis = client;
+  } catch (err) {
+    console.warn('[cache] Redis init failed — L1 in-memory only:', err.message);
   }
-  console.log(`[cache] Loaded ${_cache.size} entries from disk`);
-} catch {
-  // File missing or corrupt — start fresh
+})();
+
+/**
+ * Lookup order: L1 in-memory → L2 Redis → (miss)
+ * On a Redis hit, the value is promoted back into L1.
+ */
+async function cacheGet(key) {
+  // L1: in-memory
+  const hit = _mem.get(key);
+  if (hit) {
+    if (Date.now() - hit.ts <= CACHE_TTL_MS) return hit.data;
+    _mem.delete(key);
+  }
+
+  // L2: Redis
+  if (_redisReady) {
+    try {
+      const raw = await _redis.get(key);
+      if (raw !== null) {
+        const data = JSON.parse(raw);
+        _mem.set(key, { data, ts: Date.now() }); // promote to L1
+        return data;
+      }
+    } catch (err) {
+      console.error('[cache] Redis GET error:', err.message);
+    }
+  }
+
+  return null; // full miss — caller fetches from JustWatch
 }
 
-// Periodically flush dirty cache to disk
-setInterval(() => {
-  if (!_cacheDirty) return;
-  _cacheDirty = false;
-  const obj = Object.fromEntries(_cache);
-  fs.writeFile(CACHE_FILE, JSON.stringify(obj), (err) => {
-    if (err) console.error('[cache] Failed to persist:', err);
-  });
-}, CACHE_SAVE_MS).unref(); // unref so this timer doesn't prevent clean exit
+/**
+ * Write to both L1 and L2 simultaneously.
+ */
+async function cacheSet(key, data) {
+  _mem.set(key, { data, ts: Date.now() });
 
-function cacheGet(key) {
-  const hit = _cache.get(key);
-  if (!hit) return null;
-  if (Date.now() - hit.ts > CACHE_TTL_MS) {
-    _cache.delete(key);
-    _cacheDirty = true;
-    return null;
+  if (_redisReady) {
+    try {
+      await _redis.set(key, JSON.stringify(data), 'EX', CACHE_TTL_S);
+    } catch (err) {
+      console.error('[cache] Redis SET error:', err.message);
+    }
   }
-  return hit.data;
-}
-
-function cacheSet(key, data) {
-  _cache.set(key, { data, ts: Date.now() });
-  _cacheDirty = true;
 }
 
 // ─── HTTP helper ──────────────────────────────────────────────────────────────
@@ -237,7 +277,7 @@ async function searchTitles({
   first = 50,
 } = {}) {
   const cacheKey = `search:${query}:${objectTypes.join(',')}:${packages.join(',')}:${genres.join(',')}:${sortBy}:${country}:${language}:${first}`;
-  const cached = cacheGet(cacheKey);
+  const cached = await cacheGet(cacheKey);
   if (cached) return cached;
 
   const filter = {};
@@ -259,7 +299,7 @@ async function searchTitles({
   });
 
   const nodes = (data?.popularTitles?.edges || []).map((e) => e.node);
-  cacheSet(cacheKey, nodes);
+  await cacheSet(cacheKey, nodes);
   return nodes;
 }
 
@@ -272,7 +312,7 @@ async function searchTitles({
  */
 async function getTitleOffers(nodeId, country = 'US', language = 'en') {
   const cacheKey = `offers:${nodeId}:${country}:${language}`;
-  const cached = cacheGet(cacheKey);
+  const cached = await cacheGet(cacheKey);
   if (cached) return cached;
 
   const data = await gql(buildOffersQuery(country), {
@@ -283,7 +323,7 @@ async function getTitleOffers(nodeId, country = 'US', language = 'en') {
   });
 
   const offers = data?.node?.[country.toLowerCase()] || [];
-  cacheSet(cacheKey, offers);
+  await cacheSet(cacheKey, offers);
   return offers;
 }
 
@@ -295,7 +335,7 @@ async function getTitleOffers(nodeId, country = 'US', language = 'en') {
  */
 async function getPackages(country = 'US') {
   const cacheKey = `packages:${country}`;
-  const cached = cacheGet(cacheKey);
+  const cached = await cacheGet(cacheKey);
   if (cached) return cached;
 
   const data = await gql(GET_PACKAGES_QUERY, { country, platform: 'WEB' });
@@ -305,7 +345,7 @@ async function getPackages(country = 'US') {
       ? `https://images.justwatch.com${pkg.icon.replace('{format}', 'webp')}`
       : null,
   }));
-  cacheSet(cacheKey, pkgs);
+  await cacheSet(cacheKey, pkgs);
   return pkgs;
 }
 

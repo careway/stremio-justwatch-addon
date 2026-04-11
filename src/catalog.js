@@ -71,7 +71,7 @@ async function handleCatalog({ type, id, extra }, config) {
 
     return { metas };
   } catch (err) {
-    console.error('[catalog] Error:', err.message);
+    console.error('[catalog] Error:', err);
     return { metas: [] };
   }
 }

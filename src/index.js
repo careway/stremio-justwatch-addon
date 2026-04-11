@@ -18,14 +18,22 @@ const CONFIGURE_HTML = fs.readFileSync(path.join(__dirname, 'configure.html'), '
 const LOG_FILE = path.join(__dirname, '..', 'addon.log');
 const logStream = fs.createWriteStream(LOG_FILE, { flags: 'a' });
 
+function formatArg(a) {
+  if (a instanceof Error) return a.stack || String(a);
+  if (typeof a === 'object' && a !== null) {
+    try { return JSON.stringify(a); } catch { return String(a); }
+  }
+  return String(a);
+}
+
 function log(...args) {
-  const line = `[${new Date().toISOString()}] ${args.join(' ')}\n`;
+  const line = `[${new Date().toISOString()}] ${args.map(formatArg).join(' ')}\n`;
   process.stdout.write(line);
   logStream.write(line);
 }
 
 function logError(...args) {
-  const line = `[${new Date().toISOString()}] ERROR ${args.join(' ')}\n`;
+  const line = `[${new Date().toISOString()}] ERROR ${args.map(formatArg).join(' ')}\n`;
   process.stderr.write(line);
   logStream.write(line);
 }
@@ -115,7 +123,7 @@ async function router(req, res) {
     try {
       return respond(res, await getPackages(country));
     } catch (err) {
-      console.error('[api/packages] Error:', err.message);
+      console.error('[api/packages] Error:', err);
       return respond(res, []);
     }
   }
@@ -145,7 +153,7 @@ async function router(req, res) {
       const pkgs = await getPackages(config.country);
       pkgInfoMap = Object.fromEntries(pkgs.map((p) => [p.shortName, p]));
     } catch (e) {
-      console.error('[manifest] Could not fetch packages:', e.message);
+      console.error('[manifest] Could not fetch packages:', e);
     }
     return respond(res, buildManifest(config, encodedConfig, pkgInfoMap, getAddonBaseUrl(req)));
   }

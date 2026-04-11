@@ -66,36 +66,7 @@ async function handleStream({ type, id }, config) {
     try {
       title = await fetchTitleFromCinemeta(type, imdbId);
     } catch (e) {
-      console.error(`[stream] Cinemeta error for ${imdbId}:`, e.message);
-    }
-
-    if (!title) {
-      console.warn(`[stream] Could not resolve title for ${imdbId}`);
-      return { streams: [] };
-    }
-
-    const jwType = type === 'movie' ? 'MOVIE' : 'SHOW';
-    const node   = await findJustWatchNode(title, imdbId, jwType, country, language);
-
-    if (!node) {
-      console.warn(`[stream] JustWatch: no match for "${title}" (${imdbId})`);
-      return { streams: [] };
-    }
-
-    const offers = await getTitleOffers(node.id, country, language);
-    if (!offers.length) return { streams: [] };
-
-    const sorted = [...offers].sort((a, b) => {
-      const ai = MONETIZATION_ORDER.indexOf(a.monetizationType);
-      const bi = MONETIZATION_ORDER.indexOf(b.monetizationType);
-      return (ai === -1 ? 99 : ai) - (bi === -1 ? 99 : bi);
-    });
-
-    const streams = sorted.filter((o) => o.standardWebURL).map(offerToStream);
-    console.log(`[stream] ${imdbId} → ${streams.length} offers in ${country}`);
-    return { streams };
-  } catch (err) {
-    console.error(`[stream] Unhandled error for ${imdbId}:`, err.message);
+      console.error(`[stream] Cinemeta error for ${imdbId}:`, e);
     return { streams: [] };
   }
 }
@@ -169,45 +140,7 @@ async function handleStream({ type, id }) {
     try {
       title = await fetchTitleFromCinemeta(type, imdbId);
     } catch (e) {
-      console.error(`[stream] Cinemeta error for ${imdbId}:`, e.message);
-    }
-
-    if (!title) {
-      console.warn(`[stream] Could not resolve title for ${imdbId}`);
-      return { streams: [] };
-    }
-
-    // 2. Find the matching JustWatch node using the title + IMDB ID
-    const jwType = type === 'movie' ? 'MOVIE' : 'SHOW';
-    const node = await findJustWatchNode(title, imdbId, jwType);
-
-    if (!node) {
-      console.warn(`[stream] JustWatch: no match for "${title}" (${imdbId})`);
-      return { streams: [] };
-    }
-
-    // 3. Fetch streaming offers for this node
-    const offers = await getTitleOffers(node.id, COUNTRY);
-
-    if (!offers.length) {
-      return { streams: [] };
-    }
-
-    // 4. Sort by monetization priority, then build stream objects
-    const sorted = [...offers].sort((a, b) => {
-      const ai = MONETIZATION_ORDER.indexOf(a.monetizationType);
-      const bi = MONETIZATION_ORDER.indexOf(b.monetizationType);
-      return (ai === -1 ? 99 : ai) - (bi === -1 ? 99 : bi);
-    });
-
-    const streams = sorted
-      .filter((o) => o.standardWebURL)
-      .map(offerToStream);
-
-    console.log(`[stream] ${imdbId} → ${streams.length} offers in ${COUNTRY}`);
-    return { streams };
-  } catch (err) {
-    console.error(`[stream] Unhandled error for ${imdbId}:`, err.message);
+      console.error(`[stream] Cinemeta error for ${imdbId}:`, e);
     return { streams: [] };
   }
 }

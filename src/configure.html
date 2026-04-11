@@ -632,23 +632,30 @@
         pkgGrid
           .querySelectorAll('input[type="checkbox"]')
           .forEach((c) => (c.checked = true));
+        if (resultEl.classList.contains("visible")) generateUrl();
       });
 
       btnNone.addEventListener("click", () => {
         pkgGrid
           .querySelectorAll('input[type="checkbox"]')
           .forEach((c) => (c.checked = false));
+        if (resultEl.classList.contains("visible")) generateUrl();
       });
 
-      countrySel.addEventListener("change", () =>
-        loadPackages(countrySel.value),
-      );
+      pkgGrid.addEventListener("change", (e) => {
+        if (e.target.type === "checkbox" && resultEl.classList.contains("visible")) generateUrl();
+      });
 
-      btnGenerate.addEventListener("click", () => {
+      countrySel.addEventListener("change", () => {
+        loadPackages(countrySel.value);
+        if (resultEl.classList.contains("visible")) generateUrl();
+      });
+
+      function generateUrl() {
         const selected = getChecked();
         if (!selected.length) {
           showError("Selecciona al menos un proveedor.");
-          return;
+          return null;
         }
         showError("");
 
@@ -661,15 +668,22 @@
         const encoded = encodeConfig(config);
         const base = window.location.origin;
         const manifest = `${base}/${encoded}/manifest.json`;
-        const stremioUrl = manifest.replace(/^https?:\/\//, "stremio://");
-
         urlOut.value = manifest;
-
-        // Open Stremio directly
-        window.location.href = stremioUrl;
-
         resultEl.classList.add("visible");
         resultEl.scrollIntoView({ behavior: "smooth", block: "nearest" });
+        return manifest;
+      }
+
+      languageSel.addEventListener("change", () => {
+        if (resultEl.classList.contains("visible")) generateUrl();
+      });
+
+
+      btnGenerate.addEventListener("click", () => {
+        const manifest = generateUrl();
+        if (!manifest) return;
+        const stremioUrl = manifest.replace(/^https?:\/\//, "stremio://");
+        window.location.href = stremioUrl;
       });
 
       btnCopy.addEventListener("click", () => {

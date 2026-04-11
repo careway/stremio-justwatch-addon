@@ -11,9 +11,9 @@ const SORT_LABELS = {
 /**
  * Build a Stremio manifest dynamically for a given user config.
  *
- * Catalog ID format: jw_{sortKey}_{technicalName}
- *   sortKey      = 'pop' | 'new'
- *   technicalName = JustWatch package technical name (may contain underscores)
+ * Catalog ID format: jw_{sortKey}_{shortName}
+ *   sortKey   = 'pop' | 'new'
+ *   shortName = JustWatch package shortName (e.g. nfx, dnp, prv)
  *
  * 4 catalogs are generated per selected provider (2 sorts × 2 types).
  *
@@ -50,7 +50,7 @@ function buildManifest(config, encodedConfig, pkgInfoMap, addonBaseUrl) {
     id: 'community.justwatch.stremio.addon',
     version: '1.0.0',
     name: 'JustWatch',
-    description: `Descubre dónde ver el contenido vía JustWatch. País: ${country} · Idioma: ${language}.`,
+    description: `Descubre dónde ver el contenido vía JustWatch. País: ${country}.`,
     logo: 'https://www.justwatch.com/appassets/img/logo/JustWatch-logo-large.webp',
     background: 'https://images.justwatch.com/backdrop/305764650/s1920/the-substance.jpg',
     resources: [

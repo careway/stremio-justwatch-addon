@@ -92,6 +92,17 @@ function getAddonBaseUrl(req) {
   return `${proto}://${host}`;
 }
 
+/**
+ * Parse the primary language tag from the Accept-Language header.
+ * e.g. "es-ES,es;q=0.9,en;q=0.8" → "es"
+ * Falls back to 'en' if missing or unrecognised.
+ */
+function getLanguageFromRequest(req) {
+  const header  = req.headers['accept-language'] || '';
+  const primary = header.split(',')[0].trim().split(/[-;]/)[0].trim().toLowerCase();
+  return /^[a-z]{2,3}$/.test(primary) ? primary : 'en';
+}
+
 // ─── Router ───────────────────────────────────────────────────────────────────
 
 async function router(req, res) {
@@ -140,6 +151,8 @@ async function router(req, res) {
   if (!config) {
     return respond(res, { error: 'Invalid configuration' }, 400);
   }
+  // Inject language from the request's Accept-Language header
+  config.language = getLanguageFromRequest(req);
 
   // /{config}/configure  (Stremio builds this URL itself from the manifest path)
   if (rest === 'configure') {

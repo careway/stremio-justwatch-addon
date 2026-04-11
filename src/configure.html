@@ -244,25 +244,6 @@
         <option value="KR">Corea del Sur</option>
       </select>
     </div>
-    <div class="field">
-      <label for="sel-lang">Idioma de títulos</label>
-      <select id="sel-lang">
-        <option value="es">Español</option>
-        <option value="en">English</option>
-        <option value="de">Deutsch</option>
-        <option value="fr">Français</option>
-        <option value="it">Italiano</option>
-        <option value="pt">Português</option>
-        <option value="nl">Nederlands</option>
-        <option value="sv">Svenska</option>
-        <option value="no">Norsk</option>
-        <option value="da">Dansk</option>
-        <option value="fi">Suomi</option>
-        <option value="pl">Polski</option>
-        <option value="ja">日本語</option>
-        <option value="ko">한국어</option>
-      </select>
-    </div>
   </div>
 
   <hr class="divider">
@@ -311,7 +292,6 @@
 <script>
 // ── Elements ──────────────────────────────────────────────────────────────────
 const countrySel  = document.getElementById('sel-country');
-const langSel     = document.getElementById('sel-lang');
 const pkgGrid     = document.getElementById('pkg-grid');
 const btnAll      = document.getElementById('btn-all');
 const btnNone     = document.getElementById('btn-none');
@@ -415,7 +395,6 @@ btnGenerate.addEventListener('click', () => {
 
   const config = {
     country: countrySel.value,
-    language: langSel.value,
     packages: selected,
   };
 
@@ -451,8 +430,7 @@ btnCopy.addEventListener('click', () => {
   let preConfig   = cfgParam ? decodeConfig(cfgParam) : null;
 
   if (preConfig) {
-    if (preConfig.country)  countrySel.value = preConfig.country;
-    if (preConfig.language) langSel.value    = preConfig.language;
+    if (preConfig.country) countrySel.value = preConfig.country;
   }
 
   loadPackages(countrySel.value, preConfig ? preConfig.packages : null);

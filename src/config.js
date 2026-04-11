@@ -64,29 +64,11 @@ const COUNTRIES = [
   { code: 'KR', name: 'Corea del Sur' },
 ];
 
-// ─── Languages ────────────────────────────────────────────────────────────────
-const LANGUAGES = [
-  { code: 'es', name: 'Español' },
-  { code: 'en', name: 'English' },
-  { code: 'de', name: 'Deutsch' },
-  { code: 'fr', name: 'Français' },
-  { code: 'it', name: 'Italiano' },
-  { code: 'pt', name: 'Português' },
-  { code: 'nl', name: 'Nederlands' },
-  { code: 'sv', name: 'Svenska' },
-  { code: 'no', name: 'Norsk' },
-  { code: 'da', name: 'Dansk' },
-  { code: 'fi', name: 'Suomi' },
-  { code: 'pl', name: 'Polski' },
-  { code: 'ja', name: '日本語' },
-  { code: 'ko', name: '한국어' },
-];
-
 // ─── Config encode / decode ───────────────────────────────────────────────────
 
 /**
  * Encode a config object to a base64url string.
- * Config: { country: string, language: string, packages: string[] }
+ * Config: { country: string, packages: string[] }
  */
 function encodeConfig(config) {
   return Buffer.from(JSON.stringify(config)).toString('base64url');
@@ -102,14 +84,12 @@ function decodeConfig(encoded) {
     const config = JSON.parse(json);
     if (
       typeof config.country !== 'string' ||
-      typeof config.language !== 'string' ||
       !Array.isArray(config.packages)
     ) {
       return null;
     }
     // Sanitize: only accept well-formed values
     config.country = config.country.toUpperCase().slice(0, 4).replace(/[^A-Z]/g, '') || 'US';
-    config.language = config.language.toLowerCase().slice(0, 5).replace(/[^a-z-]/g, '') || 'en';
     config.packages = config.packages
       .filter((p) => typeof p === 'string' && /^[a-z0-9_-]{1,30}$/.test(p))
       .slice(0, 30);
@@ -125,7 +105,6 @@ module.exports = {
   GENRE_NAMES,
   SORT_MAP,
   COUNTRIES,
-  LANGUAGES,
   encodeConfig,
   decodeConfig,
 };

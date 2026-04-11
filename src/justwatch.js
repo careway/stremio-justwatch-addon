@@ -1,7 +1,7 @@
 "use strict";
 
 const axios = require("axios");
-const Redis = require("ioredis");
+const { Redis } = require("@upstash/redis");
 
 const GRAPHQL_URL = "https://apis.justwatch.com/graphql";
 
@@ -146,50 +146,18 @@ const CACHE_TTL_MS = CACHE_TTL_S * 1000; // 12 hours in ms (in-memory)
 // L1 — in-memory
 const _mem = new Map();
 
-// L2 — Redis; connect lazily, errors are non-fatal
+// L2 — Upstash Redis via HTTP (no TCP sockets, safe for serverless)
 let _redis = null;
-let _redisReady = false;
 
-(function initRedis() {
-  try {
-    const client = process.env.REDIS_URL
-      ? new Redis(process.env.REDIS_URL, {
-          lazyConnect: true,
-          enableOfflineQueue: false,
-          maxRetriesPerRequest: 1,
-        })
-      : new Redis({
-          host: process.env.REDIS_HOST || "127.0.0.1",
-          port: Number(process.env.REDIS_PORT) || 6379,
-          lazyConnect: true,
-          enableOfflineQueue: false,
-          connectTimeout: 2000,
-          maxRetriesPerRequest: 1,
-        });
-
-    client.on("ready", () => {
-      _redisReady = true;
-      console.log("[cache] Redis connected");
-    });
-
-    client.on("error", (err) => {
-      if (_redisReady) console.error("[cache] Redis error:", err.message);
-      _redisReady = false;
-    });
-
-    client.on("close", () => {
-      _redisReady = false;
-    });
-
-    client.connect().catch(() => {
-      console.warn("[cache] Redis unavailable — L1 in-memory only");
-    });
-
-    _redis = client;
-  } catch (err) {
-    console.warn("[cache] Redis init failed — L1 in-memory only:", err.message);
+function getRedis() {
+  if (_redis) return _redis;
+  const url = process.env.REDIS_KV_REST_API_URL || process.env.UPSTASH_REDIS_REST_URL;
+  const token = process.env.REDIS_KV_REST_API_TOKEN || process.env.UPSTASH_REDIS_REST_TOKEN;
+  if (url && token) {
+    _redis = new Redis({ url, token });
   }
-})();
+  return _redis;
+}
 
 /**
  * Lookup order: L1 in-memory → L2 Redis → (miss)
@@ -203,12 +171,12 @@ async function cacheGet(key) {
     _mem.delete(key);
   }
 
-  // L2: Redis
-  if (_redisReady) {
+  // L2: Upstash Redis (HTTP)
+  const redis = getRedis();
+  if (redis) {
     try {
-      const raw = await _redis.get(key);
-      if (raw !== null) {
-        const data = JSON.parse(raw);
+      const data = await redis.get(key); // @upstash/redis auto-parses JSON
+      if (data !== null) {
         _mem.set(key, { data, ts: Date.now() }); // promote to L1
         return data;
       }
@@ -226,9 +194,10 @@ async function cacheGet(key) {
 async function cacheSet(key, data) {
   _mem.set(key, { data, ts: Date.now() });
 
-  if (_redisReady) {
+  const redis = getRedis();
+  if (redis) {
     try {
-      await _redis.set(key, JSON.stringify(data), "EX", CACHE_TTL_S);
+      await redis.set(key, data, { ex: CACHE_TTL_S }); // @upstash/redis auto-serializes
     } catch (err) {
       console.error("[cache] Redis SET error:", err.message);
     }
@@ -272,7 +241,8 @@ async function gql(query, variables) {
  * @param {string}   opts.sortBy      - 'POPULAR' | 'NEWLY_ADDED'
  * @param {string}   opts.country     - ISO country code (e.g. 'ES')
  * @param {string}   opts.language    - BCP47 language code (e.g. 'es')
- * @param {number}   opts.first       - Max results (capped at 50)
+ * @param {number}   opts.first       - Results per page (max 50)
+ * @param {number}   opts.offset      - Pagination offset (0, 50, 100, ...)
  */
 async function searchTitles({
   query = "",
@@ -283,8 +253,9 @@ async function searchTitles({
   country = "US",
   language = "en",
   first = 50,
+  offset = 0,
 } = {}) {
-  const cacheKey = `search:${query}:${objectTypes.join(",")}:${packages.join(",")}:${genres.join(",")}:${sortBy}:${country}:${language}:${first}`;
+  const cacheKey = `search:${query}:${objectTypes.join(",")}:${packages.join(",")}:${genres.join(",")}:${sortBy}:${country}:${language}:${first}:${offset}`;
   const cached = await cacheGet(cacheKey);
   if (cached) return cached;
 
@@ -299,6 +270,7 @@ async function searchTitles({
     country,
     language,
     first: Math.min(first, 50),
+    offset,
     popularTitlesSortBy: sortBy,
     sortRandomSeed: 0,
     watchNowFilter: {},

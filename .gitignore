@@ -4,3 +4,4 @@
 node_modules/
 addon.log
 cache.json
+.vercel

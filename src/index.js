@@ -23,9 +23,10 @@ const isProduction = process.env.NODE_ENV === "production";
 
 // File logging only in local dev (Vercel's filesystem is read-only)
 let logStream = null;
-if (!isProduction) {
+if (!isProduction && !process.env.VERCEL) {
   try {
     logStream = fs.createWriteStream(LOG_FILE, { flags: "a" });
+    logStream.on("error", () => { logStream = null; });
   } catch {
     /* ignore */
   }

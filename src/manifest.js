@@ -38,9 +38,9 @@ function buildManifest(config, encodedConfig, pkgInfoMap, addonBaseUrl) {
           id: `jw_${sortKey}_${shortName}`,
           name: `${info.clearName} · ${sortLabel}`,
           extra: [
-            { name: "generos", options: getGenreNames(language) },
-            { name: "search" },
-            { name: "skip" },
+            { name: "genre", options: getGenreNames(language), isRequired: false },
+            { name: "search", isRequired: false },
+            { name: "skip", isRequired: false },
           ],
         });
       }
@@ -57,17 +57,16 @@ function buildManifest(config, encodedConfig, pkgInfoMap, addonBaseUrl) {
       "https://images.justwatch.com/backdrop/305764650/s1920/the-substance.jpg",
     resources: [
       "catalog",
-      { resource: "stream", type: "movie", idPrefixes: ["tt"] },
-      { resource: "stream", type: "series", idPrefixes: ["tt"] },
+      { name: "stream", types: ["movie"], idPrefixes: ["tt"] },
+      { name: "stream", types: ["series"], idPrefixes: ["tt"] },
     ],
     types: ["movie", "series"],
     catalogs,
     behaviorHints: {
       configurable: true,
+      configurationRequired: false,
       adult: false,
     },
-    // Points back to this exact configuration so the Stremio gear button pre-fills the form
-    configurationURL: `${addonBaseUrl}/configure?config=${encodedConfig}`,
   };
 }
 

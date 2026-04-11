@@ -41,11 +41,12 @@ function nodeToMeta(node, language) {
  * @param {object} args
  * @param {string} args.type   - 'movie' | 'series'
  * @param {string} args.id     - Catalog ID (e.g. jw_pop_nfx)
- * @param {object} args.extra  - { search?, generos?, skip? } from Stremio
+ * @param {object} args.extra  - { search?, genre?, skip? } from Stremio
  * @param {object} config      - { country, language, packages }
  */
 async function handleCatalog({ type, id, extra }, config) {
-  const { search, generos: genre } = extra || {};
+  const { search, genre, skip } = extra || {};
+  const offset = Math.max(0, parseInt(skip, 10) || 0);
   const jwType = TYPE_TO_JW[type];
 
   // Parse: jw_{sortKey}_{technicalName...}
@@ -67,6 +68,7 @@ async function handleCatalog({ type, id, extra }, config) {
       country: config.country,
       language: config.language,
       first: 50,
+      offset,
     });
 
     const metas = titles

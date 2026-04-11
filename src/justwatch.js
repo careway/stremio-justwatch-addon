@@ -1,6 +1,8 @@
 'use strict';
 
 const axios = require('axios');
+const fs    = require('fs');
+const path  = require('path');
 
 const GRAPHQL_URL = 'https://apis.justwatch.com/graphql';
 
@@ -137,16 +139,44 @@ function buildOffersQuery(country) {
   `;
 }
 
-// ─── Simple in-memory cache ───────────────────────────────────────────────────
+// ─── Persistent cache ─────────────────────────────────────────────────────────
 
-const CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
+const CACHE_TTL_MS   = 5 * 60 * 1000; // 5 minutes
+const CACHE_FILE     = path.join(__dirname, '..', 'cache.json');
+const CACHE_SAVE_MS  = 30 * 1000;      // flush to disk at most every 30 s
+
 const _cache = new Map();
+let _cacheDirty = false;
+
+// Load persisted cache from disk on startup
+try {
+  const raw = fs.readFileSync(CACHE_FILE, 'utf8');
+  const entries = JSON.parse(raw);
+  const now = Date.now();
+  for (const [key, value] of Object.entries(entries)) {
+    if (now - value.ts < CACHE_TTL_MS) _cache.set(key, value);
+  }
+  console.log(`[cache] Loaded ${_cache.size} entries from disk`);
+} catch {
+  // File missing or corrupt — start fresh
+}
+
+// Periodically flush dirty cache to disk
+setInterval(() => {
+  if (!_cacheDirty) return;
+  _cacheDirty = false;
+  const obj = Object.fromEntries(_cache);
+  fs.writeFile(CACHE_FILE, JSON.stringify(obj), (err) => {
+    if (err) console.error('[cache] Failed to persist:', err);
+  });
+}, CACHE_SAVE_MS).unref(); // unref so this timer doesn't prevent clean exit
 
 function cacheGet(key) {
   const hit = _cache.get(key);
   if (!hit) return null;
   if (Date.now() - hit.ts > CACHE_TTL_MS) {
     _cache.delete(key);
+    _cacheDirty = true;
     return null;
   }
   return hit.data;
@@ -154,6 +184,7 @@ function cacheGet(key) {
 
 function cacheSet(key, data) {
   _cache.set(key, { data, ts: Date.now() });
+  _cacheDirty = true;
 }
 
 // ─── HTTP helper ──────────────────────────────────────────────────────────────

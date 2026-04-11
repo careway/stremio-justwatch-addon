@@ -381,7 +381,7 @@ function renderPackages(pkgs, preSelected) {
     return `
       <div class="pkg-item">
         <input type="checkbox" id="pkg-${pkg.shortName}" value="${pkg.shortName}" ${isChecked}>
-        <label class="pkg-label" for="pkg-${pkg.shortName}">`
+        <label class="pkg-label" for="pkg-${pkg.shortName}">
           ${icon}
           <span class="pkg-name">${pkg.clearName}</span>
           <div class="pkg-check">

@@ -270,8 +270,9 @@ async function getPackages(country = 'US') {
   const data = await gql(GET_PACKAGES_QUERY, { country, platform: 'WEB' });
   const pkgs = (data?.packages || []).map((pkg) => ({
     ...pkg,
-    iconUrl: pkg.icon ? `https://images.justwatch.com${pkg.icon}` : null,
-    // shortName is the correct identifier for TitleFilter.packages (e.g. 'nfx', 'dnp', 'prv')
+    iconUrl: pkg.icon
+      ? `https://images.justwatch.com${pkg.icon.replace('{format}', 'webp')}`
+      : null,
   }));
   cacheSet(cacheKey, pkgs);
   return pkgs;

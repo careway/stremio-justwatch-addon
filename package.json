@@ -1,7 +1,7 @@
 {
   "name": "stremio-justwatch-addon",
   "version": "1.0.0",
-  "description": "Stremio addon that shows where to watch content using JustWatch",
+  "description": "Stremio addon that shows Services Catalogs to watch content using JustWatch",
   "main": "src/index.js",
   "engines": {
     "node": ">=18"

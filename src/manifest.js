@@ -1,11 +1,11 @@
-'use strict';
+"use strict";
 
-const { getGenreNames, SORT_MAP } = require('./config');
+const { getGenreNames, SORT_MAP } = require("./config");
 
 // Human-readable sort labels shown in Stremio's catalog header
 const SORT_LABELS = {
-  pop: 'Popular',
-  new: 'Nuevo',
+  pop: "Popular",
+  new: "Nuevo",
 };
 
 /**
@@ -31,15 +31,15 @@ function buildManifest(config, encodedConfig, pkgInfoMap, addonBaseUrl) {
     const info = pkgInfoMap[shortName] || { clearName: shortName };
 
     for (const [sortKey, sortLabel] of Object.entries(SORT_LABELS)) {
-      for (const type of ['movie', 'series']) {
+      for (const type of ["movie", "series"]) {
         catalogs.push({
           type,
           id: `jw_${sortKey}_${shortName}`,
           name: `${info.clearName} · ${sortLabel}`,
           extra: [
-            { name: 'genre', options: getGenreNames(language) },
-            { name: 'search' },
-            { name: 'skip' },
+            { name: "generos", options: getGenreNames(language) },
+            { name: "search" },
+            { name: "skip" },
           ],
         });
       }
@@ -47,18 +47,19 @@ function buildManifest(config, encodedConfig, pkgInfoMap, addonBaseUrl) {
   }
 
   return {
-    id: 'community.justwatch.stremio.addon',
-    version: '1.0.0',
-    name: 'JustWatch',
+    id: "community.justwatch.stremio.addon",
+    version: "1.0.0",
+    name: "JustWatch",
     description: `Descubre dónde ver el contenido vía JustWatch. País: ${country}.`,
-    logo: 'https://www.justwatch.com/appassets/img/logo/JustWatch-logo-large.webp',
-    background: 'https://images.justwatch.com/backdrop/305764650/s1920/the-substance.jpg',
+    logo: "https://www.justwatch.com/appassets/img/logo/JustWatch-logo-large.webp",
+    background:
+      "https://images.justwatch.com/backdrop/305764650/s1920/the-substance.jpg",
     resources: [
-      'catalog',
-      { resource: 'stream', type: 'movie',  idPrefixes: ['tt'] },
-      { resource: 'stream', type: 'series', idPrefixes: ['tt'] },
+      "catalog",
+      { resource: "stream", type: "movie", idPrefixes: ["tt"] },
+      { resource: "stream", type: "series", idPrefixes: ["tt"] },
     ],
-    types: ['movie', 'series'],
+    types: ["movie", "series"],
     catalogs,
     behaviorHints: {
       configurable: true,

@@ -119,11 +119,56 @@ function getAddonBaseUrl(req) {
 }
 
 /**
- * Parse the primary language tag from the Accept-Language header.
- * e.g. "es-ES,es;q=0.9,en;q=0.8" → "es"
- * Falls back to 'en' if missing or unrecognised.
+ * Primary language for each supported country.
+ * Used as fallback when the Accept-Language header is absent or returns 'en'
+ * but the configured country speaks a different language.
  */
-function getLanguageFromRequest(req) {
+const COUNTRY_LANGUAGE = {
+  // Spanish
+  ES: "es",
+  MX: "es",
+  AR: "es",
+  CL: "es",
+  CO: "es",
+  PE: "es",
+  VE: "es",
+  UY: "es",
+  BO: "es",
+  PY: "es",
+  EC: "es",
+  // Portuguese
+  BR: "pt",
+  PT: "pt",
+  // German
+  DE: "de",
+  AT: "de",
+  CH: "de",
+  // French
+  FR: "fr",
+  BE: "fr",
+  LU: "fr",
+  // Italian
+  IT: "it",
+  // Dutch
+  NL: "nl",
+  // Nordic
+  SE: "sv",
+  NO: "no",
+  DK: "da",
+  FI: "fi",
+  // Other
+  PL: "pl",
+  JP: "ja",
+  KR: "ko",
+};
+
+/**
+ * Parse the primary language tag from the Accept-Language header.
+ * Falls back to the country's primary language, then 'en'.
+ * @param {object} req
+ * @param {string} [countryCode] - ISO country code from config, used as fallback
+ */
+function getLanguageFromRequest(req, countryCode) {
   const header = req.headers["accept-language"] || "";
   const primary = header
     .split(",")[0]
@@ -131,7 +176,9 @@ function getLanguageFromRequest(req) {
     .split(/[-;]/)[0]
     .trim()
     .toLowerCase();
-  return /^[a-z]{2,3}$/.test(primary) ? primary : "en";
+  if (/^[a-z]{2,3}$/.test(primary) && primary !== "en") return primary;
+  // Header absent, malformed, or English — fall back to country
+  return COUNTRY_LANGUAGE[countryCode] || primary || "en";
 }
 
 // ─── Router ───────────────────────────────────────────────────────────────────
@@ -187,8 +234,10 @@ async function router(req, res) {
   if (!config) {
     return respond(res, { error: "Invalid configuration" }, 400);
   }
-  // Inject language from the request's Accept-Language header
-  config.language = getLanguageFromRequest(req);
+  // Inject language: explicit config language → Accept-Language header → country default
+  if (!config.language) {
+    config.language = getLanguageFromRequest(req, config.country);
+  }
 
   // /{config}/configure  (Stremio builds this URL itself from the manifest path)
   if (rest === "configure") {

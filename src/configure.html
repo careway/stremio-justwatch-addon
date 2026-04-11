@@ -1,364 +1,566 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="es">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>JustWatch · Stremio Addon</title>
-  <style>
-    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-    :root {
-      --bg: #10141e;
-      --surface: #161d2f;
-      --surface2: #1a2234;
-      --border: #2a3550;
-      --text: #e2e8f0;
-      --muted: #7a8aa0;
-      --accent: #e8a230;
-      --accent-dim: #b97e1e;
-      --green: #4ade80;
-      --red: #f87171;
-    }
-    body {
-      background: var(--bg);
-      color: var(--text);
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-      min-height: 100vh;
-      display: flex;
-      justify-content: center;
-      align-items: flex-start;
-      padding: 2rem 1rem 4rem;
-    }
-    .card {
-      background: var(--surface);
-      border: 1px solid var(--border);
-      border-radius: 14px;
-      padding: 2rem;
-      width: 100%;
-      max-width: 680px;
-    }
-    .header {
-      display: flex;
-      align-items: center;
-      gap: 0.75rem;
-      margin-bottom: 0.4rem;
-    }
-    .header img { width: 32px; height: 32px; border-radius: 6px; flex-shrink: 0; }
-    h1 { font-size: 1.4rem; font-weight: 700; }
-    .subtitle { color: var(--muted); font-size: 0.88rem; margin-bottom: 1.5rem; }
-    .divider { border: none; border-top: 1px solid var(--border); margin: 1.5rem 0; }
-    .row { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
-    .field { display: flex; flex-direction: column; gap: 0.35rem; }
-    label { font-size: 0.75rem; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: 0.06em; }
-    select {
-      background: var(--bg);
-      color: var(--text);
-      border: 1px solid var(--border);
-      border-radius: 7px;
-      padding: 0.55rem 0.75rem;
-      font-size: 0.93rem;
-      cursor: pointer;
-      width: 100%;
-      appearance: none;
-      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath fill='%237a8aa0' d='M1 1l5 5 5-5'/%3E%3C/svg%3E");
-      background-repeat: no-repeat;
-      background-position: right 0.75rem center;
-      padding-right: 2rem;
-    }
-    select:focus { outline: 2px solid var(--accent); outline-offset: 2px; border-color: transparent; }
-    .section-header {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      margin-bottom: 0.75rem;
-    }
-    .section-title { font-size: 0.75rem; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: 0.06em; }
-    .link-btns { display: flex; gap: 0.4rem; }
-    .link-btn {
-      background: none;
-      border: 1px solid var(--border);
-      color: var(--muted);
-      padding: 0.2rem 0.6rem;
-      border-radius: 5px;
-      font-size: 0.72rem;
-      cursor: pointer;
-      transition: border-color 0.12s, color 0.12s;
-    }
-    .link-btn:hover { border-color: var(--accent); color: var(--accent); }
-    #pkg-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(104px, 1fr));
-      gap: 0.55rem;
-      min-height: 90px;
-    }
-    .pkg-item { position: relative; }
-    .pkg-item input[type="checkbox"] { position: absolute; opacity: 0; width: 1px; height: 1px; }
-    .pkg-label {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      gap: 0.5rem;
-      padding: 0.75rem 0.5rem 0.55rem;
-      border: 2px solid var(--border);
-      border-radius: 10px;
-      cursor: pointer;
-      transition: border-color 0.12s, background 0.12s;
-      background: var(--bg);
-      text-align: center;
-      user-select: none;
-    }
-    .pkg-label:hover { border-color: var(--accent-dim); }
-    .pkg-item input:checked + .pkg-label { border-color: var(--accent); background: #e8a23012; }
-    .pkg-icon {
-      width: 44px;
-      height: 44px;
-      border-radius: 8px;
-      object-fit: contain;
-      background: #ffffff10;
-    }
-    .pkg-icon-placeholder {
-      width: 44px;
-      height: 44px;
-      border-radius: 8px;
-      background: var(--border);
-    }
-    .pkg-name { font-size: 0.68rem; color: var(--muted); line-height: 1.25; max-width: 90px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-    .pkg-check {
-      position: absolute;
-      top: 5px;
-      right: 5px;
-      width: 16px;
-      height: 16px;
-      border-radius: 50%;
-      background: var(--accent);
-      display: none;
-      align-items: center;
-      justify-content: center;
-    }
-    .pkg-check svg { width: 10px; height: 10px; }
-    .pkg-item input:checked ~ .pkg-label .pkg-check { display: flex; }
-    .state-box {
-      display: flex;
-      align-items: center;
-      gap: 0.5rem;
-      color: var(--muted);
-      font-size: 0.88rem;
-      padding: 1rem 0;
-    }
-    .spinner {
-      width: 18px;
-      height: 18px;
-      border: 2px solid var(--border);
-      border-top-color: var(--accent);
-      border-radius: 50%;
-      animation: spin 0.65s linear infinite;
-      flex-shrink: 0;
-    }
-    @keyframes spin { to { transform: rotate(360deg); } }
-    .error-box { color: var(--red); font-size: 0.85rem; padding: 0.5rem 0; }
-    .actions { display: flex; justify-content: flex-end; }
-    .btn {
-      display: inline-flex;
-      align-items: center;
-      gap: 0.4rem;
-      padding: 0.6rem 1.2rem;
-      border: none;
-      border-radius: 8px;
-      font-size: 0.92rem;
-      font-weight: 600;
-      cursor: pointer;
-      transition: opacity 0.12s, transform 0.08s;
-      text-decoration: none;
-    }
-    .btn:hover { opacity: 0.88; }
-    .btn:active { transform: scale(0.97); }
-    .btn-primary { background: var(--accent); color: #000; }
-    .btn-secondary { background: var(--border); color: var(--text); }
-    .result { display: none; margin-top: 1.25rem; background: var(--surface2); border: 1px solid var(--border); border-radius: 10px; padding: 1.25rem; }
-    .result.visible { display: block; }
-    .result-label { font-size: 0.75rem; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 0.5rem; }
-    .url-row { display: flex; gap: 0.5rem; margin-bottom: 1rem; }
-    .url-input {
-      flex: 1;
-      background: var(--bg);
-      color: var(--text);
-      border: 1px solid var(--border);
-      border-radius: 7px;
-      padding: 0.5rem 0.75rem;
-      font-size: 0.78rem;
-      font-family: 'Courier New', monospace;
-      overflow: hidden;
-      text-overflow: ellipsis;
-      white-space: nowrap;
-    }
-    .install-btns { display: flex; gap: 0.6rem; flex-wrap: wrap; }
-    .notice { font-size: 0.75rem; color: var(--muted); margin-top: 0.85rem; line-height: 1.5; }
-    .notice code { background: var(--bg); padding: 0.1em 0.35em; border-radius: 4px; font-size: 0.85em; }
-    @media (max-width: 500px) {
-      .row { grid-template-columns: 1fr; }
-      .url-row { flex-direction: column; }
-      .install-btns { flex-direction: column; }
-    }
-  </style>
-</head>
-<body>
-<div class="card">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>JustWatch · Stremio Addon</title>
+    <style>
+      *,
+      *::before,
+      *::after {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+      }
+      :root {
+        --bg: #10141e;
+        --surface: #161d2f;
+        --surface2: #1a2234;
+        --border: #2a3550;
+        --text: #e2e8f0;
+        --muted: #7a8aa0;
+        --accent: #e8a230;
+        --accent-dim: #b97e1e;
+        --green: #4ade80;
+        --red: #f87171;
+      }
+      body {
+        background: var(--bg);
+        color: var(--text);
+        font-family:
+          -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+        min-height: 100vh;
+        display: flex;
+        justify-content: center;
+        align-items: flex-start;
+        padding: 2rem 1rem 4rem;
+      }
+      .card {
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: 14px;
+        padding: 2rem;
+        width: 100%;
+        max-width: 680px;
+      }
+      .header {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+        margin-bottom: 0.4rem;
+      }
+      .header img {
+        width: 32px;
+        height: 32px;
+        border-radius: 6px;
+        flex-shrink: 0;
+      }
+      h1 {
+        font-size: 1.4rem;
+        font-weight: 700;
+      }
+      .subtitle {
+        color: var(--muted);
+        font-size: 0.88rem;
+        margin-bottom: 1.5rem;
+      }
+      .divider {
+        border: none;
+        border-top: 1px solid var(--border);
+        margin: 1.5rem 0;
+      }
+      .row {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 1rem;
+      }
+      .field {
+        display: flex;
+        flex-direction: column;
+        gap: 0.35rem;
+      }
+      label {
+        font-size: 0.75rem;
+        font-weight: 600;
+        color: var(--muted);
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+      }
+      select {
+        background: var(--bg);
+        color: var(--text);
+        border: 1px solid var(--border);
+        border-radius: 7px;
+        padding: 0.55rem 0.75rem;
+        font-size: 0.93rem;
+        cursor: pointer;
+        width: 100%;
+        appearance: none;
+        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath fill='%237a8aa0' d='M1 1l5 5 5-5'/%3E%3C/svg%3E");
+        background-repeat: no-repeat;
+        background-position: right 0.75rem center;
+        padding-right: 2rem;
+      }
+      select:focus {
+        outline: 2px solid var(--accent);
+        outline-offset: 2px;
+        border-color: transparent;
+      }
+      .section-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 0.75rem;
+      }
+      .section-title {
+        font-size: 0.75rem;
+        font-weight: 600;
+        color: var(--muted);
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+      }
+      .link-btns {
+        display: flex;
+        gap: 0.4rem;
+      }
+      .link-btn {
+        background: none;
+        border: 1px solid var(--border);
+        color: var(--muted);
+        padding: 0.2rem 0.6rem;
+        border-radius: 5px;
+        font-size: 0.72rem;
+        cursor: pointer;
+        transition:
+          border-color 0.12s,
+          color 0.12s;
+      }
+      .link-btn:hover {
+        border-color: var(--accent);
+        color: var(--accent);
+      }
+      #pkg-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(104px, 1fr));
+        gap: 0.55rem;
+        min-height: 90px;
+      }
+      .pkg-item {
+        position: relative;
+      }
+      .pkg-item input[type="checkbox"] {
+        position: absolute;
+        opacity: 0;
+        width: 1px;
+        height: 1px;
+      }
+      .pkg-label {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 0.5rem;
+        padding: 0.75rem 0.5rem 0.55rem;
+        border: 2px solid var(--border);
+        border-radius: 10px;
+        cursor: pointer;
+        transition:
+          border-color 0.12s,
+          background 0.12s;
+        background: var(--bg);
+        text-align: center;
+        user-select: none;
+      }
+      .pkg-label:hover {
+        border-color: var(--accent-dim);
+      }
+      .pkg-item input:checked + .pkg-label {
+        border-color: var(--accent);
+        background: #e8a23012;
+      }
+      .pkg-icon {
+        width: 44px;
+        height: 44px;
+        border-radius: 8px;
+        object-fit: contain;
+        background: #ffffff10;
+      }
+      .pkg-icon-placeholder {
+        width: 44px;
+        height: 44px;
+        border-radius: 8px;
+        background: var(--border);
+      }
+      .pkg-name {
+        font-size: 0.68rem;
+        color: var(--muted);
+        line-height: 1.25;
+        max-width: 90px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+      .pkg-check {
+        position: absolute;
+        top: 5px;
+        right: 5px;
+        width: 16px;
+        height: 16px;
+        border-radius: 50%;
+        background: var(--accent);
+        display: none;
+        align-items: center;
+        justify-content: center;
+      }
+      .pkg-check svg {
+        width: 10px;
+        height: 10px;
+      }
+      .pkg-item input:checked ~ .pkg-label .pkg-check {
+        display: flex;
+      }
+      .state-box {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        color: var(--muted);
+        font-size: 0.88rem;
+        padding: 1rem 0;
+      }
+      .spinner {
+        width: 18px;
+        height: 18px;
+        border: 2px solid var(--border);
+        border-top-color: var(--accent);
+        border-radius: 50%;
+        animation: spin 0.65s linear infinite;
+        flex-shrink: 0;
+      }
+      @keyframes spin {
+        to {
+          transform: rotate(360deg);
+        }
+      }
+      .error-box {
+        color: var(--red);
+        font-size: 0.85rem;
+        padding: 0.5rem 0;
+      }
+      .actions {
+        display: flex;
+        justify-content: flex-end;
+      }
+      .btn {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.4rem;
+        padding: 0.6rem 1.2rem;
+        border: none;
+        border-radius: 8px;
+        font-size: 0.92rem;
+        font-weight: 600;
+        cursor: pointer;
+        transition:
+          opacity 0.12s,
+          transform 0.08s;
+        text-decoration: none;
+      }
+      .btn:hover {
+        opacity: 0.88;
+      }
+      .btn:active {
+        transform: scale(0.97);
+      }
+      .btn-primary {
+        background: var(--accent);
+        color: #000;
+      }
+      .btn-secondary {
+        background: var(--border);
+        color: var(--text);
+      }
+      .result {
+        display: none;
+        margin-top: 1.25rem;
+        background: var(--surface2);
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        padding: 1.25rem;
+      }
+      .result.visible {
+        display: block;
+      }
+      .result-label {
+        font-size: 0.75rem;
+        font-weight: 600;
+        color: var(--muted);
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+        margin-bottom: 0.5rem;
+      }
+      .url-row {
+        display: flex;
+        gap: 0.5rem;
+        margin-bottom: 1rem;
+      }
+      .url-input {
+        flex: 1;
+        background: var(--bg);
+        color: var(--text);
+        border: 1px solid var(--border);
+        border-radius: 7px;
+        padding: 0.5rem 0.75rem;
+        font-size: 0.78rem;
+        font-family: "Courier New", monospace;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+      .install-btns {
+        display: flex;
+        gap: 0.6rem;
+        flex-wrap: wrap;
+      }
+      .notice {
+        font-size: 0.75rem;
+        color: var(--muted);
+        margin-top: 0.85rem;
+        line-height: 1.5;
+      }
+      .notice code {
+        background: var(--bg);
+        padding: 0.1em 0.35em;
+        border-radius: 4px;
+        font-size: 0.85em;
+      }
+      @media (max-width: 500px) {
+        .row {
+          grid-template-columns: 1fr;
+        }
+        .url-row {
+          flex-direction: column;
+        }
+        .install-btns {
+          flex-direction: column;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="card">
+      <div class="header">
+        <img
+          src="https://www.justwatch.com/appassets/img/logo/JustWatch-logo-large.webp"
+          alt="JustWatch"
+          onerror="
+            this.src = '';
+            this.style.display = 'none';
+          "
+        />
+        <h1>JustWatch · Stremio</h1>
+      </div>
+      <p class="subtitle">
+        Descubre dónde ver películas y series en tus plataformas favoritas.
+      </p>
 
-  <div class="header">
-    <img src="https://www.justwatch.com/appassets/img/logo/JustWatch-logo-large.webp"
-         alt="JustWatch"
-         onerror="this.src='';this.style.display='none'">
-    <h1>JustWatch · Stremio</h1>
-  </div>
-  <p class="subtitle">Descubre dónde ver películas y series en tus plataformas favoritas.</p>
+      <hr class="divider" />
 
-  <hr class="divider">
+      <div class="row">
+        <div class="field">
+          <label for="sel-country">País</label>
+          <select id="sel-country">
+            <option value="ES">España</option>
+            <option value="US">Estados Unidos</option>
+            <option value="GB">Reino Unido</option>
+            <option value="DE">Alemania</option>
+            <option value="FR">Francia</option>
+            <option value="IT">Italia</option>
+            <option value="PT">Portugal</option>
+            <option value="MX">México</option>
+            <option value="AR">Argentina</option>
+            <option value="BR">Brasil</option>
+            <option value="CL">Chile</option>
+            <option value="CO">Colombia</option>
+            <option value="NL">Países Bajos</option>
+            <option value="BE">Bélgica</option>
+            <option value="CH">Suiza</option>
+            <option value="AT">Austria</option>
+            <option value="SE">Suecia</option>
+            <option value="NO">Noruega</option>
+            <option value="DK">Dinamarca</option>
+            <option value="FI">Finlandia</option>
+            <option value="PL">Polonia</option>
+            <option value="CA">Canadá</option>
+            <option value="AU">Australia</option>
+            <option value="JP">Japón</option>
+            <option value="KR">Corea del Sur</option>
+          </select>
+        </div>
+        <div class="field">
+          <label for="sel-language">Idioma de descripciones</label>
+          <select id="sel-language">
+            <option value="es">Español</option>
+            <option value="en">English</option>
+            <option value="de">Deutsch</option>
+            <option value="fr">Français</option>
+            <option value="it">Italiano</option>
+            <option value="pt">Português</option>
+            <option value="nl">Nederlands</option>
+            <option value="sv">Svenska</option>
+            <option value="no">Norsk</option>
+            <option value="da">Dansk</option>
+            <option value="fi">Suomi</option>
+            <option value="pl">Polski</option>
+            <option value="ja">日本語</option>
+            <option value="ko">한국어</option>
+          </select>
+        </div>
+      </div>
 
-  <div class="row">
-    <div class="field">
-      <label for="sel-country">País</label>
-      <select id="sel-country">
-        <option value="ES">España</option>
-        <option value="US">Estados Unidos</option>
-        <option value="GB">Reino Unido</option>
-        <option value="DE">Alemania</option>
-        <option value="FR">Francia</option>
-        <option value="IT">Italia</option>
-        <option value="PT">Portugal</option>
-        <option value="MX">México</option>
-        <option value="AR">Argentina</option>
-        <option value="BR">Brasil</option>
-        <option value="CL">Chile</option>
-        <option value="CO">Colombia</option>
-        <option value="NL">Países Bajos</option>
-        <option value="BE">Bélgica</option>
-        <option value="CH">Suiza</option>
-        <option value="AT">Austria</option>
-        <option value="SE">Suecia</option>
-        <option value="NO">Noruega</option>
-        <option value="DK">Dinamarca</option>
-        <option value="FI">Finlandia</option>
-        <option value="PL">Polonia</option>
-        <option value="CA">Canadá</option>
-        <option value="AU">Australia</option>
-        <option value="JP">Japón</option>
-        <option value="KR">Corea del Sur</option>
-      </select>
+      <hr class="divider" />
+
+      <div class="section-header">
+        <span class="section-title">Proveedores</span>
+        <div class="link-btns">
+          <button class="link-btn" id="btn-all">Todos</button>
+          <button class="link-btn" id="btn-none">Ninguno</button>
+        </div>
+      </div>
+
+      <div id="pkg-grid">
+        <div class="state-box">
+          <div class="spinner"></div>
+          <span>Cargando proveedores…</span>
+        </div>
+      </div>
+
+      <div id="error-msg" class="error-box" style="display: none"></div>
+
+      <hr class="divider" />
+
+      <div class="actions">
+        <button class="btn btn-primary" id="btn-generate">
+          Generar enlace de instalación →
+        </button>
+      </div>
+
+      <div class="result" id="result">
+        <div class="result-label">URL del Addon</div>
+        <div class="url-row">
+          <input class="url-input" id="url-out" type="text" readonly />
+          <button class="btn btn-secondary" id="btn-copy">📋 Copiar</button>
+        </div>
+        <div class="install-btns">
+          <a class="btn btn-primary" id="btn-stremio" href="#" target="_blank"
+            >▶ Instalar en Stremio</a
+          >
+        </div>
+        <p class="notice">
+          Si el botón no abre Stremio, copia la URL y pégala en
+          <strong>Stremio → Ajustes → Addons → Añadir addon</strong>. <br />Cada
+          vez que quieras cambiar la configuración, vuelve a esta página y
+          genera un nuevo enlace.
+        </p>
+      </div>
     </div>
-  </div>
 
-  <hr class="divider">
+    <script>
+      // ── Elements ──────────────────────────────────────────────────────────────────
+      const countrySel = document.getElementById("sel-country");
+      const languageSel = document.getElementById("sel-language");
+      const pkgGrid = document.getElementById("pkg-grid");
+      const btnAll = document.getElementById("btn-all");
+      const btnNone = document.getElementById("btn-none");
+      const btnGenerate = document.getElementById("btn-generate");
+      const resultEl = document.getElementById("result");
+      const urlOut = document.getElementById("url-out");
+      const btnCopy = document.getElementById("btn-copy");
+      const btnStremio = document.getElementById("btn-stremio");
+      const errorMsg = document.getElementById("error-msg");
 
-  <div class="section-header">
-    <span class="section-title">Proveedores</span>
-    <div class="link-btns">
-      <button class="link-btn" id="btn-all">Todos</button>
-      <button class="link-btn" id="btn-none">Ninguno</button>
-    </div>
-  </div>
+      let loadedPackages = [];
 
-  <div id="pkg-grid">
-    <div class="state-box">
-      <div class="spinner"></div>
-      <span>Cargando proveedores…</span>
-    </div>
-  </div>
+      // ── Helpers ───────────────────────────────────────────────────────────────────
+      function showError(msg) {
+        errorMsg.textContent = msg;
+        errorMsg.style.display = msg ? "block" : "none";
+      }
 
-  <div id="error-msg" class="error-box" style="display:none"></div>
+      // Encode config as a plain readable URL segment: COUNTRY_LANG_pkg1_pkg2...
+      function encodeConfig(config) {
+        const parts = [
+          config.country,
+          config.language || "en",
+          ...config.packages,
+        ];
+        return parts.join("_");
+      }
 
-  <hr class="divider">
+      // Decode plain config string back to object.
+      function decodeConfig(encoded) {
+        try {
+          const parts = encoded.split("_");
+          if (parts.length < 2) return null;
+          const country =
+            parts[0]
+              .toUpperCase()
+              .replace(/[^A-Z]/g, "")
+              .slice(0, 4) || null;
+          const language =
+            parts[1]
+              .toLowerCase()
+              .replace(/[^a-z]/g, "")
+              .slice(0, 5) || "en";
+          const packages = parts
+            .slice(2)
+            .filter((p) => /^[a-z0-9-]{1,30}$/.test(p));
+          if (!country) return null;
+          return { country, language, packages };
+        } catch {
+          return null;
+        }
+      }
 
-  <div class="actions">
-    <button class="btn btn-primary" id="btn-generate">Generar enlace de instalación →</button>
-  </div>
+      function getChecked() {
+        return [
+          ...pkgGrid.querySelectorAll('input[type="checkbox"]:checked'),
+        ].map((i) => i.value);
+      }
 
-  <div class="result" id="result">
-    <div class="result-label">URL del Addon</div>
-    <div class="url-row">
-      <input class="url-input" id="url-out" type="text" readonly>
-      <button class="btn btn-secondary" id="btn-copy">📋 Copiar</button>
-    </div>
-    <div class="install-btns">
-      <a class="btn btn-primary" id="btn-stremio" href="#" target="_blank">▶ Instalar en Stremio</a>
-    </div>
-    <p class="notice">
-      Si el botón no abre Stremio, copia la URL y pégala en
-      <strong>Stremio → Ajustes → Addons → Añadir addon</strong>.
-      <br>Cada vez que quieras cambiar la configuración, vuelve a esta página y genera un nuevo enlace.
-    </p>
-  </div>
+      // ── Package loading ───────────────────────────────────────────────────────────
+      async function loadPackages(country, preSelected = null) {
+        pkgGrid.innerHTML = `<div class="state-box"><div class="spinner"></div><span>Cargando proveedores para ${country}…</span></div>`;
+        showError("");
+        resultEl.classList.remove("visible");
 
-</div>
+        try {
+          const res = await fetch(
+            `/api/packages?country=${encodeURIComponent(country)}`,
+          );
+          if (!res.ok) throw new Error(`HTTP ${res.status}`);
+          loadedPackages = await res.json();
+          renderPackages(loadedPackages, preSelected);
+        } catch (e) {
+          loadedPackages = [];
+          showError("No se pudieron cargar los proveedores: " + e.message);
+          pkgGrid.innerHTML = "";
+        }
+      }
 
-<script>
-// ── Elements ──────────────────────────────────────────────────────────────────
-const countrySel  = document.getElementById('sel-country');
-const pkgGrid     = document.getElementById('pkg-grid');
-const btnAll      = document.getElementById('btn-all');
-const btnNone     = document.getElementById('btn-none');
-const btnGenerate = document.getElementById('btn-generate');
-const resultEl    = document.getElementById('result');
-const urlOut      = document.getElementById('url-out');
-const btnCopy     = document.getElementById('btn-copy');
-const btnStremio  = document.getElementById('btn-stremio');
-const errorMsg    = document.getElementById('error-msg');
-
-let loadedPackages = [];
-
-// ── Helpers ───────────────────────────────────────────────────────────────────
-function showError(msg) {
-  errorMsg.textContent = msg;
-  errorMsg.style.display = msg ? 'block' : 'none';
-}
-
-// Encode config as base64url (server-compatible).
-// All values are ASCII so plain btoa() is safe.
-function encodeConfig(config) {
-  const b64 = btoa(JSON.stringify(config));
-  return b64.replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '');
-}
-
-// Decode base64url → config object (browser side).
-function decodeConfig(encoded) {
-  try {
-    const padLen = (4 - (encoded.length % 4)) % 4;
-    const b64 = encoded.replace(/-/g, '+').replace(/_/g, '/') + '='.repeat(padLen);
-    return JSON.parse(atob(b64));
-  } catch { return null; }
-}
-
-function getChecked() {
-  return [...pkgGrid.querySelectorAll('input[type="checkbox"]:checked')].map(i => i.value);
-}
-
-// ── Package loading ───────────────────────────────────────────────────────────
-async function loadPackages(country, preSelected = null) {
-  pkgGrid.innerHTML = `<div class="state-box"><div class="spinner"></div><span>Cargando proveedores para ${country}…</span></div>`;
-  showError('');
-  resultEl.classList.remove('visible');
-
-  try {
-    const res = await fetch(`/api/packages?country=${encodeURIComponent(country)}`);
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    loadedPackages = await res.json();
-    renderPackages(loadedPackages, preSelected);
-  } catch (e) {
-    loadedPackages = [];
-    showError('No se pudieron cargar los proveedores: ' + e.message);
-    pkgGrid.innerHTML = '';
-  }
-}
-
-function renderPackages(pkgs, preSelected) {
-  if (!pkgs.length) {
-    pkgGrid.innerHTML = `<div class="state-box">Sin proveedores disponibles para este país.</div>`;
-    return;
-  }
-  pkgGrid.innerHTML = pkgs.map(pkg => {
-    const isChecked = preSelected && preSelected.includes(pkg.shortName) ? 'checked' : '';
-    const icon = pkg.iconUrl
-      ? `<img class="pkg-icon" src="${pkg.iconUrl}" alt="${pkg.clearName}" loading="lazy" onerror="this.style.opacity='0'">`
-      : `<div class="pkg-icon-placeholder"></div>`;
-    return `
+      function renderPackages(pkgs, preSelected) {
+        if (!pkgs.length) {
+          pkgGrid.innerHTML = `<div class="state-box">Sin proveedores disponibles para este país.</div>`;
+          return;
+        }
+        pkgGrid.innerHTML = pkgs
+          .map((pkg) => {
+            const isChecked =
+              preSelected && preSelected.includes(pkg.shortName)
+                ? "checked"
+                : "";
+            const icon = pkg.iconUrl
+              ? `<img class="pkg-icon" src="${pkg.iconUrl}" alt="${pkg.clearName}" loading="lazy" onerror="this.style.opacity='0'">`
+              : `<div class="pkg-icon-placeholder"></div>`;
+            return `
       <div class="pkg-item">
         <input type="checkbox" id="pkg-${pkg.shortName}" value="${pkg.shortName}" ${isChecked}>
         <label class="pkg-label" for="pkg-${pkg.shortName}">
@@ -371,70 +573,82 @@ function renderPackages(pkgs, preSelected) {
           </div>
         </label>
       </div>`;
-  }).join('');
-}
+          })
+          .join("");
+      }
 
-// ── Button events ─────────────────────────────────────────────────────────────
-btnAll.addEventListener('click', () => {
-  pkgGrid.querySelectorAll('input[type="checkbox"]').forEach(c => c.checked = true);
-});
+      // ── Button events ─────────────────────────────────────────────────────────────
+      btnAll.addEventListener("click", () => {
+        pkgGrid
+          .querySelectorAll('input[type="checkbox"]')
+          .forEach((c) => (c.checked = true));
+      });
 
-btnNone.addEventListener('click', () => {
-  pkgGrid.querySelectorAll('input[type="checkbox"]').forEach(c => c.checked = false);
-});
+      btnNone.addEventListener("click", () => {
+        pkgGrid
+          .querySelectorAll('input[type="checkbox"]')
+          .forEach((c) => (c.checked = false));
+      });
 
-countrySel.addEventListener('change', () => loadPackages(countrySel.value));
+      countrySel.addEventListener("change", () =>
+        loadPackages(countrySel.value),
+      );
 
-btnGenerate.addEventListener('click', () => {
-  const selected = getChecked();
-  if (!selected.length) {
-    showError('Selecciona al menos un proveedor.');
-    return;
-  }
-  showError('');
+      btnGenerate.addEventListener("click", () => {
+        const selected = getChecked();
+        if (!selected.length) {
+          showError("Selecciona al menos un proveedor.");
+          return;
+        }
+        showError("");
 
-  const config = {
-    country: countrySel.value,
-    packages: selected,
-  };
+        const config = {
+          country: countrySel.value,
+          language: languageSel.value,
+          packages: selected,
+        };
 
-  const encoded   = encodeConfig(config);
-  const base      = window.location.origin;
-  const manifest  = `${base}/${encoded}/manifest.json`;
+        const encoded = encodeConfig(config);
+        const base = window.location.origin;
+        const manifest = `${base}/${encoded}/manifest.json`;
 
-  urlOut.value       = manifest;
-  // stremio:// deep link: strip protocol
-  btnStremio.href    = manifest.replace(/^https?:\/\//, 'stremio://');
+        urlOut.value = manifest;
+        // stremio:// deep link: strip protocol
+        btnStremio.href = manifest.replace(/^https?:\/\//, "stremio://");
 
-  resultEl.classList.add('visible');
-  resultEl.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-});
+        resultEl.classList.add("visible");
+        resultEl.scrollIntoView({ behavior: "smooth", block: "nearest" });
+      });
 
-btnCopy.addEventListener('click', () => {
-  if (!urlOut.value) return;
-  navigator.clipboard.writeText(urlOut.value).then(() => {
-    const orig = btnCopy.textContent;
-    btnCopy.textContent = '✔ Copiada';
-    setTimeout(() => btnCopy.textContent = orig, 1600);
-  }).catch(() => {
-    urlOut.select();
-    document.execCommand('copy');
-  });
-});
+      btnCopy.addEventListener("click", () => {
+        if (!urlOut.value) return;
+        navigator.clipboard
+          .writeText(urlOut.value)
+          .then(() => {
+            const orig = btnCopy.textContent;
+            btnCopy.textContent = "✔ Copiada";
+            setTimeout(() => (btnCopy.textContent = orig), 1600);
+          })
+          .catch(() => {
+            urlOut.select();
+            document.execCommand("copy");
+          });
+      });
 
-// ── Initial load ──────────────────────────────────────────────────────────────
-(function init() {
-  // Pre-fill form if ?config= param is present (e.g. coming from Stremio's configure button)
-  const params    = new URLSearchParams(window.location.search);
-  const cfgParam  = params.get('config');
-  let preConfig   = cfgParam ? decodeConfig(cfgParam) : null;
+      // ── Initial load ──────────────────────────────────────────────────────────────
+      (function init() {
+        // Pre-fill form if ?config= param is present (e.g. coming from Stremio's configure button)
+        const params = new URLSearchParams(window.location.search);
+        const cfgParam = params.get("config");
+        let preConfig = cfgParam ? decodeConfig(cfgParam) : null;
 
-  if (preConfig) {
-    if (preConfig.country) countrySel.value = preConfig.country;
-  }
+        if (preConfig) {
+          if (preConfig.country) countrySel.value = preConfig.country;
+          if (preConfig.language) languageSel.value = preConfig.language;
+        }
 
-  loadPackages(countrySel.value, preConfig ? preConfig.packages : null);
-})();
-</script>
-</body>
+        loadPackages(countrySel.value, preConfig ? preConfig.packages : null);
+      })();
+    </script>
+  </body>
 </html>

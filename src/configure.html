@@ -332,6 +332,24 @@
         border-radius: 4px;
         font-size: 0.85em;
       }
+      .show-more-wrap {
+        margin-top: 0.65rem;
+        text-align: center;
+      }
+      .btn-show-more {
+        background: none;
+        border: 1px solid var(--border);
+        color: var(--muted);
+        padding: 0.35rem 1.1rem;
+        border-radius: 6px;
+        font-size: 0.8rem;
+        cursor: pointer;
+        transition: border-color 0.12s, color 0.12s;
+      }
+      .btn-show-more:hover {
+        border-color: var(--accent);
+        color: var(--accent);
+      }
       @media (max-width: 500px) {
         .row {
           grid-template-columns: 1fr;
@@ -439,7 +457,7 @@
 
       <div class="actions">
         <button class="btn btn-primary" id="btn-generate">
-          Generar enlace de instalación →
+          ▶ Instalar en Stremio
         </button>
       </div>
 
@@ -449,16 +467,9 @@
           <input class="url-input" id="url-out" type="text" readonly />
           <button class="btn btn-secondary" id="btn-copy">📋 Copiar</button>
         </div>
-        <div class="install-btns">
-          <a class="btn btn-primary" id="btn-stremio" href="#" target="_blank"
-            >▶ Instalar en Stremio</a
-          >
-        </div>
         <p class="notice">
-          Si el botón no abre Stremio, copia la URL y pégala en
-          <strong>Stremio → Ajustes → Addons → Añadir addon</strong>. <br />Cada
-          vez que quieras cambiar la configuración, vuelve a esta página y
-          genera un nuevo enlace.
+          Si el botón no abrió Stremio automáticamente, copia la URL y pégala en
+          <strong>Stremio → Ajustes → Addons → Añadir addon</strong>.
         </p>
       </div>
     </div>
@@ -474,7 +485,6 @@
       const resultEl = document.getElementById("result");
       const urlOut = document.getElementById("url-out");
       const btnCopy = document.getElementById("btn-copy");
-      const btnStremio = document.getElementById("btn-stremio");
       const errorMsg = document.getElementById("error-msg");
 
       let loadedPackages = [];
@@ -546,26 +556,29 @@
         }
       }
 
-      function renderPackages(pkgs, preSelected) {
-        if (!pkgs.length) {
-          pkgGrid.innerHTML = `<div class="state-box">Sin proveedores disponibles para este país.</div>`;
-          return;
-        }
-        pkgGrid.innerHTML = pkgs
-          .map((pkg) => {
-            const isChecked =
-              preSelected && preSelected.includes(pkg.shortName)
-                ? "checked"
-                : "";
-            const icon = pkg.iconUrl
-              ? `<img class="pkg-icon" src="${pkg.iconUrl}" alt="${pkg.clearName}" loading="lazy" onerror="this.style.opacity='0'">`
-              : `<div class="pkg-icon-placeholder"></div>`;
-            return `
+      const INITIAL_SHOWN = 10;
+      const BATCH_SIZE = 20;
+      // Pinned packages always shown first regardless of API order
+      const PINNED_SHORT_NAMES = ['nfx', 'prv', 'atp', 'dnp', 'mxx', 'cru', 'sst', 'nfk', 'fil'];
+
+      function sortPackages(pkgs) {
+        const pinned = PINNED_SHORT_NAMES
+          .map(sn => pkgs.find(p => p.shortName === sn))
+          .filter(Boolean);
+        const rest = pkgs.filter(p => !PINNED_SHORT_NAMES.includes(p.shortName));
+        return [...pinned, ...rest];
+      }
+
+      function renderPackageItem(pkg, isChecked) {
+        const icon = pkg.iconUrl
+          ? `<img class="pkg-icon" src="${pkg.iconUrl}" alt="${pkg.clearName}" loading="lazy" onerror="this.style.opacity='0'">`
+          : `<div class="pkg-icon-placeholder"></div>`;
+        return `
       <div class="pkg-item">
-        <input type="checkbox" id="pkg-${pkg.shortName}" value="${pkg.shortName}" ${isChecked}>
+        <input type="checkbox" id="pkg-${pkg.shortName}" value="${pkg.shortName}" ${isChecked ? 'checked' : ''}>
         <label class="pkg-label" for="pkg-${pkg.shortName}">
           ${icon}
-          <span class="pkg-name">${pkg.clearName}</span>
+          <span class="pkg-name" title="${pkg.clearName}">${pkg.clearName}</span>
           <div class="pkg-check">
             <svg viewBox="0 0 10 8" fill="none" stroke="#000" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
               <polyline points="1,4 3.5,6.5 9,1"/>
@@ -573,8 +586,53 @@
           </div>
         </label>
       </div>`;
-          })
-          .join("");
+      }
+
+      function renderPackages(pkgs, preSelected) {
+        if (!pkgs.length) {
+          pkgGrid.innerHTML = `<div class="state-box">Sin proveedores disponibles para este país.</div>`;
+          const old = document.getElementById('show-more-wrap');
+          if (old) old.remove();
+          return;
+        }
+
+        const sorted = sortPackages(pkgs);
+        let shownCount = INITIAL_SHOWN;
+
+        pkgGrid.innerHTML = sorted.slice(0, shownCount)
+          .map(pkg => renderPackageItem(pkg, preSelected && preSelected.includes(pkg.shortName)))
+          .join('');
+
+        // remove previous show-more if any
+        const oldWrap = document.getElementById('show-more-wrap');
+        if (oldWrap) oldWrap.remove();
+
+        function updateShowMore() {
+          const remaining = sorted.slice(shownCount);
+          const existingWrap = document.getElementById('show-more-wrap');
+          if (existingWrap) existingWrap.remove();
+
+          if (remaining.length === 0) return;
+
+          const nextBatch = Math.min(BATCH_SIZE, remaining.length);
+          const wrap = document.createElement('div');
+          wrap.className = 'show-more-wrap';
+          wrap.id = 'show-more-wrap';
+          wrap.innerHTML = `<button class="btn-show-more" id="btn-show-more">Mostrar ${nextBatch} más (${remaining.length} restantes) ▾</button>`;
+          pkgGrid.after(wrap);
+
+          document.getElementById('btn-show-more').addEventListener('click', () => {
+            const batch = sorted.slice(shownCount, shownCount + BATCH_SIZE);
+            batch.forEach(pkg => {
+              pkgGrid.insertAdjacentHTML('beforeend',
+                renderPackageItem(pkg, preSelected && preSelected.includes(pkg.shortName)));
+            });
+            shownCount += batch.length;
+            updateShowMore();
+          });
+        }
+
+        updateShowMore();
       }
 
       // ── Button events ─────────────────────────────────────────────────────────────
@@ -611,10 +669,12 @@
         const encoded = encodeConfig(config);
         const base = window.location.origin;
         const manifest = `${base}/${encoded}/manifest.json`;
+        const stremioUrl = manifest.replace(/^https?:\/\//, "stremio://");
 
         urlOut.value = manifest;
-        // stremio:// deep link: strip protocol
-        btnStremio.href = manifest.replace(/^https?:\/\//, "stremio://");
+
+        // Open Stremio directly
+        window.location.href = stremioUrl;
 
         resultEl.classList.add("visible");
         resultEl.scrollIntoView({ behavior: "smooth", block: "nearest" });

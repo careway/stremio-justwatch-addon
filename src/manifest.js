@@ -5,6 +5,7 @@ const { getGenreNames, SORT_MAP } = require("./config");
 // Human-readable sort labels shown in Stremio's catalog header
 const SORT_LABELS = {
   pop: "Popular",
+  tnd: "Tendencias",
   new: "Nuevo",
 };
 

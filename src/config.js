@@ -375,6 +375,7 @@ function getGenreCode(name, lang) {
 // ─── Sort map: catalog sort key → JustWatch sorting enum ─────────────────────
 const SORT_MAP = {
   pop: "POPULAR",
+  tnd: "TRENDING",
   new: "RELEASE_YEAR",
 };
 

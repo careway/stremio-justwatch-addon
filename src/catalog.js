@@ -1,7 +1,7 @@
 'use strict';
 
 const { searchTitles } = require('./justwatch');
-const { GENRE_MAP, SORT_MAP } = require('./config');
+const { getGenreCode, SORT_MAP } = require('./config');
 
 const TYPE_TO_JW = { movie: 'MOVIE', series: 'SHOW' };
 
@@ -50,7 +50,7 @@ async function handleCatalog({ type, id, extra }, config) {
   const pkgName = parts.slice(2).join('_');
 
   const sortBy    = SORT_MAP[sortKey] || 'POPULAR';
-  const genreCode = genre ? (GENRE_MAP[genre] || null) : null;
+  const genreCode = genre ? getGenreCode(genre, config.language) : null;
 
   try {
     const titles = await searchTitles({

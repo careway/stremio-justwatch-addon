@@ -1,6 +1,6 @@
 'use strict';
 
-const { GENRE_NAMES, SORT_MAP } = require('./config');
+const { getGenreNames, SORT_MAP } = require('./config');
 
 // Human-readable sort labels shown in Stremio's catalog header
 const SORT_LABELS = {
@@ -37,7 +37,7 @@ function buildManifest(config, encodedConfig, pkgInfoMap, addonBaseUrl) {
           id: `jw_${sortKey}_${shortName}`,
           name: `${info.clearName} · ${sortLabel}`,
           extra: [
-            { name: 'genre', options: GENRE_NAMES },
+            { name: 'genre', options: getGenreNames(language) },
             { name: 'search' },
             { name: 'skip' },
           ],

@@ -440,7 +440,9 @@
         border-radius: 6px;
         font-size: 0.8rem;
         cursor: pointer;
-        transition: border-color 0.12s, color 0.12s;
+        transition:
+          border-color 0.12s,
+          color 0.12s;
       }
       .btn-show-more:hover {
         border-color: var(--accent);
@@ -462,11 +464,16 @@
   <body>
     <div class="card">
       <div class="header">
-        <img src="/static/logo.svg" alt="OmniCatalog" onerror="this.style.display='none'">
+        <img
+          src="/static/logo.svg"
+          alt="OmniCatalog"
+          onerror="this.style.display = 'none'"
+        />
         <h1>OmniCatalog</h1>
       </div>
       <p class="subtitle">
-        Every service. Every country. Select the catalogs you want and enjoy searching through them.
+        Every service. Every country. Select the catalogs you want and enjoy
+        searching through them.
       </p>
 
       <hr class="divider" />
@@ -503,7 +510,9 @@
           </select>
         </div>
         <div class="field">
-          <label for="sel-language">Idioma de descripciones</label>
+          <label for="sel-language"
+            >Idioma de carátulas / descripciones cortas
+          </label>
           <select id="sel-language">
             <option value="es">Español</option>
             <option value="en">English</option>
@@ -567,18 +576,29 @@
           class="creator-avatar"
           src="/static/avatar.webp"
           alt="careway"
-          onerror="this.src='data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%2252%22 height=%2252%22%3E%3Ccircle cx=%2226%22 cy=%2226%22 r=%2226%22 fill=%22%232a3550%22/%3E%3Ctext x=%2226%22 y=%2231%22 text-anchor=%22middle%22 font-family=%22Arial%22 font-size=%2218%22 font-weight=%22bold%22 fill=%22%23e8a230%22%3ECW%3C/text%3E%3C/svg%3E'"
+          onerror="
+            this.src =
+              'data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%2252%22 height=%2252%22%3E%3Ccircle cx=%2226%22 cy=%2226%22 r=%2226%22 fill=%22%232a3550%22/%3E%3Ctext x=%2226%22 y=%2231%22 text-anchor=%22middle%22 font-family=%22Arial%22 font-size=%2218%22 font-weight=%22bold%22 fill=%22%23e8a230%22%3ECW%3C/text%3E%3C/svg%3E'
+          "
         />
         <div class="creator-info">
           <span class="creator-name">careway</span>
           <span class="creator-bio">Happy to answer your questions!</span>
-          <a class="creator-discord" href="https://discord.gg/EYQyJBjWn3" target="_blank" rel="noopener">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M20.317 4.37a19.791 19.791 0 0 0-4.885-1.515.074.074 0 0 0-.079.037c-.21.375-.444.864-.608 1.25a18.27 18.27 0 0 0-5.487 0 12.64 12.64 0 0 0-.617-1.25.077.077 0 0 0-.079-.037A19.736 19.736 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 0 0 .031.057 19.9 19.9 0 0 0 5.993 3.03.078.078 0 0 0 .084-.028c.462-.63.874-1.295 1.226-1.994a.076.076 0 0 0-.041-.106 13.107 13.107 0 0 1-1.872-.892.077.077 0 0 1-.008-.128 10.2 10.2 0 0 0 .372-.292.074.074 0 0 1 .077-.01c3.928 1.793 8.18 1.793 12.062 0a.074.074 0 0 1 .078.01c.12.098.246.198.373.292a.077.077 0 0 1-.006.127 12.299 12.299 0 0 1-1.873.892.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.028 19.839 19.839 0 0 0 6.002-3.03.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.03z"/></svg>
+          <a
+            class="creator-discord"
+            href="https://discord.gg/EYQyJBjWn3"
+            target="_blank"
+            rel="noopener"
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+              <path
+                d="M20.317 4.37a19.791 19.791 0 0 0-4.885-1.515.074.074 0 0 0-.079.037c-.21.375-.444.864-.608 1.25a18.27 18.27 0 0 0-5.487 0 12.64 12.64 0 0 0-.617-1.25.077.077 0 0 0-.079-.037A19.736 19.736 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 0 0 .031.057 19.9 19.9 0 0 0 5.993 3.03.078.078 0 0 0 .084-.028c.462-.63.874-1.295 1.226-1.994a.076.076 0 0 0-.041-.106 13.107 13.107 0 0 1-1.872-.892.077.077 0 0 1-.008-.128 10.2 10.2 0 0 0 .372-.292.074.074 0 0 1 .077-.01c3.928 1.793 8.18 1.793 12.062 0a.074.074 0 0 1 .078.01c.12.098.246.198.373.292a.077.077 0 0 1-.006.127 12.299 12.299 0 0 1-1.873.892.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.028 19.839 19.839 0 0 0 6.002-3.03.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.03z"
+              />
+            </svg>
             Join my Discord
           </a>
         </div>
       </div>
-
     </div>
 
     <script>
@@ -666,13 +686,25 @@
       const INITIAL_SHOWN = 10;
       const BATCH_SIZE = 20;
       // Pinned packages always shown first regardless of API order
-      const PINNED_SHORT_NAMES = ['nfx', 'prv', 'atp', 'dnp', 'mxx', 'cru', 'sst', 'nfk', 'fil'];
+      const PINNED_SHORT_NAMES = [
+        "nfx",
+        "prv",
+        "atp",
+        "dnp",
+        "mxx",
+        "cru",
+        "sst",
+        "nfk",
+        "fil",
+      ];
 
       function sortPackages(pkgs) {
-        const pinned = PINNED_SHORT_NAMES
-          .map(sn => pkgs.find(p => p.shortName === sn))
-          .filter(Boolean);
-        const rest = pkgs.filter(p => !PINNED_SHORT_NAMES.includes(p.shortName));
+        const pinned = PINNED_SHORT_NAMES.map((sn) =>
+          pkgs.find((p) => p.shortName === sn),
+        ).filter(Boolean);
+        const rest = pkgs.filter(
+          (p) => !PINNED_SHORT_NAMES.includes(p.shortName),
+        );
         return [...pinned, ...rest];
       }
 
@@ -682,7 +714,7 @@
           : `<div class="pkg-icon-placeholder"></div>`;
         return `
       <div class="pkg-item">
-        <input type="checkbox" id="pkg-${pkg.shortName}" value="${pkg.shortName}" ${isChecked ? 'checked' : ''}>
+        <input type="checkbox" id="pkg-${pkg.shortName}" value="${pkg.shortName}" ${isChecked ? "checked" : ""}>
         <label class="pkg-label" for="pkg-${pkg.shortName}">
           ${icon}
           <span class="pkg-name" title="${pkg.clearName}">${pkg.clearName}</span>
@@ -698,7 +730,7 @@
       function renderPackages(pkgs, preSelected) {
         if (!pkgs.length) {
           pkgGrid.innerHTML = `<div class="state-box">Sin proveedores disponibles para este país.</div>`;
-          const old = document.getElementById('show-more-wrap');
+          const old = document.getElementById("show-more-wrap");
           if (old) old.remove();
           return;
         }
@@ -706,37 +738,50 @@
         const sorted = sortPackages(pkgs);
         let shownCount = INITIAL_SHOWN;
 
-        pkgGrid.innerHTML = sorted.slice(0, shownCount)
-          .map(pkg => renderPackageItem(pkg, preSelected && preSelected.includes(pkg.shortName)))
-          .join('');
+        pkgGrid.innerHTML = sorted
+          .slice(0, shownCount)
+          .map((pkg) =>
+            renderPackageItem(
+              pkg,
+              preSelected && preSelected.includes(pkg.shortName),
+            ),
+          )
+          .join("");
 
         // remove previous show-more if any
-        const oldWrap = document.getElementById('show-more-wrap');
+        const oldWrap = document.getElementById("show-more-wrap");
         if (oldWrap) oldWrap.remove();
 
         function updateShowMore() {
           const remaining = sorted.slice(shownCount);
-          const existingWrap = document.getElementById('show-more-wrap');
+          const existingWrap = document.getElementById("show-more-wrap");
           if (existingWrap) existingWrap.remove();
 
           if (remaining.length === 0) return;
 
           const nextBatch = Math.min(BATCH_SIZE, remaining.length);
-          const wrap = document.createElement('div');
-          wrap.className = 'show-more-wrap';
-          wrap.id = 'show-more-wrap';
+          const wrap = document.createElement("div");
+          wrap.className = "show-more-wrap";
+          wrap.id = "show-more-wrap";
           wrap.innerHTML = `<button class="btn-show-more" id="btn-show-more">Mostrar ${nextBatch} más (${remaining.length} restantes) ▾</button>`;
           pkgGrid.after(wrap);
 
-          document.getElementById('btn-show-more').addEventListener('click', () => {
-            const batch = sorted.slice(shownCount, shownCount + BATCH_SIZE);
-            batch.forEach(pkg => {
-              pkgGrid.insertAdjacentHTML('beforeend',
-                renderPackageItem(pkg, preSelected && preSelected.includes(pkg.shortName)));
+          document
+            .getElementById("btn-show-more")
+            .addEventListener("click", () => {
+              const batch = sorted.slice(shownCount, shownCount + BATCH_SIZE);
+              batch.forEach((pkg) => {
+                pkgGrid.insertAdjacentHTML(
+                  "beforeend",
+                  renderPackageItem(
+                    pkg,
+                    preSelected && preSelected.includes(pkg.shortName),
+                  ),
+                );
+              });
+              shownCount += batch.length;
+              updateShowMore();
             });
-            shownCount += batch.length;
-            updateShowMore();
-          });
         }
 
         updateShowMore();
@@ -758,7 +803,11 @@
       });
 
       pkgGrid.addEventListener("change", (e) => {
-        if (e.target.type === "checkbox" && resultEl.classList.contains("visible")) generateUrl();
+        if (
+          e.target.type === "checkbox" &&
+          resultEl.classList.contains("visible")
+        )
+          generateUrl();
       });
 
       countrySel.addEventListener("change", () => {
@@ -792,7 +841,6 @@
       languageSel.addEventListener("change", () => {
         if (resultEl.classList.contains("visible")) generateUrl();
       });
-
 
       btnGenerate.addEventListener("click", () => {
         const manifest = generateUrl();

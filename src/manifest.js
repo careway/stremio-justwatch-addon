@@ -38,7 +38,11 @@ function buildManifest(config, encodedConfig, pkgInfoMap, addonBaseUrl) {
           id: `jw_${sortKey}_${shortName}`,
           name: `${info.clearName} · ${sortLabel} · ${country}`,
           extra: [
-            { name: "genre", options: getGenreNames(language), isRequired: false },
+            {
+              name: "genre",
+              options: getGenreNames(language),
+              isRequired: false,
+            },
             { name: "search", isRequired: false },
             { name: "skip", isRequired: false },
           ],

@@ -26,7 +26,9 @@ let logStream = null;
 if (!isProduction && !process.env.VERCEL) {
   try {
     logStream = fs.createWriteStream(LOG_FILE, { flags: "a" });
-    logStream.on("error", () => { logStream = null; });
+    logStream.on("error", () => {
+      logStream = null;
+    });
   } catch {
     /* ignore */
   }
@@ -208,17 +210,28 @@ async function router(req, res) {
   if (rawPath.startsWith("/static/")) {
     const fileName = rawPath.slice("/static/".length);
     if (!fileName || fileName.includes("..")) {
-      res.writeHead(400); return res.end();
+      res.writeHead(400);
+      return res.end();
     }
     const filePath = path.join(__dirname, "..", "static", fileName);
     const ext = path.extname(fileName).toLowerCase();
-    const mime = { ".svg": "image/svg+xml", ".png": "image/png", ".webp": "image/webp", ".ico": "image/x-icon" }[ext] || "application/octet-stream";
+    const mime =
+      {
+        ".svg": "image/svg+xml",
+        ".png": "image/png",
+        ".webp": "image/webp",
+        ".ico": "image/x-icon",
+      }[ext] || "application/octet-stream";
     try {
       const data = fs.readFileSync(filePath);
-      res.writeHead(200, { "Content-Type": mime, "Cache-Control": "public, max-age=86400" });
+      res.writeHead(200, {
+        "Content-Type": mime,
+        "Cache-Control": "public, max-age=86400",
+      });
       return res.end(data);
     } catch {
-      res.writeHead(404); return res.end("Not found");
+      res.writeHead(404);
+      return res.end("Not found");
     }
   }
 

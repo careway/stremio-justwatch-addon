@@ -1,4 +1,6 @@
 .env
+.env.*
+!.env.example
 node_modules/
 addon.log
 cache.json

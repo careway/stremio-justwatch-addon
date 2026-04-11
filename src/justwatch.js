@@ -1,9 +1,9 @@
-'use strict';
+"use strict";
 
-const axios = require('axios');
-const Redis = require('ioredis');
+const axios = require("axios");
+const Redis = require("ioredis");
 
-const GRAPHQL_URL = 'https://apis.justwatch.com/graphql';
+const GRAPHQL_URL = "https://apis.justwatch.com/graphql";
 
 // ─── GraphQL Queries ──────────────────────────────────────────────────────────
 
@@ -140,8 +140,8 @@ function buildOffersQuery(country) {
 
 // ─── Cache ────────────────────────────────────────────────────────────────────
 
-const CACHE_TTL_S  = 12 * 60 * 60;        // 12 hours (Redis uses seconds)
-const CACHE_TTL_MS = CACHE_TTL_S * 1000;  // 12 hours in ms (in-memory)
+const CACHE_TTL_S = 12 * 60 * 60; // 12 hours (Redis uses seconds)
+const CACHE_TTL_MS = CACHE_TTL_S * 1000; // 12 hours in ms (in-memory)
 
 // L1 — in-memory
 const _mem = new Map();
@@ -152,34 +152,42 @@ let _redisReady = false;
 
 (function initRedis() {
   try {
-    const client = new Redis({
-      host: process.env.REDIS_HOST || '127.0.0.1',
-      port: Number(process.env.REDIS_PORT) || 6379,
-      lazyConnect: true,
-      enableOfflineQueue: false,
-      connectTimeout: 2000,
-      maxRetriesPerRequest: 1,
-    });
+    const client = process.env.REDIS_URL
+      ? new Redis(process.env.REDIS_URL, {
+          lazyConnect: true,
+          enableOfflineQueue: false,
+          maxRetriesPerRequest: 1,
+        })
+      : new Redis({
+          host: process.env.REDIS_HOST || "127.0.0.1",
+          port: Number(process.env.REDIS_PORT) || 6379,
+          lazyConnect: true,
+          enableOfflineQueue: false,
+          connectTimeout: 2000,
+          maxRetriesPerRequest: 1,
+        });
 
-    client.on('ready', () => {
+    client.on("ready", () => {
       _redisReady = true;
-      console.log('[cache] Redis connected');
+      console.log("[cache] Redis connected");
     });
 
-    client.on('error', (err) => {
-      if (_redisReady) console.error('[cache] Redis error:', err.message);
+    client.on("error", (err) => {
+      if (_redisReady) console.error("[cache] Redis error:", err.message);
       _redisReady = false;
     });
 
-    client.on('close', () => { _redisReady = false; });
+    client.on("close", () => {
+      _redisReady = false;
+    });
 
     client.connect().catch(() => {
-      console.warn('[cache] Redis unavailable — L1 in-memory only');
+      console.warn("[cache] Redis unavailable — L1 in-memory only");
     });
 
     _redis = client;
   } catch (err) {
-    console.warn('[cache] Redis init failed — L1 in-memory only:', err.message);
+    console.warn("[cache] Redis init failed — L1 in-memory only:", err.message);
   }
 })();
 
@@ -205,7 +213,7 @@ async function cacheGet(key) {
         return data;
       }
     } catch (err) {
-      console.error('[cache] Redis GET error:', err.message);
+      console.error("[cache] Redis GET error:", err.message);
     }
   }
 
@@ -220,9 +228,9 @@ async function cacheSet(key, data) {
 
   if (_redisReady) {
     try {
-      await _redis.set(key, JSON.stringify(data), 'EX', CACHE_TTL_S);
+      await _redis.set(key, JSON.stringify(data), "EX", CACHE_TTL_S);
     } catch (err) {
-      console.error('[cache] Redis SET error:', err.message);
+      console.error("[cache] Redis SET error:", err.message);
     }
   }
 }
@@ -235,14 +243,14 @@ async function gql(query, variables) {
     { query, variables },
     {
       headers: {
-        'Content-Type': 'application/json',
-        'User-Agent':
-          'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
-        Accept: 'application/json',
-        'Accept-Language': 'en-US,en;q=0.9',
+        "Content-Type": "application/json",
+        "User-Agent":
+          "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+        Accept: "application/json",
+        "Accept-Language": "en-US,en;q=0.9",
       },
       timeout: 10_000,
-    }
+    },
   );
 
   if (data.errors) {
@@ -267,16 +275,16 @@ async function gql(query, variables) {
  * @param {number}   opts.first       - Max results (capped at 50)
  */
 async function searchTitles({
-  query = '',
+  query = "",
   objectTypes = [],
   packages = [],
   genres = [],
-  sortBy = 'POPULAR',
-  country = 'US',
-  language = 'en',
+  sortBy = "POPULAR",
+  country = "US",
+  language = "en",
   first = 50,
 } = {}) {
-  const cacheKey = `search:${query}:${objectTypes.join(',')}:${packages.join(',')}:${genres.join(',')}:${sortBy}:${country}:${language}:${first}`;
+  const cacheKey = `search:${query}:${objectTypes.join(",")}:${packages.join(",")}:${genres.join(",")}:${sortBy}:${country}:${language}:${first}`;
   const cached = await cacheGet(cacheKey);
   if (cached) return cached;
 
@@ -294,8 +302,8 @@ async function searchTitles({
     popularTitlesSortBy: sortBy,
     sortRandomSeed: 0,
     watchNowFilter: {},
-    profile: 'S718',
-    format: 'JPG',
+    profile: "S718",
+    format: "JPG",
   });
 
   const nodes = (data?.popularTitles?.edges || []).map((e) => e.node);
@@ -310,7 +318,7 @@ async function searchTitles({
  * @param {string} country   - ISO country code (e.g. 'ES')
  * @param {string} language  - BCP47 language code (e.g. 'es')
  */
-async function getTitleOffers(nodeId, country = 'US', language = 'en') {
+async function getTitleOffers(nodeId, country = "US", language = "en") {
   const cacheKey = `offers:${nodeId}:${country}:${language}`;
   const cached = await cacheGet(cacheKey);
   if (cached) return cached;
@@ -319,7 +327,7 @@ async function getTitleOffers(nodeId, country = 'US', language = 'en') {
     nodeId,
     language,
     filterBuy: {},
-    platform: 'WEB',
+    platform: "WEB",
   });
 
   const offers = data?.node?.[country.toLowerCase()] || [];
@@ -333,16 +341,16 @@ async function getTitleOffers(nodeId, country = 'US', language = 'en') {
  * @param {string} country - ISO country code (e.g. 'ES')
  * @returns {Promise<Array>} Array of package objects with iconUrl resolved
  */
-async function getPackages(country = 'US') {
+async function getPackages(country = "US") {
   const cacheKey = `packages:${country}`;
   const cached = await cacheGet(cacheKey);
   if (cached) return cached;
 
-  const data = await gql(GET_PACKAGES_QUERY, { country, platform: 'WEB' });
+  const data = await gql(GET_PACKAGES_QUERY, { country, platform: "WEB" });
   const pkgs = (data?.packages || []).map((pkg) => ({
     ...pkg,
     iconUrl: pkg.icon
-      ? `https://images.justwatch.com${pkg.icon.replace('{format}', 'webp')}`
+      ? `https://images.justwatch.com${pkg.icon.replace("{format}", "webp")}`
       : null,
   }));
   await cacheSet(cacheKey, pkgs);

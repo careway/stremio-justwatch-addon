@@ -204,6 +204,24 @@ async function router(req, res) {
     return respondHtml(res, CONFIGURE_HTML);
   }
 
+  // ── /static/*  (static assets) ───────────────────────────────────────────────
+  if (rawPath.startsWith("/static/")) {
+    const fileName = rawPath.slice("/static/".length);
+    if (!fileName || fileName.includes("..")) {
+      res.writeHead(400); return res.end();
+    }
+    const filePath = path.join(__dirname, "..", "static", fileName);
+    const ext = path.extname(fileName).toLowerCase();
+    const mime = { ".svg": "image/svg+xml", ".png": "image/png", ".webp": "image/webp", ".ico": "image/x-icon" }[ext] || "application/octet-stream";
+    try {
+      const data = fs.readFileSync(filePath);
+      res.writeHead(200, { "Content-Type": mime, "Cache-Control": "public, max-age=86400" });
+      return res.end(data);
+    } catch {
+      res.writeHead(404); return res.end("Not found");
+    }
+  }
+
   // ── /manifest.json  (redirect to configure) ──────────────────────────────────
   if (rawPath === "/manifest.json") {
     return redirect(res, "/configure");

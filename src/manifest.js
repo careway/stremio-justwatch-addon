@@ -36,7 +36,7 @@ function buildManifest(config, encodedConfig, pkgInfoMap, addonBaseUrl) {
         catalogs.push({
           type,
           id: `jw_${sortKey}_${shortName}`,
-          name: `${info.clearName} · ${sortLabel}`,
+          name: `${info.clearName} · ${sortLabel} · ${country}`,
           extra: [
             { name: "genre", options: getGenreNames(language), isRequired: false },
             { name: "search", isRequired: false },
@@ -48,13 +48,12 @@ function buildManifest(config, encodedConfig, pkgInfoMap, addonBaseUrl) {
   }
 
   return {
-    id: "community.justwatch.stremio.addon",
+    id: "community.omnicatalog.stremio.addon",
     version: "1.0.0",
-    name: "JustWatch",
-    description: `Descubre dónde ver el contenido vía JustWatch. País: ${country}.`,
-    logo: "https://www.justwatch.com/appassets/img/logo/JustWatch-logo-large.webp",
-    background:
-      "https://images.justwatch.com/backdrop/305764650/s1920/the-substance.jpg",
+    name: `OmniCatalog · ${country}`,
+    description: `Every service. Every country. Select the catalogs you want and enjoy searching through them. Country: ${country}.`,
+    logo: `${addonBaseUrl}/static/logo.svg`,
+    background: "https://images.metahub.space/background/medium/tt0111161/img",
     resources: [
       "catalog",
       { name: "stream", types: ["movie"], idPrefixes: ["tt"] },

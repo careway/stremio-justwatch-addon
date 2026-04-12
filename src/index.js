@@ -212,7 +212,7 @@ async function router(req, res) {
 
   // ── /favicon.ico ─────────────────────────────────────────────────────────────
   if (rawPath === "/favicon.ico") {
-    return redirect(res, "/static/logo.svg");
+    return redirect(res, "/static/favicon.ico");
   }
 
   // ── /static/*  (static assets) ───────────────────────────────────────────────

@@ -7,7 +7,6 @@ const path = require("path");
 const { decodeConfig, encodeConfig } = require("./config");
 const { buildManifest } = require("./manifest");
 const { handleCatalog } = require("./catalog");
-const { handleStream } = require("./stream");
 const { getPackages } = require("./justwatch");
 
 const PORT = Number(process.env.PORT) || 7000;
@@ -302,17 +301,6 @@ async function router(req, res) {
     return respond(
       res,
       await handleCatalog({ type, id, extra: parseExtra(extraRaw) }, config),
-    );
-  }
-
-  // /{config}/stream/{type}/{id}.json
-  const streamRx = /^stream\/([^/]+)\/(.+?)\.json$/;
-  const sm = rest.match(streamRx);
-  if (sm) {
-    const [, type, id] = sm;
-    return respond(
-      res,
-      await handleStream({ type, id: decodeURIComponent(id) }, config),
     );
   }
 

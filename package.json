@@ -1,7 +1,7 @@
 {
-  "name": "stremio-justwatch-addon",
+  "name": "omnicatalogs",
   "version": "1.0.0",
-  "description": "Stremio addon that shows Services Catalogs to watch content using JustWatch",
+  "description": "Every service. Every country. Select the catalogs you want and enjoy searching through them.",
   "main": "src/index.js",
   "engines": {
     "node": ">=18"

@@ -1,5 +1,6 @@
 "use strict";
 
+const { version } = require("../package.json");
 const { getGenreNames, SORT_MAP } = require("./config");
 
 // Human-readable sort labels shown in Stremio's catalog header
@@ -52,17 +53,13 @@ function buildManifest(config, encodedConfig, pkgInfoMap, addonBaseUrl) {
   }
 
   return {
-    id: "community.omnicatalog.stremio.addon",
-    version: "1.0.0",
-    name: `OmniCatalog · ${country}`,
+    id: "community.omnicatalogs.stremio.addon",
+    version,
+    name: `OmniCatalogs · ${country}`,
     description: `Every service. Every country. Select the catalogs you want and enjoy searching through them. Country: ${country}.`,
     logo: `${addonBaseUrl}/static/logo.svg`,
     background: "https://images.metahub.space/background/medium/tt0111161/img",
-    resources: [
-      "catalog",
-      { name: "stream", types: ["movie"], idPrefixes: ["tt"] },
-      { name: "stream", types: ["series"], idPrefixes: ["tt"] },
-    ],
+    resources: ["catalog"],
     types: ["movie", "series"],
     catalogs,
     behaviorHints: {

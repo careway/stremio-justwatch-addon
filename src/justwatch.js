@@ -102,6 +102,9 @@ const GET_PACKAGES_QUERY = `
       clearName
       technicalName
       shortName
+      monetizationTypes
+      hasTitles(country: $country, platform: $platform)
+      hasSport(country: $country, platform: $platform)
       icon(profile: S100)
     }
   }
@@ -316,6 +319,7 @@ async function getTitleOffers(nodeId, country = "US", language = "en") {
 
 /**
  * Get available streaming packages for a country.
+ * Excludes cinema-only packages (monetizationTypes = ["CINEMA"]) and\n * sports/live-only providers (hasTitles = false).
  *
  * @param {string} country - ISO country code (e.g. 'ES')
  * @returns {Promise<Array>} Array of package objects with iconUrl resolved
@@ -325,13 +329,23 @@ async function getPackages(country = "US") {
   const cached = await cacheGet(cacheKey);
   if (cached) return cached;
 
-  const data = await gql(GET_PACKAGES_QUERY, { country, platform: "WEB" });
-  const pkgs = (data?.packages || []).map((pkg) => ({
-    ...pkg,
-    iconUrl: pkg.icon
-      ? `https://images.justwatch.com${pkg.icon.replace("{format}", "webp")}`
-      : null,
-  }));
+  const rawData = await gql(GET_PACKAGES_QUERY, { country, platform: "WEB" });
+  const pkgs = (rawData?.packages || [])
+    .filter((pkg) => {
+      const types = pkg.monetizationTypes || [];
+      // Exclude pure cinema-ticketing packages
+      if (types.length === 1 && types[0] === "CINEMA") return false;
+      // Exclude sports-only / live-only providers (no VOD movie/series catalog)
+      if (pkg.hasTitles === false) return false;
+      return true;
+    })
+    .map((pkg) => ({
+      ...pkg,
+      iconUrl: pkg.icon
+        ? `https://images.justwatch.com${pkg.icon.replace("{format}", "webp")}`
+        : null,
+    }));
+
   await cacheSet(cacheKey, pkgs);
   return pkgs;
 }

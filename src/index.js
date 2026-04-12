@@ -67,13 +67,13 @@ console.warn = (...a) => log("[WARN]", ...a);
 
 // ─── Response helpers ─────────────────────────────────────────────────────────
 
-function respond(res, data, status = 200) {
+function respond(res, data, status = 200, cacheControl = "max-age=300, stale-while-revalidate=600") {
   const body = JSON.stringify(data);
   res.writeHead(status, {
     "Content-Type": "application/json; charset=utf-8",
     "Access-Control-Allow-Origin": "*",
     "Access-Control-Allow-Headers": "*",
-    "Cache-Control": "max-age=300, stale-while-revalidate=600",
+    "Cache-Control": cacheControl,
     "Content-Length": Buffer.byteLength(body),
   });
   res.end(body);
@@ -246,7 +246,7 @@ async function router(req, res) {
       return respond(res, { error: "Invalid country code" }, 400);
     }
     try {
-      return respond(res, await getPackages(country));
+      return respond(res, await getPackages(country), 200, "s-maxage=43200, stale-while-revalidate=86400");
     } catch (err) {
       console.error("[api/packages] Error:", err);
       return respond(res, []);
@@ -290,6 +290,8 @@ async function router(req, res) {
     return respond(
       res,
       buildManifest(config, encodedConfig, pkgInfoMap, getAddonBaseUrl(req)),
+      200,
+      "s-maxage=300, stale-while-revalidate=600",
     );
   }
 
@@ -301,6 +303,8 @@ async function router(req, res) {
     return respond(
       res,
       await handleCatalog({ type, id, extra: parseExtra(extraRaw) }, config),
+      200,
+      "s-maxage=43200, stale-while-revalidate=86400",
     );
   }
 

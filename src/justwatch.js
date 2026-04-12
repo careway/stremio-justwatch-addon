@@ -169,7 +169,10 @@ async function cacheGet(key) {
   // L1: in-memory
   const hit = _mem.get(key);
   if (hit) {
-    if (Date.now() - hit.ts <= CACHE_TTL_MS) return hit.data;
+    if (Date.now() - hit.ts <= CACHE_TTL_MS) {
+      console.log(`[cache] L1 hit — ${key}`);
+      return hit.data;
+    }
     _mem.delete(key);
   }
 
@@ -179,6 +182,7 @@ async function cacheGet(key) {
     try {
       const data = await redis.get(key); // @upstash/redis auto-parses JSON
       if (data !== null) {
+        console.log(`[cache] L2 hit — ${key}`);
         _mem.set(key, { data, ts: Date.now() }); // promote to L1
         return data;
       }
@@ -187,6 +191,7 @@ async function cacheGet(key) {
     }
   }
 
+  console.log(`[cache] L3 miss — ${key}`);
   return null; // full miss — caller fetches from JustWatch
 }
 

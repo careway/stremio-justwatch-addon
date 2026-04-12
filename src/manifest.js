@@ -25,7 +25,9 @@ const SORT_LABELS = {
  * @param {string}  addonBaseUrl    - Full origin e.g. https://my-addon.onrender.com
  */
 function buildManifest(config, encodedConfig, pkgInfoMap, addonBaseUrl) {
-  const { country, language, packages } = config;
+  const country = config?.country || null;
+  const language = config?.language || "en";
+  const packages = config?.packages || [];
 
   const catalogs = [];
 
@@ -37,7 +39,7 @@ function buildManifest(config, encodedConfig, pkgInfoMap, addonBaseUrl) {
         catalogs.push({
           type,
           id: `jw_${sortKey}_${shortName}`,
-          name: `${info.clearName} · ${sortLabel} · ${country}`,
+          name: `${info.clearName} · ${sortLabel}${country ? ` · ${country}` : ""}`,
           extra: [
             {
               name: "genre",
@@ -55,8 +57,8 @@ function buildManifest(config, encodedConfig, pkgInfoMap, addonBaseUrl) {
   return {
     id: "community.omnicatalogs.stremio.addon",
     version,
-    name: `OmniCatalogs · ${country}`,
-    description: `Every service. Every country. Select the catalogs you want and enjoy searching through them. Country: ${country}.`,
+    name: country ? `OmniCatalogs · ${country}` : "OmniCatalogs",
+    description: `Every service. Every country. Select the catalogs you want and enjoy searching through them.${country ? ` Country: ${country}.` : ""}`,
     logo: `${addonBaseUrl}/static/logo.svg`,
     background: "https://images.metahub.space/background/medium/tt0111161/img",
     resources: ["catalog"],
@@ -69,7 +71,8 @@ function buildManifest(config, encodedConfig, pkgInfoMap, addonBaseUrl) {
     },
     stremioAddonsConfig: {
       issuer: "https://stremio-addons.net",
-      signature: "eyJhbGciOiJkaXIiLCJlbmMiOiJBMTI4Q0JDLUhTMjU2In0..mYHVDNfGpE4TWZpkJMjESQ.ZI4xkMsaQSltf44wKy0DwvIue-bGBHz8Yjp_a11AJf9s_qZh71KPmc5aZYA07l25X5D9wh7cJ79DNWdwCTBN13_3pCAATX6zYcZQoqb92eUMmDmZYxoEPsNHAYnJq_Jy.1WiprE3OamyVsYgR_t2FaA",
+      signature:
+        "eyJhbGciOiJkaXIiLCJlbmMiOiJBMTI4Q0JDLUhTMjU2In0..mYHVDNfGpE4TWZpkJMjESQ.ZI4xkMsaQSltf44wKy0DwvIue-bGBHz8Yjp_a11AJf9s_qZh71KPmc5aZYA07l25X5D9wh7cJ79DNWdwCTBN13_3pCAATX6zYcZQoqb92eUMmDmZYxoEPsNHAYnJq_Jy.1WiprE3OamyVsYgR_t2FaA",
     },
   };
 }

@@ -234,9 +234,12 @@ async function router(req, res) {
     }
   }
 
-  // ── /manifest.json  (redirect to configure) ──────────────────────────────────
+  // ── /manifest.json  (no-config manifest) ──────────────────────────────────
   if (rawPath === "/manifest.json") {
-    return redirect(res, "/configure");
+    return respond(
+      res,
+      buildManifest(null, null, {}, getAddonBaseUrl(req)),
+    );
   }
 
   // ── /api/packages?country=XX ─────────────────────────────────────────────────

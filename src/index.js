@@ -222,7 +222,12 @@ async function router(req, res) {
       res.writeHead(400);
       return res.end();
     }
-    const filePath = path.join(__dirname, "..", "static", fileName);
+    const staticDir = path.resolve(__dirname, "..", "static");
+    const filePath = path.resolve(staticDir, fileName);
+    if (!filePath.startsWith(staticDir + path.sep) && filePath !== staticDir) {
+      res.writeHead(400);
+      return res.end();
+    }
     const ext = path.extname(fileName).toLowerCase();
     const mime =
       {
@@ -271,7 +276,7 @@ async function router(req, res) {
 
   // ── /{config}/* ───────────────────────────────────────────────────────────────
   // Config segment is base64url: [A-Za-z0-9_-]+
-  const configMatch = rawPath.match(/^\/([A-Za-z0-9_-]+)\/(.*)/);
+  const configMatch = rawPath.match(/^\/([A-Za-z0-9_-]{1,200})\/(.*)/);
   if (!configMatch) {
     return respond(res, { error: "Not found" }, 404);
   }

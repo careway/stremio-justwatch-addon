@@ -46,7 +46,6 @@ function buildManifest(config, encodedConfig, pkgInfoMap, addonBaseUrl) {
               options: getGenreNames(language),
               isRequired: false,
             },
-            { name: "search", isRequired: false },
             { name: "skip", isRequired: false },
           ],
         });

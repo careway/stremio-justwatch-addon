@@ -47,6 +47,7 @@ function nodeToMeta(node, language) {
 async function handleCatalog({ type, id, extra }, config) {
   const { search, genre, skip } = extra || {};
   const offset = Math.max(0, parseInt(skip, 10) || 0);
+  const rawSearch = typeof search === "string" ? search.slice(0, 100) : "";
   const jwType = TYPE_TO_JW[type];
 
   // Parse: jw_{sortKey}_{technicalName...}
@@ -60,7 +61,7 @@ async function handleCatalog({ type, id, extra }, config) {
 
   try {
     const titles = await searchTitles({
-      query: search || "",
+      query: rawSearch,
       objectTypes: jwType ? [jwType] : [],
       packages: pkgName ? [pkgName] : [],
       genres: genreCode ? [genreCode] : [],

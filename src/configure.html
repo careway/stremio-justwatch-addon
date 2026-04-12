@@ -30,7 +30,7 @@
       }
 
       body {
-        background: linear-gradient(-45deg, #0f0c29, #302b63, #24243e, #1a1a2e);
+        background: linear-gradient(-45deg, #210c29, #302b63, #4a135f, #3b3b88);
         background-size: 400% 400%;
         animation: gradientBG 15s ease infinite;
         color: var(--text);
@@ -44,13 +44,16 @@
 
       @keyframes gradientBG {
         0% {
-          background-position: 0% 50%;
+          /* Empezamos arriba a la izquierda */
+          background-position: 0% 0%;
         }
         50% {
-          background-position: 100% 50%;
+          /* Movemos hasta abajo a la derecha para barrer todos los colores */
+          background-position: 100% 100%;
         }
         100% {
-          background-position: 0% 50%;
+          /* Volvemos al inicio */
+          background-position: 0% 0%;
         }
       }
 
@@ -521,7 +524,7 @@
             </div>
           </div>
           <div class="field">
-            <label>Idioma Info</label>
+            <label>Idioma Portada</label>
             <div class="custom-select" id="cs-language">
               <div class="cs-trigger">
                 <span class="cs-label">Español</span
@@ -592,6 +595,11 @@
           <div id="pkg-grid"></div>
         </div>
 
+        <div
+          id="load-more-slot"
+          style="flex-shrink: 0; text-align: center"
+        ></div>
+
         <div class="actions" style="flex-shrink: 0; padding-top: 1rem">
           <button class="btn-primary" id="btn-generate">
             Instalar en Stremio
@@ -609,7 +617,7 @@
                   margin-left: 5px;
                   font-family: monospace;
                 "
-                >manifest_url_generated</span
+                >Manifest URL Generated</span
               >
             </div>
             <div class="url-box">
@@ -777,6 +785,8 @@
           </div>`;
       }
 
+      const loadMoreSlot = document.getElementById("load-more-slot");
+
       function renderPackages(pkgs, preSelected) {
         const draw = (count) => {
           pkgGrid.innerHTML = pkgs
@@ -789,14 +799,10 @@
             )
             .join("");
           if (count < pkgs.length) {
-            const wrap = document.createElement("div");
-            wrap.style = "grid-column: 1/-1; text-align: center;";
-            wrap.innerHTML = `<button class="btn-show-more">Cargar proveedores restantes (${pkgs.length - count})</button>`;
-            wrap.onclick = () => {
-              pkgGrid.removeChild(wrap);
-              draw(pkgs.length);
-            };
-            pkgGrid.appendChild(wrap);
+            loadMoreSlot.innerHTML = `<button class="btn-show-more">Cargar proveedores restantes (${pkgs.length - count})</button>`;
+            loadMoreSlot.firstChild.onclick = () => draw(pkgs.length);
+          } else {
+            loadMoreSlot.innerHTML = "";
           }
         };
         draw(10);

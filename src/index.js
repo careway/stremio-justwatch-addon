@@ -67,7 +67,12 @@ console.warn = (...a) => log("[WARN]", ...a);
 
 // ─── Response helpers ─────────────────────────────────────────────────────────
 
-function respond(res, data, status = 200, cacheControl = "max-age=300, stale-while-revalidate=600") {
+function respond(
+  res,
+  data,
+  status = 200,
+  cacheControl = "max-age=300, stale-while-revalidate=600",
+) {
   const body = JSON.stringify(data);
   res.writeHead(status, {
     "Content-Type": "application/json; charset=utf-8",
@@ -205,6 +210,11 @@ async function router(req, res) {
     return respondHtml(res, CONFIGURE_HTML);
   }
 
+  // ── /favicon.ico ─────────────────────────────────────────────────────────────
+  if (rawPath === "/favicon.ico") {
+    return redirect(res, "/static/logo.svg");
+  }
+
   // ── /static/*  (static assets) ───────────────────────────────────────────────
   if (rawPath.startsWith("/static/")) {
     const fileName = rawPath.slice("/static/".length);
@@ -246,7 +256,12 @@ async function router(req, res) {
       return respond(res, { error: "Invalid country code" }, 400);
     }
     try {
-      return respond(res, await getPackages(country), 200, "s-maxage=43200, stale-while-revalidate=86400");
+      return respond(
+        res,
+        await getPackages(country),
+        200,
+        "s-maxage=43200, stale-while-revalidate=86400",
+      );
     } catch (err) {
       console.error("[api/packages] Error:", err);
       return respond(res, []);

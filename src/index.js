@@ -230,6 +230,7 @@ async function router(req, res) {
         ".png": "image/png",
         ".webp": "image/webp",
         ".ico": "image/x-icon",
+        ".webmanifest": "application/manifest+json",
       }[ext] || "application/octet-stream";
     try {
       const data = fs.readFileSync(filePath);

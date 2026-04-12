@@ -236,10 +236,7 @@ async function router(req, res) {
 
   // ── /manifest.json  (no-config manifest) ──────────────────────────────────
   if (rawPath === "/manifest.json") {
-    return respond(
-      res,
-      buildManifest(null, null, {}, getAddonBaseUrl(req)),
-    );
+    return respond(res, buildManifest(null, null, {}, getAddonBaseUrl(req)));
   }
 
   // ── /api/packages?country=XX ─────────────────────────────────────────────────

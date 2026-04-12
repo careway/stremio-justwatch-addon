@@ -151,8 +151,10 @@ let _redis = null;
 
 function getRedis() {
   if (_redis) return _redis;
-  const url = process.env.REDIS_KV_REST_API_URL || process.env.UPSTASH_REDIS_REST_URL;
-  const token = process.env.REDIS_KV_REST_API_TOKEN || process.env.UPSTASH_REDIS_REST_TOKEN;
+  const url =
+    process.env.REDIS_KV_REST_API_URL || process.env.UPSTASH_REDIS_REST_URL;
+  const token =
+    process.env.REDIS_KV_REST_API_TOKEN || process.env.UPSTASH_REDIS_REST_TOKEN;
   if (url && token) {
     _redis = new Redis({ url, token });
   }

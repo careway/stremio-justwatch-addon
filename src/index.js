@@ -4,7 +4,12 @@ const http = require("http");
 const fs = require("fs");
 const path = require("path");
 
-const { decodeConfig, encodeConfig } = require("./config");
+const {
+  decodeConfig,
+  encodeConfig,
+  fetchCountriesFromJustWatch,
+  getSupportedLanguages,
+} = require("./config");
 const { buildManifest } = require("./manifest");
 const { handleCatalog } = require("./catalog");
 const { getPackages } = require("./justwatch");
@@ -253,6 +258,38 @@ async function router(req, res) {
   // ── /manifest.json  (no-config manifest) ──────────────────────────────────
   if (rawPath === "/manifest.json") {
     return respond(res, buildManifest(null, null, {}, getAddonBaseUrl(req)));
+  }
+
+  // ── /api/countries  (fetch supported countries from JustWatch) ─────────────────
+  if (rawPath === "/api/countries") {
+    try {
+      const countries = await fetchCountriesFromJustWatch();
+      return respond(
+        res,
+        countries,
+        200,
+        "s-maxage=86400, stale-while-revalidate=172800",
+      );
+    } catch (err) {
+      console.error("[api/countries] Error:", err);
+      return respond(res, []);
+    }
+  }
+
+  // ── /api/languages  (get supported languages) ──────────────────────────────────
+  if (rawPath === "/api/languages") {
+    try {
+      const languages = getSupportedLanguages();
+      return respond(
+        res,
+        languages,
+        200,
+        "s-maxage=86400, stale-while-revalidate=172800",
+      );
+    } catch (err) {
+      console.error("[api/languages] Error:", err);
+      return respond(res, []);
+    }
   }
 
   // ── /api/packages?country=XX ─────────────────────────────────────────────────

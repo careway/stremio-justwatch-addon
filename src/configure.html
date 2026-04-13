@@ -509,35 +509,11 @@
             <label>Región</label>
             <div class="custom-select" id="cs-country">
               <div class="cs-trigger">
-                <span class="cs-label">España</span
+                <span class="cs-label">Cargando...</span
                 ><span class="cs-arrow">▾</span>
               </div>
-              <div class="cs-list">
-                <div class="cs-option selected" data-value="ES">España</div>
-                <div class="cs-option" data-value="US">Estados Unidos</div>
-                <div class="cs-option" data-value="GB">Reino Unido</div>
-                <div class="cs-option" data-value="DE">Alemania</div>
-                <div class="cs-option" data-value="FR">Francia</div>
-                <div class="cs-option" data-value="IT">Italia</div>
-                <div class="cs-option" data-value="PT">Portugal</div>
-                <div class="cs-option" data-value="MX">México</div>
-                <div class="cs-option" data-value="AR">Argentina</div>
-                <div class="cs-option" data-value="BR">Brasil</div>
-                <div class="cs-option" data-value="CL">Chile</div>
-                <div class="cs-option" data-value="CO">Colombia</div>
-                <div class="cs-option" data-value="NL">Países Bajos</div>
-                <div class="cs-option" data-value="BE">Bélgica</div>
-                <div class="cs-option" data-value="CH">Suiza</div>
-                <div class="cs-option" data-value="AT">Austria</div>
-                <div class="cs-option" data-value="SE">Suecia</div>
-                <div class="cs-option" data-value="NO">Noruega</div>
-                <div class="cs-option" data-value="DK">Dinamarca</div>
-                <div class="cs-option" data-value="FI">Finlandia</div>
-                <div class="cs-option" data-value="PL">Polonia</div>
-                <div class="cs-option" data-value="CA">Canadá</div>
-                <div class="cs-option" data-value="AU">Australia</div>
-                <div class="cs-option" data-value="JP">Japón</div>
-                <div class="cs-option" data-value="KR">Corea del Sur</div>
+              <div class="cs-list" id="cs-country-list">
+                <!-- Countries will be loaded here dynamically -->
               </div>
             </div>
           </div>
@@ -545,24 +521,11 @@
             <label>Idioma Portada</label>
             <div class="custom-select" id="cs-language">
               <div class="cs-trigger">
-                <span class="cs-label">Español</span
+                <span class="cs-label">Cargando...</span
                 ><span class="cs-arrow">▾</span>
               </div>
-              <div class="cs-list">
-                <div class="cs-option selected" data-value="es">Español</div>
-                <div class="cs-option" data-value="en">English</div>
-                <div class="cs-option" data-value="de">Deutsch</div>
-                <div class="cs-option" data-value="fr">Français</div>
-                <div class="cs-option" data-value="it">Italiano</div>
-                <div class="cs-option" data-value="pt">Português</div>
-                <div class="cs-option" data-value="nl">Nederlands</div>
-                <div class="cs-option" data-value="sv">Svenska</div>
-                <div class="cs-option" data-value="no">Norsk</div>
-                <div class="cs-option" data-value="da">Dansk</div>
-                <div class="cs-option" data-value="fi">Suomi</div>
-                <div class="cs-option" data-value="pl">Polski</div>
-                <div class="cs-option" data-value="ja">日本語</div>
-                <div class="cs-option" data-value="ko">한국어</div>
+              <div class="cs-list" id="cs-language-list">
+                <!-- Languages will be loaded here dynamically -->
               </div>
             </div>
           </div>
@@ -738,13 +701,101 @@
         };
       }
 
-      const countrySel = initCustomSelect("cs-country", (v) => {
-        loadPackages(v);
-        if (resultEl.classList.contains("visible")) generateUrl();
-      });
-      const languageSel = initCustomSelect("cs-language", () => {
-        if (resultEl.classList.contains("visible")) generateUrl();
-      });
+      // Load countries dynamically from API
+      let countrySel = null;
+      let languageSel = null;
+
+      // Load languages from API
+      (async () => {
+        try {
+          const res = await fetch("/api/languages");
+          const languages = await res.json();
+          if (!Array.isArray(languages) || languages.length === 0) {
+            throw new Error("No languages returned");
+          }
+
+          const languageList = document.getElementById("cs-language-list");
+          const defaultLanguage =
+            languages.find((l) => l.code === "es") || languages[0];
+
+          // Populate the language options
+          languageList.innerHTML = languages
+            .map(
+              (l) =>
+                `<div class="cs-option${l.code === defaultLanguage.code ? " selected" : ""}" data-value="${l.code}">${l.name}</div>`,
+            )
+            .join("");
+
+          // Update the trigger label to show the default language
+          const label = document.querySelector("#cs-language .cs-label");
+          label.textContent = defaultLanguage.name;
+
+          // Initialize the custom select for languages
+          languageSel = initCustomSelect("cs-language", () => {
+            if (resultEl.classList.contains("visible")) generateUrl();
+          });
+        } catch (e) {
+          console.error("Failed to load languages:", e);
+          // Fallback: show error message in language dropdown
+          const languageList = document.getElementById("cs-language-list");
+          languageList.innerHTML = `<div style="padding: 1rem; color: var(--accent); text-align: center;">Error al cargar idiomas</div>`;
+        }
+      })();
+
+      // Load countries dynamically from API (existing code)
+      (async () => {
+        try {
+          const res = await fetch("/api/countries");
+          const countries = await res.json();
+          if (!Array.isArray(countries) || countries.length === 0) {
+            throw new Error("No countries returned");
+          }
+
+          const countryList = document.getElementById("cs-country-list");
+          const defaultCountry =
+            countries.find((c) => c.code === "ES") || countries[0];
+
+          // Populate the country options
+          countryList.innerHTML = countries
+            .map(
+              (c) =>
+                `<div class="cs-option${c.code === defaultCountry.code ? " selected" : ""}" data-value="${c.code}">${c.name}</div>`,
+            )
+            .join("");
+
+          // Update the trigger label to show the default country
+          const label = document.querySelector("#cs-country .cs-label");
+          label.textContent = defaultCountry.name;
+
+          // Initialize the custom select for countries
+          countrySel = initCustomSelect("cs-country", (v) => {
+            loadPackages(v);
+            if (resultEl.classList.contains("visible")) generateUrl();
+          });
+
+          // ── Init: pre-fill from ?config= if coming from Stremio reconfigure ──
+          const cfgParam = new URLSearchParams(window.location.search).get(
+            "config",
+          );
+          if (cfgParam) {
+            const parts = cfgParam.split("_");
+            if (parts.length >= 2) {
+              const [country, lang, ...pkgs] = parts;
+              if (country) countrySel.value = country;
+              if (lang) languageSel.value = lang;
+              loadPackages(country || countrySel.value, pkgs);
+              return;
+            }
+          }
+          loadPackages(defaultCountry.code);
+        } catch (e) {
+          console.error("Failed to load countries:", e);
+          // Fallback: show error message in country dropdown
+          const countryList = document.getElementById("cs-country-list");
+          countryList.innerHTML = `<div style="padding: 1rem; color: var(--accent); text-align: center;">Error al cargar países</div>`;
+        }
+      })();
+
       const pkgGrid = document.getElementById("pkg-grid");
       const btnAll = document.getElementById("btn-all");
       const btnNone = document.getElementById("btn-none");
@@ -870,24 +921,6 @@
         btnCopy.textContent = "LISTO";
         setTimeout(() => (btnCopy.textContent = "COPIAR"), 2000);
       };
-
-      // ── Init: pre-fill from ?config= if coming from Stremio reconfigure ──
-      (function init() {
-        const cfgParam = new URLSearchParams(window.location.search).get(
-          "config",
-        );
-        if (cfgParam) {
-          const parts = cfgParam.split("_");
-          if (parts.length >= 2) {
-            const [country, lang, ...pkgs] = parts;
-            if (country) countrySel.value = country;
-            if (lang) languageSel.value = lang;
-            loadPackages(country || countrySel.value, pkgs);
-            return;
-          }
-        }
-        loadPackages(countrySel.value);
-      })();
     </script>
   </body>
 </html>

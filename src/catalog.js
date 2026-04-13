@@ -41,13 +41,16 @@ function nodeToMeta(node, language) {
  * @param {object} args
  * @param {string} args.type   - 'movie' | 'series'
  * @param {string} args.id     - Catalog ID (e.g. jw_pop_nfx)
- * @param {object} args.extra  - { search?, genre?, skip? } from Stremio
+ * @param {object} args.extra  - { genre?, skip? } from Stremio
  * @param {object} config      - { country, language, packages }
  */
 async function handleCatalog({ type, id, extra }, config) {
-  const { search, genre, skip } = extra || {};
+  const { genre, skip, search } = extra || {};
+
+  // We only serve catalogs — search is handled by Cinemeta, not this addon
+  if (search !== undefined) return null;
+
   const offset = Math.max(0, parseInt(skip, 10) || 0);
-  const rawSearch = typeof search === "string" ? search.slice(0, 100) : "";
   const jwType = TYPE_TO_JW[type];
 
   // Parse: jw_{sortKey}_{technicalName...}
@@ -61,7 +64,7 @@ async function handleCatalog({ type, id, extra }, config) {
 
   try {
     const titles = await searchTitles({
-      query: rawSearch,
+      query: "",
       objectTypes: jwType ? [jwType] : [],
       packages: pkgName ? [pkgName] : [],
       genres: genreCode ? [genreCode] : [],

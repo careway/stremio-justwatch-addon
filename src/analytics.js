@@ -47,4 +47,5 @@ function trackCatalogRequest(req) {
 module.exports = {
   track,
   trackCacheHit,
+  trackCatalogRequest,
 };

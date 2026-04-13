@@ -11,7 +11,9 @@ const handler = require("../src/index");
 
 function startServer() {
   const server = http.createServer(handler);
-  return new Promise((resolve) => server.listen(0, "127.0.0.1", () => resolve(server)));
+  return new Promise((resolve) =>
+    server.listen(0, "127.0.0.1", () => resolve(server)),
+  );
 }
 
 function req(server, urlPath) {
@@ -21,7 +23,9 @@ function req(server, urlPath) {
       .get(`http://${address}:${port}${urlPath}`, (res) => {
         let body = "";
         res.on("data", (c) => (body += c));
-        res.on("end", () => resolve({ status: res.statusCode, body, headers: res.headers }));
+        res.on("end", () =>
+          resolve({ status: res.statusCode, body, headers: res.headers }),
+        );
       })
       .on("error", reject);
   });

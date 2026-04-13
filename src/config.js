@@ -696,7 +696,9 @@ const COUNTRIES = FALLBACK_COUNTRIES;
  * e.g. ES_es_nfx_dnp_prv
  */
 function encodeConfig(config) {
-  const parts = [config.country, config.language || "en", ...config.packages];
+  const parts = [config.country, config.language || "en"];
+  if (config.rpdbKey) parts.push(`rpdb-${config.rpdbKey}`);
+  parts.push(...config.packages);
   return parts.join("_");
 }
 
@@ -722,12 +724,15 @@ function decodeConfig(encoded) {
         .slice(0, 5) || "en";
     const packages = parts
       .slice(2)
-      .filter((p) => /^[a-z0-9-]{1,30}$/.test(p))
-      .slice(0, 30);
+      .filter((p) => /^[a-z0-9-]{1,30}$/.test(p) && !p.startsWith("rpdb-"))
+      .slice(0, 200);
+
+    const rpdbSegment = parts.slice(2).find((p) => p.startsWith("rpdb-"));
+    const rpdbKey = rpdbSegment ? rpdbSegment.slice(5) : null;
 
     if (!country) return null;
 
-    return { country, language, packages };
+    return { country, language, packages, rpdbKey };
   } catch {
     return null;
   }

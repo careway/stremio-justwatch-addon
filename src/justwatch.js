@@ -12,14 +12,10 @@ const GET_POPULAR_TITLES_QUERY = `
   query GetPopularTitles(
     $country: Country!
     $first: Int! = 70
-    $format: ImageFormat
-    $language: Language!
-    $after: String
     $popularTitlesFilter: TitleFilter
     $popularTitlesSortBy: PopularTitlesSorting! = POPULAR
-    $profile: PosterProfile
+    $language: Language!
     $sortRandomSeed: Int! = 0
-    $watchNowFilter: WatchNowOfferFilter!
     $offset: Int = 0
   ) {
     popularTitles(
@@ -29,68 +25,23 @@ const GET_POPULAR_TITLES_QUERY = `
       sortBy: $popularTitlesSortBy
       sortRandomSeed: $sortRandomSeed
       offset: $offset
-      after: $after
     ) {
       edges {
         node {
-          ...PopularTitleGraphql
-          __typename
+          objectType
+          content(country: $country, language: $language) {
+            title
+            shortDescription
+            genres {
+              shortName
+            }
+            externalIds {
+              imdbId
+            }
+            posterUrl(profile: S718, format: JPG)
+          }
         }
       }
-      pageInfo {
-        startCursor
-        endCursor
-        hasPreviousPage
-        hasNextPage
-      }
-      totalCount
-    }
-  }
-
-  fragment PopularTitleGraphql on MovieOrShow {
-    id
-    objectId
-    objectType
-    content(country: $country, language: $language) {
-      title
-      fullPath
-      originalReleaseYear
-      shortDescription
-      genres {
-        shortName
-      }
-      externalIds {
-        imdbId
-      }
-      scoring {
-        imdbVotes
-        imdbScore
-        tmdbPopularity
-        tmdbScore
-      }
-      posterUrl(profile: $profile, format: $format)
-      isReleased
-      runtime
-    }
-    watchNowOffer(country: $country, platform: WEB, filter: $watchNowFilter) {
-      id
-      standardWebURL
-      streamUrl
-      streamUrlExternalPlayer
-      package {
-        id
-        packageId
-        clearName
-        shortName
-        technicalName
-        icon
-      }
-      retailPrice(language: $language)
-      retailPriceValue
-      currency
-      presentationType
-      monetizationType
-      availableTo
     }
   }
 `;
@@ -144,8 +95,8 @@ function buildOffersQuery(country) {
 
 // ─── Cache ────────────────────────────────────────────────────────────────────
 
-const CACHE_TTL_S = 12 * 60 * 60; // 12 hours (Redis uses seconds)
-const CACHE_TTL_MS = CACHE_TTL_S * 1000; // 12 hours in ms (in-memory)
+const CACHE_TTL_S = 24 * 60 * 60; // 24 hours (Redis uses seconds)
+const CACHE_TTL_MS = CACHE_TTL_S * 1000; // 24 hours in ms (in-memory)
 
 // L1 — in-memory
 const _mem = new Map();
@@ -282,14 +233,11 @@ async function searchTitles({
   const data = await gql(GET_POPULAR_TITLES_QUERY, {
     popularTitlesFilter: filter,
     country,
-    language,
     first: Math.min(first, 50),
     offset,
     popularTitlesSortBy: sortBy,
+    language,
     sortRandomSeed: 0,
-    watchNowFilter: {},
-    profile: "S718",
-    format: "JPG",
   });
 
   const nodes = (data?.popularTitles?.edges || []).map((e) => e.node);

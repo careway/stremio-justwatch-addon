@@ -27,8 +27,8 @@
       rel="stylesheet"
     />
     <script type="module">
-      import { inject } from 'https://cdn.jsdelivr.net/npm/@vercel/analytics@1/dist/index.js';
-      inject({ mode: 'production' });
+      import { inject } from "https://cdn.jsdelivr.net/npm/@vercel/analytics@1/dist/index.js";
+      inject({ mode: "production" });
     </script>
     <style>
       *,
@@ -296,6 +296,7 @@
       /* GRID CON SCROLL */
       .grid-container {
         flex: 1;
+        min-height: 280px;
         overflow-y: auto;
         margin: 1rem 0;
         padding-right: 12px;
@@ -303,7 +304,7 @@
       #pkg-grid {
         display: grid;
         grid-template-columns: repeat(auto-fill, minmax(105px, 1fr));
-        gap: 0.8rem;
+        gap: 0.6rem;
       }
 
       /* SCROLLBAR */
@@ -349,6 +350,8 @@
         font-weight: 600;
         text-align: center;
         color: var(--text);
+        padding: 0 0.4rem;
+        word-break: break-word;
       }
 
       .pkg-check {
@@ -490,7 +493,8 @@
         .card {
           width: 100%;
           max-width: 600px;
-          max-height: 80vh;
+          max-height: none;
+          overflow: visible;
         }
       }
     </style>
@@ -506,6 +510,55 @@
             onerror="this.style.display = 'none'"
           />
           <h1>OmniCatalog</h1>
+        </div>
+
+        <p
+          style="
+            font-size: 0.7rem;
+            color: var(--muted);
+            margin: 0 0 1.4rem;
+            text-align: center;
+            letter-spacing: 0.03em;
+          "
+        >
+          Configura tu addon en 3 pasos
+        </p>
+
+        <!-- ── Paso 1 ── -->
+        <div
+          style="
+            display: flex;
+            align-items: center;
+            gap: 0.6rem;
+            margin-bottom: 0.7rem;
+          "
+        >
+          <span
+            style="
+              background: var(--accent);
+              color: #0f0c29;
+              border-radius: 50%;
+              width: 1.3rem;
+              height: 1.3rem;
+              display: flex;
+              align-items: center;
+              justify-content: center;
+              font-size: 0.7rem;
+              font-weight: 700;
+              flex-shrink: 0;
+            "
+            >1</span
+          >
+          <span
+            style="
+              font-size: 0.7rem;
+              font-weight: 600;
+              color: var(--text);
+              letter-spacing: 0.05em;
+              text-transform: uppercase;
+            "
+            >Selecciona tu país e idioma</span
+          >
         </div>
 
         <div class="row">
@@ -533,6 +586,43 @@
               </div>
             </div>
           </div>
+        </div>
+
+        <!-- ── Paso 2 ── -->
+        <div
+          style="
+            display: flex;
+            align-items: center;
+            gap: 0.6rem;
+            margin: 1.2rem 0 0.7rem;
+          "
+        >
+          <span
+            style="
+              background: var(--accent);
+              color: #0f0c29;
+              border-radius: 50%;
+              width: 1.3rem;
+              height: 1.3rem;
+              display: flex;
+              align-items: center;
+              justify-content: center;
+              font-size: 0.7rem;
+              font-weight: 700;
+              flex-shrink: 0;
+            "
+            >2</span
+          >
+          <span
+            style="
+              font-size: 0.7rem;
+              font-weight: 600;
+              color: var(--text);
+              letter-spacing: 0.05em;
+              text-transform: uppercase;
+            "
+            >Elige tus plataformas</span
+          >
         </div>
 
         <div
@@ -584,6 +674,81 @@
           id="load-more-slot"
           style="flex-shrink: 0; text-align: center"
         ></div>
+
+        <!-- ── Paso 3 ── -->
+        <div
+          style="
+            display: flex;
+            align-items: center;
+            gap: 0.6rem;
+            margin: 1.2rem 0 0.7rem;
+            flex-shrink: 0;
+          "
+        >
+          <span
+            style="
+              background: var(--accent);
+              color: #0f0c29;
+              border-radius: 50%;
+              width: 1.3rem;
+              height: 1.3rem;
+              display: flex;
+              align-items: center;
+              justify-content: center;
+              font-size: 0.7rem;
+              font-weight: 700;
+              flex-shrink: 0;
+            "
+            >3</span
+          >
+          <span
+            style="
+              font-size: 0.7rem;
+              font-weight: 600;
+              color: var(--text);
+              letter-spacing: 0.05em;
+              text-transform: uppercase;
+            "
+            >Muestra los ratings en las portadas
+            <span
+              style="
+                color: var(--muted);
+                font-weight: 400;
+                text-transform: none;
+              "
+              >(opcional)</span
+            ></span
+          >
+        </div>
+
+        <div class="row" style="flex-shrink: 0">
+          <div class="field">
+            <label
+              >RPDB API Key
+              <span style="font-size: 0.7em; color: var(--secondary)"
+                >(opcional)</span
+              >
+            </label>
+            <input
+              id="rpdb-key"
+              type="text"
+              placeholder="t8-xxxxxxxxxxxxxxxx"
+              autocomplete="off"
+              spellcheck="false"
+              style="
+                width: 100%;
+                background: var(--glass);
+                border: 1px solid rgba(255, 255, 255, 0.15);
+                border-radius: 8px;
+                color: var(--text);
+                padding: 0.55rem 0.8rem;
+                font-size: 0.85rem;
+                outline: none;
+                box-sizing: border-box;
+              "
+            />
+          </div>
+        </div>
 
         <div class="actions" style="flex-shrink: 0; padding-top: 1rem">
           <button class="btn-primary" id="btn-generate">
@@ -886,7 +1051,9 @@
           ...pkgGrid.querySelectorAll('input[type="checkbox"]:checked'),
         ].map((i) => i.value);
         if (!selected.length) return null;
-        const config = `${countrySel.value}_${languageSel.value}_${selected.join("_")}`;
+        const rpdbKey = document.getElementById("rpdb-key").value.trim();
+        const rpdbPart = rpdbKey ? `rpdb-${rpdbKey}_` : "";
+        const config = `${countrySel.value}_${languageSel.value}_${rpdbPart}${selected.join("_")}`;
         const manifest = `${window.location.origin}/${config}/manifest.json`;
         urlOut.value = manifest;
         resultEl.classList.add("visible");
@@ -912,6 +1079,10 @@
           resultEl.classList.contains("visible")
         )
           generateUrl();
+      });
+
+      document.getElementById("rpdb-key").addEventListener("input", () => {
+        if (resultEl.classList.contains("visible")) generateUrl();
       });
 
       btnGenerate.onclick = () => {

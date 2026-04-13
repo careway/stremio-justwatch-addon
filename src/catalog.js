@@ -5,25 +5,25 @@ const { getGenreCode, SORT_MAP, GENRES } = require("./config");
 
 const TYPE_TO_JW = { movie: "MOVIE", series: "SHOW" };
 
-function nodeToMeta(node, language) {
+function getPoster(imdbId, jwPosterUrl, rpdbKey) {
+  if (rpdbKey)
+    return `https://api.ratingposterdb.com/${rpdbKey}/imdb/poster-default/${imdbId}.jpg`;
+  if (jwPosterUrl) return `https://images.justwatch.com${jwPosterUrl}`;
+  return `https://images.metahub.space/poster/medium/${imdbId}/img`;
+}
+
+function nodeToMeta(node, language, config) {
   const imdbId = node?.content?.externalIds?.imdbId;
   if (!imdbId) return null;
 
   const lang = (language || "en").toLowerCase().split("-")[0];
 
-  const posterUrl = node.content.posterUrl
-    ? `https://images.justwatch.com${node.content.posterUrl}`
-    : undefined;
-
   return {
     id: imdbId,
     type: node.objectType === "MOVIE" ? "movie" : "series",
     name: node.content.title,
-    poster: posterUrl,
+    poster: getPoster(imdbId, node.content.posterUrl, config?.rpdbKey),
     description: node.content.shortDescription || undefined,
-    releaseInfo: node.content.originalReleaseYear
-      ? String(node.content.originalReleaseYear)
-      : undefined,
     genres: (node.content.genres || []).map((g) => {
       const entry = GENRES.find((e) => e.code === g.shortName);
       return entry ? entry.names[lang] || entry.names.en : g.shortName;
@@ -77,7 +77,7 @@ async function handleCatalog({ type, id, extra }, config) {
 
     const metas = titles
       .filter((n) => !jwType || n.objectType === jwType)
-      .map((n) => nodeToMeta(n, config.language))
+      .map((n) => nodeToMeta(n, config.language, config))
       .filter(Boolean);
 
     return { metas };

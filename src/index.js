@@ -304,7 +304,7 @@ async function router(req, res) {
         res,
         await getPackages(country),
         200,
-        "s-maxage=43200, stale-while-revalidate=86400",
+        "s-maxage=86400, stale-while-revalidate=172800",
       );
     } catch (err) {
       console.error("[api/packages] Error:", err);
@@ -364,7 +364,7 @@ async function router(req, res) {
       res,
       await handleCatalog({ type, id, extra: parseExtra(extraRaw) }, config),
       200,
-      "s-maxage=43200, stale-while-revalidate=86400",
+      "s-maxage=86400, stale-while-revalidate=172800",
     );
   }
 

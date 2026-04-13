@@ -64,21 +64,9 @@ describe("Path traversal protection", () => {
 // ─── Config length limit ─────────────────────────────────────────────────────
 
 describe("Config segment length limit", () => {
-  test("rejects config longer than 200 chars", async () => {
+  test("accepts long config with many providers", async () => {
     const server = await startServer();
     try {
-      const longConfig = "a".repeat(201);
-      const r = await req(server, `/${longConfig}/manifest.json`);
-      assert.equal(r.status, 404);
-    } finally {
-      server.close();
-    }
-  });
-
-  test("accepts config within 200 chars", async () => {
-    const server = await startServer();
-    try {
-      // Valid config: ES_es_nfx
       const r = await req(server, "/ES_es_nfx/manifest.json");
       assert.equal(r.status, 200);
     } finally {

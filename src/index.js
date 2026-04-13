@@ -276,7 +276,7 @@ async function router(req, res) {
 
   // ── /{config}/* ───────────────────────────────────────────────────────────────
   // Config segment is base64url: [A-Za-z0-9_-]+
-  const configMatch = rawPath.match(/^\/([A-Za-z0-9_-]{1,200})\/(.*)/);
+  const configMatch = rawPath.match(/^\/([A-Za-z0-9_-]+)\/(.*)/);
   if (!configMatch) {
     return respond(res, { error: "Not found" }, 404);
   }

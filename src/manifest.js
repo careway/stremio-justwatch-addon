@@ -1,14 +1,35 @@
 "use strict";
 
 const { version } = require("../package.json");
-const { getGenreNames, SORT_MAP } = require("./config");
+const { getGenreNames } = require("./config");
 
-// Human-readable sort labels shown in Stremio's catalog header
-const SORT_LABELS = {
-  pop: "Popular",
-  tnd: "Tendencias",
-  new: "Nuevo",
+// Human-readable sort labels shown in Stremio's catalog header, per language
+const SORT_LABELS_I18N = {
+  pop: {
+    en: "Popular", es: "Popular", de: "Beliebt", fr: "Populaire",
+    it: "Popolare", pt: "Popular", nl: "Populair", sv: "Populärt",
+    no: "Populært", da: "Populært", fi: "Suosittu", pl: "Popularne",
+    ja: "人気", ko: "인기",
+  },
+  tnd: {
+    en: "Trending", es: "Tendencias", de: "Trending", fr: "Tendances",
+    it: "Tendenze", pt: "Tendências", nl: "Trending", sv: "Trender",
+    no: "Trender", da: "Trending", fi: "Trendit", pl: "Na czasie",
+    ja: "トレンド", ko: "트렌딩",
+  },
+  new: {
+    en: "New", es: "Nuevo", de: "Neu", fr: "Nouveau",
+    it: "Nuovo", pt: "Novo", nl: "Nieuw", sv: "Nytt",
+    no: "Nytt", da: "Nyt", fi: "Uusi", pl: "Nowe",
+    ja: "新着", ko: "최신",
+  },
 };
+
+function getSortLabel(key, language) {
+  const lang = (language || "en").toLowerCase().split("-")[0];
+  const map = SORT_LABELS_I18N[key] || {};
+  return map[lang] || map.en;
+}
 
 /**
  * Build a Stremio manifest dynamically for a given user config.
@@ -34,7 +55,8 @@ function buildManifest(config, encodedConfig, pkgInfoMap, addonBaseUrl) {
   for (const shortName of packages) {
     const info = pkgInfoMap[shortName] || { clearName: shortName };
 
-    for (const [sortKey, sortLabel] of Object.entries(SORT_LABELS)) {
+    for (const sortKey of Object.keys(SORT_LABELS_I18N)) {
+      const sortLabel = getSortLabel(sortKey, language);
       for (const type of ["movie", "series"]) {
         catalogs.push({
           type,

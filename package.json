@@ -1,6 +1,6 @@
 {
   "name": "omnicatalogs",
-  "version": "1.2.0",
+  "version": "1.2.1",
   "description": "Every service. Every country. Select the catalogs you want and enjoy searching through them.",
   "main": "src/index.js",
   "engines": {

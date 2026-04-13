@@ -2,6 +2,7 @@
 
 const axios = require("axios");
 const { Redis } = require("@upstash/redis");
+const { trackCacheHit } = require("./analytics");
 
 const GRAPHQL_URL = "https://apis.justwatch.com/graphql";
 
@@ -174,6 +175,7 @@ async function cacheGet(key) {
   if (hit) {
     if (Date.now() - hit.ts <= CACHE_TTL_MS) {
       console.log(`[cache] L1 hit — ${key}`);
+      trackCacheHit("L1", key);
       return hit.data;
     }
     _mem.delete(key);
@@ -186,6 +188,7 @@ async function cacheGet(key) {
       const data = await redis.get(key); // @upstash/redis auto-parses JSON
       if (data !== null) {
         console.log(`[cache] L2 hit — ${key}`);
+        trackCacheHit("L2", key);
         _mem.set(key, { data, ts: Date.now() }); // promote to L1
         return data;
       }
@@ -195,6 +198,7 @@ async function cacheGet(key) {
   }
 
   console.log(`[cache] L3 miss — ${key}`);
+  trackCacheHit("L3", key);
   return null; // full miss — caller fetches from JustWatch
 }
 

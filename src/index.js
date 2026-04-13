@@ -1,8 +1,9 @@
 "use strict";
-
 const http = require("http");
 const fs = require("fs");
 const path = require("path");
+
+const { trackCatalogRequest } = require("./analytics");
 
 const {
   decodeConfig,
@@ -358,6 +359,7 @@ async function router(req, res) {
   const cm = rest.match(catalogRx);
   if (cm) {
     const [, type, id, extraRaw] = cm;
+    trackCatalogRequest(req);
     return respond(
       res,
       await handleCatalog({ type, id, extra: parseExtra(extraRaw) }, config),

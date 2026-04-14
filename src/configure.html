@@ -56,7 +56,7 @@
         min-height: 100vh;
         display: flex;
         justify-content: center;
-        align-items: center;
+        /* align-items: center; <--- ELIMINA ESTA LÍNEA */
         padding: 1.5rem;
       }
 
@@ -81,22 +81,29 @@
         gap: 2rem;
         width: 100%;
         max-width: 1150px;
-        max-height: 90vh;
       }
 
       /* BARRA LATERAL ESTÉTICA */
+      /* BARRA LATERAL ESTÉTICA (El contenedor estirado) */
       .creator-sidebar {
         flex: 0 0 300px;
         background: var(--glass);
         backdrop-filter: blur(20px);
         border: 1px solid var(--border);
         border-radius: 30px;
-        padding: 2.5rem;
+        box-shadow: 0 10px 40px rgba(0, 0, 0, 0.4);
+        /* Le hemos quitado el padding, flex y sticky para que vuelva a estirarse */
+      }
+
+      /* CAJA INTERIOR (El contenido que te persigue) */
+      .sidebar-content {
+        padding: 2.5rem; /* Hemos movido el padding aquí */
+        position: sticky;
+        top: 1.5rem; /* La distancia con el borde superior al hacer scroll */
         display: flex;
         flex-direction: column;
         align-items: center;
         text-align: center;
-        box-shadow: 0 10px 40px rgba(0, 0, 0, 0.4);
       }
 
       .creator-avatar {
@@ -168,11 +175,11 @@
         backdrop-filter: blur(20px);
         border: 1px solid var(--border);
         border-radius: 30px;
-        padding: 2.5rem;
+        padding: 1.4rem;
         box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
         display: flex;
         flex-direction: column;
-        overflow: hidden;
+        /* overflow: hidden; */
       }
 
       .header {
@@ -472,7 +479,7 @@
         border-radius: 10px;
         font-size: 0.75rem;
         cursor: pointer;
-        margin-top: 1rem;
+        margin-top: 0.5rem;
       }
 
       /* RESPONSIVE */
@@ -506,19 +513,18 @@
             onerror="this.style.display = 'none'"
           />
           <h1>OmniCatalog</h1>
+          <p
+            style="
+              font-size: 0.7rem;
+              color: var(--muted);
+              margin: 0 0 -1rem;
+              text-align: center;
+              letter-spacing: 0.03em;
+            "
+          >
+            Configura tu addon en 3 pasos
+          </p>
         </div>
-
-        <p
-          style="
-            font-size: 0.7rem;
-            color: var(--muted);
-            margin: 0 0 1.4rem;
-            text-align: center;
-            letter-spacing: 0.03em;
-          "
-        >
-          Configura tu addon en 3 pasos
-        </p>
 
         <!-- ── Paso 1 ── -->
         <div
@@ -776,47 +782,60 @@
 
       <!-- SIDEBAR -->
       <aside class="creator-sidebar">
-        <img
-          class="creator-avatar"
-          src="/static/avatar.webp"
-          alt="careway"
-          onerror="
-            this.src = 'https://api.dicebear.com/7.x/avataaars/svg?seed=careway'
-          "
-        />
-        <span class="creator-name">careway</span>
-        <p class="creator-bio">
-          Computer scientist &amp; volleyball lover. Too lazy to configure
-          AIOStreams as I only wants my streaming services catalog, so I built
-          my own addon instead — just hit install and it works. ☕<br /><br />
-          Free forever. Donations go solely to keeping the server running.
-        </p>
+        <div class="sidebar-content">
+          <img
+            class="creator-avatar"
+            src="/static/avatar.webp"
+            alt="careway"
+            onerror="
+              this.src =
+                'https://api.dicebear.com/7.x/avataaars/svg?seed=careway'
+            "
+          />
+          <span class="creator-name">careway</span>
+          <p class="creator-bio">
+            Computer scientist &amp; volleyball lover. Too lazy to configure
+            AIOStreams as I only wants my streaming services catalog, so I built
+            my own addon instead — just hit install and it works. ☕<br /><br />
+            Free forever. Donations go solely to keeping the server running.
+          </p>
 
-        <div class="creator-links">
-          <a
-            href="https://discord.gg/EYQyJBjWn3"
-            class="social-btn link-discord"
-            target="_blank"
-          >
-            <svg width="20" height="20" fill="currentColor" viewBox="0 0 24 24">
-              <path
-                d="M20.317 4.37a19.791 19.791 0 0 0-4.885-1.515.074.074 0 0 0-.079.037c-.21.375-.444.864-.608 1.25a18.27 18.27 0 0 0-5.487 0 12.64 12.64 0 0 0-.617-1.25.077.077 0 0 0-.079-.037A19.736 19.736 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 0 0 .031.057 19.9 19.9 0 0 0 5.993 3.03.078.078 0 0 0 .084-.028c.462-.63.874-1.295 1.226-1.994a.076.076 0 0 0-.041-.106 13.107 13.107 0 0 1-1.872-.892.077.077 0 0 1-.008-.128 10.2 10.2 0 0 0 .372-.292.074.074 0 0 1 .077-.01c3.928 1.793 8.18 1.793 12.062 0a.074.074 0 0 1 .078.01c.12.098.246.198.373.292a.077.077 0 0 1-.006.127 12.299 12.299 0 0 1-1.873.892.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.028 19.839 19.839 0 0 0 6.002-3.03.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.03z"
-              />
-            </svg>
-            DISCORD COMMUNITY
-          </a>
-          <a
-            href="https://ko-fi.com/careway"
-            class="social-btn link-kofi"
-            target="_blank"
-          >
-            <svg width="20" height="20" fill="currentColor" viewBox="0 0 24 24">
-              <path
-                d="M23.881 8.948c-.773-4.085-4.859-4.593-4.859-4.593H.723c-.604 0-.679.798-.679.798s-.082 7.324-.022 11.822c.164 2.424 2.586 2.672 2.586 2.672s8.267-.023 11.966-.049c2.438-.426 2.683-2.566 2.658-3.734 4.352.24 7.422-2.831 6.649-6.916zm-11.062 3.511c-1.246 1.453-4.011 3.976-4.011 3.976s-.121.119-.31.023c-.076-.057-.108-.09-.108-.09-.443-.441-3.368-3.049-4.034-3.954-.709-.965-1.041-2.7-.091-3.71.951-1.01 3.005-1.086 4.363.407 0 0 1.565-1.782 3.468-.963 1.904.82 1.832 2.692.723 4.311zm6.173.478c-.928.116-1.682-.028-1.682-.028V7.284h1.77s1.971.551 1.971 2.638c0 1.913-.985 2.667-2.059 3.015z"
-              />
-            </svg>
-            SUPPORT ON KO-FI
-          </a>
+          <div class="creator-links">
+            <a
+              href="https://discord.gg/EYQyJBjWn3"
+              class="social-btn link-discord"
+              target="_blank"
+            >
+              <svg
+                width="20"
+                height="20"
+                fill="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  d="M20.317 4.37a19.791 19.791 0 0 0-4.885-1.515.074.074 0 0 0-.079.037c-.21.375-.444.864-.608 1.25a18.27 18.27 0 0 0-5.487 0 12.64 12.64 0 0 0-.617-1.25.077.077 0 0 0-.079-.037A19.736 19.736 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 0 0 .031.057 19.9 19.9 0 0 0 5.993 3.03.078.078 0 0 0 .084-.028c.462-.63.874-1.295 1.226-1.994a.076.076 0 0 0-.041-.106 13.107 13.107 0 0 1-1.872-.892.077.077 0 0 1-.008-.128 10.2 10.2 0 0 0 .372-.292.074.074 0 0 1 .077-.01c3.928 1.793 8.18 1.793 12.062 0a.074.074 0 0 1 .078.01c.12.098.246.198.373.292a.077.077 0 0 1-.006.127 12.299 12.299 0 0 1-1.873.892.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.028 19.839 19.839 0 0 0 6.002-3.03.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.03z"
+                />
+              </svg>
+              DISCORD COMMUNITY
+            </a>
+            <a
+              href="https://ko-fi.com/careway"
+              class="social-btn link-kofi"
+              target="_blank"
+            >
+              <svg
+                width="20"
+                height="20"
+                fill="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  d="M23.881 8.948c-.773-4.085-4.859-4.593-4.859-4.593H.723c-.604 0-.679.798-.679.798s-.082 7.324-.022 11.822c.164 2.424 2.586 2.672 2.586 2.672s8.267-.023 11.966-.049c2.438-.426 2.683-2.566 2.658-3.734 4.352.24 7.422-2.831 6.649-6.916zm-11.062 3.511c-1.246 1.453-4.011 3.976-4.011 3.976s-.121.119-.31.023c-.076-.057-.108-.09-.108-.09-.443-.441-3.368-3.049-4.034-3.954-.709-.965-1.041-2.7-.091-3.71.951-1.01 3.005-1.086 4.363.407 0 0 1.565-1.782 3.468-.963 1.904.82 1.832 2.692.723 4.311zm6.173.478c-.928.116-1.682-.028-1.682-.028V7.284h1.77s1.971.551 1.971 2.638c0 1.913-.985 2.667-2.059 3.015z"
+                />
+              </svg>
+              SUPPORT ON KO-FI
+            </a>
+          </div>
         </div>
       </aside>
     </div>

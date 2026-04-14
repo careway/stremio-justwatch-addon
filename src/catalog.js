@@ -50,35 +50,58 @@ async function handleCatalog({ type, id, extra }, config) {
   // We only serve catalogs — search is handled by Cinemeta, not this addon
   if (search !== undefined) return null;
 
-  const offset = Math.max(0, parseInt(skip, 10) || 0);
+  // Improved batching: fetch both the batch containing skip and the next batch, then merge and deduplicate
+  let offset = Math.max(0, parseInt(skip, 10) || 0);
   const jwType = TYPE_TO_JW[type];
-
-  // Parse: jw_{sortKey}_{technicalName...}
-  // parts[0] = 'jw', parts[1] = sortKey, parts[2..] = technicalName (joined with _)
   const parts = id.split("_");
   const sortKey = parts[1] || "pop";
   const pkgName = parts.slice(2).join("_");
-
   const sortBy = SORT_MAP[sortKey] || "POPULAR";
   const genreCode = genre ? getGenreCode(genre, config.language) : null;
 
   try {
-    const titles = await searchTitles({
-      query: "",
-      objectTypes: jwType ? [jwType] : [],
-      packages: pkgName ? [pkgName] : [],
-      genres: genreCode ? [genreCode] : [],
-      sortBy,
-      country: config.country,
-      language: config.language,
-      first: 50,
-      offset,
-    });
+    // Calculate batch boundaries
+    const batchSize = 50;
+    const batchStart1 = Math.floor(offset / batchSize) * batchSize;
+    const batchStart2 = batchStart1 + batchSize;
 
-    const metas = titles
+    // Fetch both batches
+    const [titles1, titles2] = await Promise.all([
+      searchTitles({
+        query: "",
+        objectTypes: jwType ? [jwType] : [],
+        packages: pkgName ? [pkgName] : [],
+        genres: genreCode ? [genreCode] : [],
+        sortBy,
+        country: config.country,
+        language: config.language,
+        first: batchSize,
+        offset: batchStart1,
+      }),
+      searchTitles({
+        query: "",
+        objectTypes: jwType ? [jwType] : [],
+        packages: pkgName ? [pkgName] : [],
+        genres: genreCode ? [genreCode] : [],
+        sortBy,
+        country: config.country,
+        language: config.language,
+        first: batchSize,
+        offset: batchStart2,
+      }),
+    ]);
+
+    // Merge and deduplicate by imdbId
+    const seen = new Set();
+    const metas = [...titles1, ...titles2]
       .filter((n) => !jwType || n.objectType === jwType)
-      .map((n) => nodeToMeta(n, config.language, config))
-      .filter(Boolean);
+      .map((n) => nodeToMeta(n, config.language))
+      .filter((meta) => {
+        if (!meta || !meta.id) return false;
+        if (seen.has(meta.id)) return false;
+        seen.add(meta.id);
+        return true;
+      });
 
     return { metas };
   } catch (err) {

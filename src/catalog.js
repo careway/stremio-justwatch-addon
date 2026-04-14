@@ -95,7 +95,7 @@ async function handleCatalog({ type, id, extra }, config) {
     const seen = new Set();
     const metas = [...titles1, ...titles2]
       .filter((n) => !jwType || n.objectType === jwType)
-      .map((n) => nodeToMeta(n, config.language))
+      .map((n) => nodeToMeta(n, config.language, config))
       .filter((meta) => {
         if (!meta || !meta.id) return false;
         if (seen.has(meta.id)) return false;

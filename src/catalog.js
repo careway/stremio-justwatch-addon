@@ -3,6 +3,7 @@
 const { searchTitles } = require("./justwatch");
 const { getGenreCode, SORT_MAP, GENRES } = require("./config");
 
+const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 const TYPE_TO_JW = { movie: "MOVIE", series: "SHOW" };
 
 function getPoster(imdbId, jwPosterUrl, rpdbKey) {
@@ -63,10 +64,13 @@ async function handleCatalog({ type, id, extra }, config) {
     // Calculate batch boundaries
     const batchSize = 50;
     const batchStart1 = Math.floor(offset / batchSize) * batchSize;
-    const batchStart2 = batchStart1 + batchSize;
 
-    // Fetch both batches
-    const [titles1, titles2] = await Promise.all([
+    // If offset is perfectly aligned (e.g., 0, 50, 100), we only need 1 call.
+    // If offset is misaligned (e.g., 98), we need 2 calls to fulfill the 50 items.
+    const needsSecondBatch = offset % batchSize !== 0;
+
+    // Set up the first request
+    const requests = [
       searchTitles({
         query: "",
         objectTypes: jwType ? [jwType] : [],
@@ -78,18 +82,31 @@ async function handleCatalog({ type, id, extra }, config) {
         first: batchSize,
         offset: batchStart1,
       }),
-      searchTitles({
-        query: "",
-        objectTypes: jwType ? [jwType] : [],
-        packages: pkgName ? [pkgName] : [],
-        genres: genreCode ? [genreCode] : [],
-        sortBy,
-        country: config.country,
-        language: config.language,
-        first: batchSize,
-        offset: batchStart2,
-      }),
-    ]);
+    ];
+
+    // Conditionally add the second request ONLY if needed
+    if (needsSecondBatch) {
+      const batchStart2 = batchStart1 + batchSize;
+      requests.push(
+        delay(10).then(() =>
+          searchTitles({
+            query: "",
+            objectTypes: jwType ? [jwType] : [],
+            packages: pkgName ? [pkgName] : [],
+            genres: genreCode ? [genreCode] : [],
+            sortBy,
+            country: config.country,
+            language: config.language,
+            first: batchSize,
+            offset: batchStart2,
+          }),
+        ),
+      );
+    }
+
+    // Execute the requests
+    // If there's only 1 request, titles2 will safely default to an empty array []
+    const [titles1, titles2 = []] = await Promise.all(requests);
 
     // Merge and deduplicate by imdbId
     const seen = new Set();

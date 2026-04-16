@@ -1,9 +1,8 @@
 "use strict";
 
 const axios = require("axios");
-const { Redis } = require("@upstash/redis");
-const { trackCacheHit } = require("./analytics");
-
+const { trackCacheHit, trackCacheMiss, track } = require("./analytics");
+const { L1Cache, L2Cache, L3Cache } = require("./cache");
 const GRAPHQL_URL = "https://apis.justwatch.com/graphql";
 
 // ─── GraphQL Queries ──────────────────────────────────────────────────────────
@@ -98,76 +97,40 @@ function buildOffersQuery(country) {
 const CACHE_TTL_S = 24 * 60 * 60; // 24 hours (Redis uses seconds)
 const CACHE_TTL_MS = CACHE_TTL_S * 1000; // 24 hours in ms (in-memory)
 
-// L1 — in-memory
-const _mem = new Map();
-
-// L2 — Upstash Redis via HTTP (no TCP sockets, safe for serverless)
-let _redis = null;
-
-function getRedis() {
-  if (_redis) return _redis;
-  const url =
-    process.env.REDIS_KV_REST_API_URL || process.env.UPSTASH_REDIS_REST_URL;
-  const token =
-    process.env.REDIS_KV_REST_API_TOKEN || process.env.UPSTASH_REDIS_REST_TOKEN;
-  if (url && token) {
-    _redis = new Redis({ url, token });
-  }
-  return _redis;
-}
-
 /**
- * Lookup order: L1 in-memory → L2 Redis → (miss)
+ * Lookup order: L1 in-memory → L2 Vercel → L3 Redis
  * On a Redis hit, the value is promoted back into L1.
  */
 async function cacheGet(key) {
-  // L1: in-memory
-  const hit = _mem.get(key);
-  if (hit) {
-    if (Date.now() - hit.ts <= CACHE_TTL_MS) {
-      console.log(`[cache] L1 hit — ${key}`);
-      trackCacheHit("L1", key);
-      return hit.data;
-    }
-    _mem.delete(key);
+  let data = await L1Cache.get(key);
+  if (data) {
+    trackCacheHit("L1", key);
+    return data;
   }
 
-  // L2: Upstash Redis (HTTP)
-  const redis = getRedis();
-  if (redis) {
-    try {
-      const data = await redis.get(key); // @upstash/redis auto-parses JSON
-      if (data !== null) {
-        console.log(`[cache] L2 hit — ${key}`);
-        trackCacheHit("L2", key);
-        _mem.set(key, { data, ts: Date.now() }); // promote to L1
-        return data;
-      }
-    } catch (err) {
-      console.error("[cache] Redis GET error:", err.message);
-    }
+  data = await L2Cache.get(key);
+  if (data) {
+    trackCacheHit("L2", key);
+    L1Cache.set(key, data, CACHE_TTL_S);
+    return data;
   }
 
-  console.log(`[cache] L3 miss — ${key}`);
-  trackCacheHit("L3", key);
+  data = await L3Cache.get(key);
+  if (data) {
+    trackCacheHit("L3", key);
+    L1Cache.set(key, data, CACHE_TTL_S);
+    L2Cache.set(key, data, CACHE_TTL_S);
+    return data;
+  }
+
+  trackCacheMiss("L3", key);
   return null; // full miss — caller fetches from JustWatch
 }
 
 /**
- * Write to both L1 and L2 simultaneously.
+ * Write to both L1, L2 and L3 simultaneously.
  */
-async function cacheSet(key, data) {
-  _mem.set(key, { data, ts: Date.now() });
-
-  const redis = getRedis();
-  if (redis) {
-    try {
-      await redis.set(key, data, { ex: CACHE_TTL_S }); // @upstash/redis auto-serializes
-    } catch (err) {
-      console.error("[cache] Redis SET error:", err.message);
-    }
-  }
-}
+async function cacheSet(key, data) {}
 
 // ─── HTTP helper ──────────────────────────────────────────────────────────────
 

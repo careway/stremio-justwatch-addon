@@ -15,7 +15,24 @@ try {
  */
 function trackCacheHit(level, key) {
   try {
+    console.log("[" + level + " - Hit] " + key);
     track(`cache_${level.toLowerCase()}_hit`, {
+      level,
+      key_prefix: key.split(":")[0],
+    });
+  } catch (e) {
+    // Silently fail
+  }
+}
+
+/**
+ * Track a cache hit/miss event.
+ * @param {string} key - Cache key
+ */
+function trackCacheMiss(key) {
+  try {
+    console.log("[Cache MISS] " + key);
+    track(`cache_miss`, {
       level,
       key_prefix: key.split(":")[0],
     });
@@ -47,5 +64,6 @@ function trackCatalogRequest(req) {
 module.exports = {
   track,
   trackCacheHit,
+  trackCacheMiss,
   trackCatalogRequest,
 };

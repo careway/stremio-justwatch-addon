@@ -261,6 +261,7 @@ async function router(req, res) {
 
   // ── /manifest.json  (no-config manifest) ──────────────────────────────────
   if (rawPath === "/manifest.json") {
+    res.setHeader("Vercel-Cache-Tag", `manifest`);
     return respond(
       res,
       buildManifest(null, null, {}, getAddonBaseUrl(req)),
@@ -273,6 +274,8 @@ async function router(req, res) {
   if (rawPath === "/api/countries") {
     try {
       const countries = await fetchCountriesFromJustWatch();
+
+      res.setHeader("Vercel-Cache-Tag", `countries`);
       return respond(
         res,
         countries,
@@ -289,6 +292,7 @@ async function router(req, res) {
   if (rawPath === "/api/languages") {
     try {
       const languages = getSupportedLanguages();
+      res.setHeader("Vercel-Cache-Tag", `languages`);
       return respond(
         res,
         languages,
@@ -308,6 +312,7 @@ async function router(req, res) {
       return respond(res, { error: "Invalid country code" }, 400);
     }
     try {
+      res.setHeader("Vercel-Cache-Tag", `packages-${country}`);
       return respond(
         res,
         await getPackages(country),
@@ -354,6 +359,8 @@ async function router(req, res) {
     } catch (e) {
       console.error("[manifest] Could not fetch packages:", e);
     }
+
+    res.setHeader("Vercel-Cache-Tag", `manifest`);
     return respond(
       res,
       buildManifest(config, encodedConfig, pkgInfoMap, getAddonBaseUrl(req)),
@@ -367,6 +374,8 @@ async function router(req, res) {
   const cm = rest.match(catalogRx);
   if (cm) {
     const [, type, id, extraRaw] = cm;
+
+    res.setHeader("Vercel-Cache-Tag", `catalog-${type}-${id},catalog`);
     trackCatalogRequest(req);
     return respond(
       res,

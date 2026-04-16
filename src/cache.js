@@ -3,28 +3,30 @@ const { getCache } = require("@vercel/functions");
 const { trackCacheHit, trackCacheMiss } = require("./analytics");
 
 // L1 Global Memory: Declared outside so it survives "warm" serverless invocations
-
+const _mem = new Map();
 class L1 {
-  constructor() {
-    this._mem = new Map();
-  }
+  constructor() {}
 
   async get(key) {
-    const hit = this._mem.get(key);
+    const hit = _mem.get(key);
     if (hit) {
       // Check if it hasn't expired yet
       if (Date.now() <= hit.expiresAt) {
         return hit.data;
       }
       // Evict if expired
-      this._mem.delete(key);
+      _mem.delete(key);
     }
     return null;
   }
 
   async set(key, data, ttl_s) {
     const expiresAt = Date.now() + ttl_s * 1000;
-    this._mem.set(key, { data, expiresAt });
+    _mem.set(key, { data, expiresAt });
+  }
+
+  async invalidate(key) {
+    _mem.delete(key);
   }
 }
 
@@ -54,6 +56,10 @@ class L2 {
         tags: tag ? [tag] : undefined,
       });
     }
+  }
+
+  async invalidate(key) {
+    this._vercel.delete(key);
   }
 }
 
@@ -101,6 +107,10 @@ class L3 {
         console.error("[cache] Redis SET error:", err.message);
       }
     }
+  }
+
+  async invalidate(key) {
+    this._redis.del(key);
   }
 }
 

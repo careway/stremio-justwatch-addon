@@ -2,6 +2,7 @@
 const http = require("http");
 const fs = require("fs");
 const path = require("path");
+const { L1Cache, L2Cache, L3Cache } = require("./cache");
 
 const { trackCatalogRequest } = require("./analytics");
 
@@ -266,7 +267,7 @@ async function router(req, res) {
       res,
       buildManifest(null, null, {}, getAddonBaseUrl(req)),
       200,
-      "s-maxage=31104000, stale-while-revalidate=62208000",
+      "s-maxage=86400, stale-while-revalidate=172800",
     );
   }
 
@@ -280,7 +281,7 @@ async function router(req, res) {
         res,
         countries,
         200,
-        "s-maxage=31104000, stale-while-revalidate=62208000",
+        "s-maxage=86400, stale-while-revalidate=172800",
       );
     } catch (err) {
       console.error("[api/countries] Error:", err);
@@ -297,7 +298,7 @@ async function router(req, res) {
         res,
         languages,
         200,
-        "s-maxage=31104000, stale-while-revalidate=62208000",
+        "s-maxage=86400, stale-while-revalidate=172800",
       );
     } catch (err) {
       console.error("[api/languages] Error:", err);
@@ -317,11 +318,25 @@ async function router(req, res) {
         res,
         await getPackages(country),
         200,
-        "s-maxage=31104000, stale-while-revalidate=62208000",
+        "s-maxage=86400, stale-while-revalidate=172800",
       );
     } catch (err) {
       console.error("[api/packages] Error:", err);
       return respond(res, []);
+    }
+  }
+
+  // ── /api/inv/$env:{key}?key=xxxxxx ───────────────────────INVALIDATE CACHE ─────────────────────
+  const inv_key = process.env.INV_KEY || "";
+  if (rawPath == `/api/inv/${inv_key}`) {
+    const key = qs.get("key");
+    if (key) {
+      console.log(`[INV_KEY] Key : ${key}`);
+      await L1Cache.invalidate(key);
+      await L2Cache.invalidate(key);
+      await L3Cache.invalidate(key);
+
+      return respond(res, { error: `[INV_KEY] Key : ${key}` }, 202);
     }
   }
 
@@ -365,7 +380,7 @@ async function router(req, res) {
       res,
       buildManifest(config, encodedConfig, pkgInfoMap, getAddonBaseUrl(req)),
       200,
-      "s-maxage=31104000, stale-while-revalidate=62208000",
+      "s-maxage=86400, stale-while-revalidate=172800",
     );
   }
 

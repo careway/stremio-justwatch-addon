@@ -231,7 +231,10 @@ async function router(req, res) {
     const staticDir = path.resolve(__dirname, "..", "static");
     const filePath = path.resolve(staticDir, fileName);
     if (!filePath.startsWith(staticDir + path.sep) && filePath !== staticDir) {
-      res.writeHead(400);
+      res.writeHead(400, {
+        "Content-Type": mime,
+        "Cache-Control": "public, max-age=31104000",
+      });
       return res.end();
     }
     const ext = path.extname(fileName).toLowerCase();
@@ -247,7 +250,7 @@ async function router(req, res) {
       const data = fs.readFileSync(filePath);
       res.writeHead(200, {
         "Content-Type": mime,
-        "Cache-Control": "public, max-age=86400",
+        "Cache-Control": "public, max-age=31104000",
       });
       return res.end(data);
     } catch {
@@ -258,7 +261,12 @@ async function router(req, res) {
 
   // ── /manifest.json  (no-config manifest) ──────────────────────────────────
   if (rawPath === "/manifest.json") {
-    return respond(res, buildManifest(null, null, {}, getAddonBaseUrl(req)));
+    return respond(
+      res,
+      buildManifest(null, null, {}, getAddonBaseUrl(req)),
+      200,
+      "s-maxage=31104000, stale-while-revalidate=62208000",
+    );
   }
 
   // ── /api/countries  (fetch supported countries from JustWatch) ─────────────────
@@ -269,7 +277,7 @@ async function router(req, res) {
         res,
         countries,
         200,
-        "s-maxage=86400, stale-while-revalidate=172800",
+        "s-maxage=31104000, stale-while-revalidate=62208000",
       );
     } catch (err) {
       console.error("[api/countries] Error:", err);
@@ -285,7 +293,7 @@ async function router(req, res) {
         res,
         languages,
         200,
-        "s-maxage=86400, stale-while-revalidate=172800",
+        "s-maxage=31104000, stale-while-revalidate=62208000",
       );
     } catch (err) {
       console.error("[api/languages] Error:", err);
@@ -304,7 +312,7 @@ async function router(req, res) {
         res,
         await getPackages(country),
         200,
-        "s-maxage=86400, stale-while-revalidate=172800",
+        "s-maxage=31104000, stale-while-revalidate=62208000",
       );
     } catch (err) {
       console.error("[api/packages] Error:", err);
@@ -350,7 +358,7 @@ async function router(req, res) {
       res,
       buildManifest(config, encodedConfig, pkgInfoMap, getAddonBaseUrl(req)),
       200,
-      "s-maxage=300, stale-while-revalidate=600",
+      "s-maxage=31104000, stale-while-revalidate=62208000",
     );
   }
 

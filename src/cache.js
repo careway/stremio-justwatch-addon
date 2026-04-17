@@ -110,7 +110,7 @@ class L3 {
   }
 
   async invalidate(key) {
-    this._redis.del(key);
+    if (this._redis) this._redis.del(key);
   }
 }
 

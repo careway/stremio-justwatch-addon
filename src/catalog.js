@@ -119,11 +119,57 @@ async function handleCatalog({ type, id, extra }, config) {
         seen.add(meta.id);
         return true;
       });
-
-    return { metas };
+    if (metas.length == 0) {
+      return {
+        metas: [
+          {
+            id: "",
+            type: "movie",
+            name: "Oh No!",
+            poster:
+              "https://wallpapers.com/images/high/blank-meme-pictures-604-x-919-tn3g9s6zzjsqeu6o.webp",
+            description:
+              "This catalog is empty. Sometimes it happens... It's not you, it's me... Maybe I'm not enough for you",
+            genres: ["Drama"],
+          },
+        ],
+      };
+    } else {
+      return { metas };
+    }
   } catch (err) {
     console.error("[catalog] Error:", err);
-    return { metas: [] };
+    return {
+      metas: [
+        {
+          id: "tt33071426",
+          type: "movie",
+          name: "The Drama",
+          poster:
+            "https://m.media-amazon.com/images/M/MV5BN2I5OTVmYzUtYmU5Ny00YjNkLTk1ZmMtNjY1ODk0NzA0ZWRlXkEyXkFqcGc@._V1_FMjpg_UX720_.jpg",
+          description:
+            "A happily-engaged couple is put to the test when an unexpected turn sends their wedding week off the rails.",
+        },
+        {
+          id: "tt0882755",
+          type: "movie",
+          name: "One, Two, Many",
+          poster:
+            "https://m.media-amazon.com/images/M/MV5BMzg0NjkzMDYwOF5BMl5BanBnXkFtZTcwODAyOTIxMw@@._V1_FMjpg_UX367_.jpg",
+          description:
+            "A modern-day romance that follows one man's quest to find the girl of his dreams. A girl who can agree that three is company.",
+        },
+        {
+          id: "tt7558346",
+          type: "movie",
+          name: "Requests",
+          poster:
+            "https://m.media-amazon.com/images/M/MV5BMDI1MDM3YzQtNTAwMy00MzFhLWExYTMtZGM2NGY2ODRjMzdlXkEyXkFqcGc@._V1_FMjpg_UY2915_.jpg",
+          description:
+            "In a nightclub, reminiscent of a 1980s photo-novel, a band is playing requests. The texts play with pop cliché's about life and true love. Until a dissatisfied customer can't take it anymore and reveals the universal truth.",
+        },
+      ],
+    };
   }
 }
 

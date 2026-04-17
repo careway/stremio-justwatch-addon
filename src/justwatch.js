@@ -61,37 +61,6 @@ const GET_PACKAGES_QUERY = `
   }
 `;
 
-function buildOffersQuery(country) {
-  const alias = country.toLowerCase();
-  return `
-    query GetTitleOffers(
-      $nodeId: ID!
-      $language: Language!
-      $filterBuy: OfferFilter!
-      $platform: Platform! = WEB
-    ) {
-      node(id: $nodeId) {
-        ... on MovieOrShowOrSeasonOrEpisode {
-          ${alias}: offers(country: ${country}, platform: $platform, filter: $filterBuy) {
-            presentationType
-            monetizationType
-            retailPrice(language: $language)
-            retailPriceValue
-            currency
-            package {
-              clearName
-              technicalName
-              icon(profile: S100)
-            }
-            standardWebURL
-            availableTo
-          }
-        }
-      }
-    }
-  `;
-}
-
 // ─── Cache ────────────────────────────────────────────────────────────────────
 
 const CACHE_TTL_S = 24 * 60 * 60; // 24 hours (Redis uses seconds)
@@ -213,30 +182,6 @@ async function searchTitles({
 }
 
 /**
- * Get streaming offers for a JustWatch node.
- *
- * @param {string} nodeId    - JustWatch internal node ID
- * @param {string} country   - ISO country code (e.g. 'ES')
- * @param {string} language  - BCP47 language code (e.g. 'es')
- */
-async function getTitleOffers(nodeId, country = "US", language = "en") {
-  const cacheKey = `offers:${nodeId}:${country}:${language}`;
-  const cached = await cacheGet(cacheKey);
-  if (cached) return cached;
-
-  const data = await gql(buildOffersQuery(country), {
-    nodeId,
-    language,
-    filterBuy: {},
-    platform: "WEB",
-  });
-
-  const offers = data?.node?.[country.toLowerCase()] || [];
-  await cacheSet(cacheKey, offers);
-  return offers;
-}
-
-/**
  * Get available streaming packages for a country.
  * Excludes cinema-only packages (monetizationTypes = ["CINEMA"]) and\n * sports/live-only providers (hasTitles = false).
  *
@@ -269,4 +214,4 @@ async function getPackages(country = "US") {
   return pkgs;
 }
 
-module.exports = { searchTitles, getTitleOffers, getPackages };
+module.exports = { searchTitles, getPackages };

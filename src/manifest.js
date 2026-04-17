@@ -20,6 +20,7 @@ const SORT_LABELS_I18N = {
     pl: "Popularne",
     ja: "人気",
     ko: "인기",
+    ar: "الأكثر شهرة",
   },
   tnd: {
     en: "Trending",
@@ -36,6 +37,7 @@ const SORT_LABELS_I18N = {
     pl: "Na czasie",
     ja: "トレンド",
     ko: "트렌딩",
+    ar: "الشائع",
   },
   new: {
     en: "New",
@@ -52,6 +54,7 @@ const SORT_LABELS_I18N = {
     pl: "Nowe",
     ja: "新着",
     ko: "최신",
+    ar: "جديد",
   },
 };
 

@@ -21,6 +21,7 @@ const GENRES = [
       pl: "Akcja",
       ja: "アクション",
       ko: "액션",
+      ar: "حركة",
     },
   },
   {
@@ -40,6 +41,7 @@ const GENRES = [
       pl: "Animacja",
       ja: "アニメーション",
       ko: "애니메이션",
+      ar: "رسوم متحركة",
     },
   },
   {
@@ -59,6 +61,7 @@ const GENRES = [
       pl: "Komedia",
       ja: "コメディ",
       ko: "코미디",
+      ar: "كوميديا",
     },
   },
   {
@@ -78,6 +81,7 @@ const GENRES = [
       pl: "Kryminał",
       ja: "犯罪",
       ko: "범죄",
+      ar: "جريمة",
     },
   },
   {
@@ -97,6 +101,7 @@ const GENRES = [
       pl: "Dokument",
       ja: "ドキュメンタリー",
       ko: "다큐멘터리",
+      ar: "وثائقي",
     },
   },
   {
@@ -116,6 +121,7 @@ const GENRES = [
       pl: "Dramat",
       ja: "ドラマ",
       ko: "드라마",
+      ar: "دراما",
     },
   },
   {
@@ -135,6 +141,7 @@ const GENRES = [
       pl: "Rodzina",
       ja: "ファミリー",
       ko: "가족",
+      ar: "عائلي",
     },
   },
   {
@@ -154,6 +161,7 @@ const GENRES = [
       pl: "Fantasy",
       ja: "ファンタジー",
       ko: "판타지",
+      ar: "خيال",
     },
   },
   {
@@ -173,6 +181,7 @@ const GENRES = [
       pl: "Horror",
       ja: "ホラー",
       ko: "공포",
+      ar: "رعب",
     },
   },
   {
@@ -192,6 +201,7 @@ const GENRES = [
       pl: "Historia",
       ja: "歴史",
       ko: "역사",
+      ar: "تاريخ",
     },
   },
   {
@@ -211,6 +221,7 @@ const GENRES = [
       pl: "Muzyka",
       ja: "音楽",
       ko: "음악",
+      ar: "موسيقى",
     },
   },
   {
@@ -230,6 +241,7 @@ const GENRES = [
       pl: "Romans",
       ja: "ロマンス",
       ko: "로맨스",
+      ar: "رومانسي",
     },
   },
   {
@@ -249,6 +261,7 @@ const GENRES = [
       pl: "Sci-fi",
       ja: "SF",
       ko: "SF",
+      ar: "خيال علمي",
     },
   },
   {
@@ -268,6 +281,7 @@ const GENRES = [
       pl: "Sport",
       ja: "スポーツ",
       ko: "스포츠",
+      ar: "رياضة",
     },
   },
   {
@@ -287,6 +301,7 @@ const GENRES = [
       pl: "Thriller",
       ja: "スリラー",
       ko: "스릴러",
+      ar: "إثارة",
     },
   },
   {
@@ -306,6 +321,7 @@ const GENRES = [
       pl: "Western",
       ja: "西部劇",
       ko: "서부극",
+      ar: "غربي",
     },
   },
   {
@@ -325,6 +341,7 @@ const GENRES = [
       pl: "Wojenny",
       ja: "戦争",
       ko: "전쟁",
+      ar: "حرب",
     },
   },
 ];
@@ -376,6 +393,7 @@ const LANGUAGE_NAMES = {
   pl: "Polski",
   ja: "日本語",
   ko: "한국어",
+  ar: "العربية",
 };
 
 /**

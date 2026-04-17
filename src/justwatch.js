@@ -108,25 +108,40 @@ async function cacheSet(key, data, ttl_s) {
 // ─── HTTP helper ──────────────────────────────────────────────────────────────
 
 async function gql(query, variables) {
-  const { data } = await axios.post(
-    GRAPHQL_URL,
-    { query, variables },
-    {
-      headers: {
-        "Content-Type": "application/json",
-        "User-Agent":
-          "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
-        Accept: "application/json",
-        "Accept-Language": "en-US,en;q=0.9",
+  try {
+    const { data } = await axios.post(
+      GRAPHQL_URL,
+      { query, variables },
+      {
+        headers: {
+          "Content-Type": "application/json",
+          "User-Agent":
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+          Accept: "application/json",
+          "Accept-Language": "en-US,en;q=0.9",
+        },
+        timeout: 10_000,
       },
-      timeout: 10_000,
-    },
-  );
-
-  if (data.errors) {
-    throw new Error(`GraphQL errors: ${JSON.stringify(data.errors)}`);
+    );
+    if (data.errors) {
+      console.error("GQL Request Query:", JSON.stringify(query, null, 2));
+      console.error(
+        "GQL Request Variables:",
+        JSON.stringify(variables, null, 2),
+      );
+      console.error("GQL Errors:", JSON.stringify(data.errors, null, 2));
+      throw new Error(`GraphQL errors: ${JSON.stringify(data.errors)}`);
+    }
+    return data.data;
+  } catch (err) {
+    console.error("GQL Request Query:", JSON.stringify(query, null, 2));
+    console.error("GQL Request Variables:", JSON.stringify(variables, null, 2));
+    console.error(
+      "GQL Request failed:",
+      err.response ? JSON.stringify(err.response.data, null, 2) : err.message,
+    );
+    throw err;
   }
-  return data.data;
 }
 
 // ─── Public API ───────────────────────────────────────────────────────────────
@@ -174,6 +189,7 @@ async function searchTitles({
     popularTitlesSortBy: sortBy,
     language,
     sortRandomSeed: 0,
+    platform: "WEB",
   });
 
   const nodes = (data?.popularTitles?.edges || []).map((e) => e.node);

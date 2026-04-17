@@ -29,7 +29,7 @@ function trackCacheHit(level, key) {
  * Track a cache hit/miss event.
  * @param {string} key - Cache key
  */
-function trackCacheMiss(key) {
+function trackCacheMiss(cacheLevel, key) {
   try {
     console.log("[Cache MISS] " + key);
     track(`cache_miss`, {

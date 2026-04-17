@@ -390,7 +390,10 @@ async function router(req, res) {
   if (cm) {
     const [, type, id, extraRaw] = cm;
 
-    res.setHeader("Vercel-Cache-Tag", `catalog-${type}-${id},catalog`);
+    res.setHeader(
+      "Vercel-Cache-Tag",
+      `catalog-${config.country}-${type}-${id},catalog,catalog-${config.country}`,
+    );
     trackCatalogRequest(req);
     return respond(
       res,

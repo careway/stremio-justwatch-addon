@@ -123,7 +123,7 @@ async function handleCatalog({ type, id, extra }, config) {
       return {
         metas: [
           {
-            id: "",
+            id: "tt0427229",
             type: "movie",
             name: "Oh No!",
             poster:

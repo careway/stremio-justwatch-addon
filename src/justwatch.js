@@ -130,7 +130,11 @@ async function cacheGet(key) {
 /**
  * Write to both L1, L2 and L3 simultaneously.
  */
-async function cacheSet(key, data) {}
+async function cacheSet(key, data, ttl_s) {
+  L1Cache.set(key, data, ttl_s);
+  L2Cache.set(key, data, ttl_s);
+  L3Cache.set(key, data, ttl_s);
+}
 
 // ─── HTTP helper ──────────────────────────────────────────────────────────────
 
@@ -204,7 +208,7 @@ async function searchTitles({
   });
 
   const nodes = (data?.popularTitles?.edges || []).map((e) => e.node);
-  await cacheSet(cacheKey, nodes);
+  await cacheSet(cacheKey, nodes, CACHE_TTL_S);
   return nodes;
 }
 

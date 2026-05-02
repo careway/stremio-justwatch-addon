@@ -639,19 +639,7 @@
             >Proveedores Disponibles</label
           >
           <div style="display: flex; gap: 8px">
-            <button
-              class="btn-show-more"
-              id="btn-all"
-              style="
-                margin: 0;
-                padding: 4px 10px;
-                font-size: 9px;
-                border-color: var(--accent);
-                color: var(--accent);
-              "
-            >
-              TODO
-            </button>
+            <!-- TODO button removed -->
             <button
               class="btn-show-more"
               id="btn-none"
@@ -663,7 +651,7 @@
                 color: var(--muted);
               "
             >
-              NADA
+              LIMPIAR
             </button>
           </div>
         </div>
@@ -757,7 +745,7 @@
             Instalar en Stremio
           </button>
 
-          <div class="result" id="result">
+          <div class="result visible" id="result">
             <div class="terminal-header">
               <div class="dot dot-red"></div>
               <div class="dot dot-amber"></div>
@@ -981,7 +969,7 @@
       })();
 
       const pkgGrid = document.getElementById("pkg-grid");
-      const btnAll = document.getElementById("btn-all");
+      // const btnAll = document.getElementById("btn-all");
       const btnNone = document.getElementById("btn-none");
       const btnGenerate = document.getElementById("btn-generate");
       const resultEl = document.getElementById("result");
@@ -1075,12 +1063,7 @@
         return manifest;
       }
 
-      btnAll.onclick = () => {
-        pkgGrid
-          .querySelectorAll('input[type="checkbox"]')
-          .forEach((c) => (c.checked = true));
-        if (resultEl.classList.contains("visible")) generateUrl();
-      };
+      // btnAll removed
       btnNone.onclick = () => {
         pkgGrid
           .querySelectorAll('input[type="checkbox"]')

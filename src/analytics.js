@@ -10,7 +10,7 @@ try {
 
 /**
  * Track a cache hit/miss event.
- * @param {string} level - "L1" | "L2" | "L3"
+ * @param {string} level - "L1" | "L2"
  * @param {string} key - Cache key
  */
 function trackCacheHit(level, key) {
@@ -27,13 +27,14 @@ function trackCacheHit(level, key) {
 
 /**
  * Track a cache hit/miss event.
+ * @param {string} cacheLevel - "L1" | "L2"
  * @param {string} key - Cache key
  */
 function trackCacheMiss(cacheLevel, key) {
   try {
     console.log("[Cache MISS] " + key);
     track(`cache_miss`, {
-      level,
+      level: cacheLevel,
       key_prefix: key.split(":")[0],
     });
   } catch (e) {

@@ -9,7 +9,7 @@ Discover where to watch movies and series on your favourite streaming platforms,
 - **Genre filtering** — 18 genres with localized names (14 languages)
 - **Stream links** — direct deep-links to each platform with price/quality labels
 - **Language-aware** — titles, descriptions and genres in the language you choose
-- **Two-layer cache** — L1 in-memory → L2 Redis, 12-hour TTL
+- **Two-layer cache** — L1 in-memory → L2 Upstash Redis (REST/HTTPS), 24-hour TTL
 
 ## Quick start (local)
 
@@ -17,8 +17,9 @@ Discover where to watch movies and series on your favourite streaming platforms,
 # 1. Install dependencies
 npm install
 
-# 2. Start Redis (required for L2 cache; falls back to in-memory if unavailable)
-redis-server --daemonize yes
+# 2. (Optional) Set UPSTASH_REDIS_REST_URL / UPSTASH_REDIS_REST_TOKEN in .env
+#    for the L2 cache — see .env.example. Without it the addon runs fine on
+#    the L1 in-memory cache alone.
 
 # 3. Start the addon
 npm start
@@ -38,10 +39,14 @@ Open `http://127.0.0.1:7000/configure` in your browser, choose your country, des
 
 This starts the server and opens a public HTTPS tunnel via [localtunnel](https://theboroer.github.io/localtunnel-www/). When the tunnel URL appears, open it in a browser first and click _"Click to Continue"_ before using it in Stremio.
 
-## Deployment (Vercel)
+## Deployment
 
-1. Create a free Redis instance at [Upstash](https://console.upstash.com) and copy the `rediss://…` connection URL.
-2. Deploy to Vercel:
+The addon is a plain Node.js `http` server (no framework lock-in), so it deploys to any Node host. The L2 cache (Upstash Redis) talks REST over HTTPS, so it works identically everywhere — no platform-specific cache API involved.
+
+### Vercel
+
+1. Create a free Redis instance at [Upstash](https://console.upstash.com) and copy the REST URL/token.
+2. Deploy:
    ```bash
    vercel deploy
    ```
@@ -49,9 +54,29 @@ This starts the server and opens a public HTTPS tunnel via [localtunnel](https:/
    | Variable | Value |
    |---|---|
    | `NODE_ENV` | `production` |
-   | `REDIS_URL` | `rediss://default:<password>@<host>:<port>` |
+   | `UPSTASH_REDIS_REST_URL` | `https://<db>.upstash.io` |
+   | `UPSTASH_REDIS_REST_TOKEN` | `<token>` |
 
 The addon URL will be `https://<your-project>.vercel.app/<config>/manifest.json`.
+
+### Stremio BeamUp
+
+[BeamUp](https://github.com/Stremio/stremio-beamup) is a Heroku-style host for Stremio addons; it only needs a `package.json` with a `start` script and a server that binds to `process.env.PORT` — both already true here.
+
+```bash
+npm install -g beamup-cli
+beamup config   # first time only, or when GitHub keys change
+beamup          # run from the repo root — deploys and prints the addon URL
+```
+
+To enable the shared Redis cache (optional — the addon falls back to L1-only in-memory cache if unset):
+
+```bash
+beamup secrets UPSTASH_REDIS_REST_URL https://<db>.upstash.io
+beamup secrets UPSTASH_REDIS_REST_TOKEN <token>
+```
+
+Redeploy after adding secrets with `beamup` (or `git push beamup master`).
 
 ## Configuration URL format
 
@@ -76,13 +101,15 @@ Config is encoded directly in the manifest URL path — no base64, fully human-r
 
 ## Environment variables
 
-| Variable     | Default       | Description                                   |
-| ------------ | ------------- | --------------------------------------------- |
-| `PORT`       | `7000`        | HTTP port                                     |
-| `NODE_ENV`   | `development` | Set to `production` on Vercel                 |
-| `REDIS_URL`  | —             | Full Redis connection URL (takes precedence)  |
-| `REDIS_HOST` | `127.0.0.1`   | Redis host (used when `REDIS_URL` is not set) |
-| `REDIS_PORT` | `6379`        | Redis port (used when `REDIS_URL` is not set) |
+| Variable                    | Default       | Description                                                   |
+| --------------------------- | ------------- | --------------------------------------------------------------|
+| `PORT`                      | `7000`        | HTTP port                                                      |
+| `NODE_ENV`                  | `development` | Set to `production` in hosted environments                    |
+| `UPSTASH_REDIS_REST_URL`    | —             | Upstash Redis REST URL (L2 cache; falls back to L1-only if unset) |
+| `UPSTASH_REDIS_REST_TOKEN`  | —             | Upstash Redis REST token                                      |
+| `REDIS_KV_REST_API_URL`     | —             | Alternative to `UPSTASH_REDIS_REST_URL` (Vercel KV integration) |
+| `REDIS_KV_REST_API_TOKEN`   | —             | Alternative to `UPSTASH_REDIS_REST_TOKEN`                      |
+| `INV_KEY`                   | —             | Secret for the manual cache-invalidation route (`/api/inv/<key>`) |
 
 See [`.env.example`](.env.example) for a template.
 

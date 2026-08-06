@@ -2,7 +2,7 @@
 
 const axios = require("axios");
 const { trackCacheHit, trackCacheMiss, track } = require("./analytics");
-const { L1Cache, L2Cache, L3Cache } = require("./cache");
+const { L1Cache, L2Cache } = require("./cache");
 const GRAPHQL_URL = "https://apis.justwatch.com/graphql";
 
 // ─── GraphQL Queries ──────────────────────────────────────────────────────────
@@ -67,7 +67,7 @@ const CACHE_TTL_S = 24 * 60 * 60; // 24 hours (Redis uses seconds)
 const CACHE_TTL_MS = CACHE_TTL_S * 1000; // 24 hours in ms (in-memory)
 
 /**
- * Lookup order: L1 in-memory → L2 Vercel → L3 Redis
+ * Lookup order: L1 in-memory → L2 Redis
  * On a Redis hit, the value is promoted back into L1.
  */
 async function cacheGet(key) {
@@ -84,25 +84,16 @@ async function cacheGet(key) {
     return data;
   }
 
-  data = await L3Cache.get(key);
-  if (data) {
-    trackCacheHit("L3", key);
-    L1Cache.set(key, data, CACHE_TTL_S);
-    L2Cache.set(key, data, CACHE_TTL_S);
-    return data;
-  }
-
-  trackCacheMiss("L3", key);
+  trackCacheMiss("L2", key);
   return null; // full miss — caller fetches from JustWatch
 }
 
 /**
- * Write to both L1, L2 and L3 simultaneously.
+ * Write to both L1 and L2 simultaneously.
  */
 async function cacheSet(key, data, ttl_s) {
   L1Cache.set(key, data, ttl_s);
   L2Cache.set(key, data, ttl_s);
-  L3Cache.set(key, data, ttl_s);
 }
 
 // ─── HTTP helper ──────────────────────────────────────────────────────────────
@@ -226,7 +217,7 @@ async function getPackages(country = "US") {
         : null,
     }));
 
-  await cacheSet(cacheKey, pkgs);
+  await cacheSet(cacheKey, pkgs, CACHE_TTL_S);
   return pkgs;
 }
 

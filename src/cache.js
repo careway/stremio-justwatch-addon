@@ -1,6 +1,4 @@
 const { Redis } = require("@upstash/redis");
-const { getCache } = require("@vercel/functions");
-const { trackCacheHit, trackCacheMiss } = require("./analytics");
 
 // L1 Global Memory: Declared outside so it survives "warm" serverless invocations
 const _mem = new Map();
@@ -30,43 +28,10 @@ class L1 {
   }
 }
 
-class L2 {
-  constructor() {
-    // Correctly assigned to class instance
-    this._vercel = getCache();
-  }
-
-  async get(key) {
-    if (this._vercel) {
-      // Vercel getCache is async, must await it
-      const data = await this._vercel.get(key);
-      if (data) {
-        console.log(`[cache] L2 Vercel hit — ${key}`);
-        return data; // Returned as parsed object, no need to stringify
-      }
-    }
-    return null;
-  }
-
-  async set(key, data, ttl_s, tag = "") {
-    if (this._vercel) {
-      // Replaced 'cache' with 'this._vercel'
-      await this._vercel.set(key, data, {
-        ttl: ttl_s,
-        tags: tag ? [tag] : undefined,
-      });
-    }
-  }
-
-  async invalidate(key) {
-    this._vercel.delete(key);
-  }
-}
-
 // Global variable to hold the Redis connection across warm invocations
 let _redisConnection = null;
 
-class L3 {
+class L2 {
   constructor() {
     // Only initialize the connection once to avoid exhausting connections
     if (!_redisConnection) {
@@ -89,7 +54,7 @@ class L3 {
       try {
         const data = await this._redis.get(key);
         if (data !== null) {
-          console.log(`[cache] L3 Redis hit — ${key}`);
+          console.log(`[cache] L2 Redis hit — ${key}`);
           return data;
         }
       } catch (err) {
@@ -119,7 +84,6 @@ class L3 {
 // ==========================================
 const L1Cache = new L1();
 const L2Cache = new L2();
-const L3Cache = new L3();
 
 // Export the instances directly
-module.exports = { L1Cache, L2Cache, L3Cache };
+module.exports = { L1Cache, L2Cache };

@@ -2,7 +2,7 @@
 const http = require("http");
 const fs = require("fs");
 const path = require("path");
-const { L1Cache, L2Cache, L3Cache } = require("./cache");
+const { L1Cache, L2Cache } = require("./cache");
 
 const { trackCatalogRequest } = require("./analytics");
 
@@ -334,7 +334,6 @@ async function router(req, res) {
       console.log(`[INV_KEY] Key : ${key}`);
       await L1Cache.invalidate(key);
       await L2Cache.invalidate(key);
-      await L3Cache.invalidate(key);
 
       return respond(res, { error: `[INV_KEY] Key : ${key}` }, 202);
     }

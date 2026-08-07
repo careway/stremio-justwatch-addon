@@ -114,7 +114,7 @@ function buildManifest(config, encodedConfig, pkgInfoMap, addonBaseUrl) {
     name: country ? `OmniCatalogs · ${country}` : "OmniCatalogs",
     description: `Every service catalog from a good bunch of countries. Select the catalogs you want and enjoy searching and filtering through them.${country ? ` Country: ${country}.` : ""}`,
     logo: `${addonBaseUrl}/static/logo.svg`,
-    background: "https://omnicatalogs.vercel.app/static/logo.svg",
+    background: `${addonBaseUrl}/static/logo.svg`,
     resources: ["catalog"],
     types: ["movie", "series"],
     catalogs,

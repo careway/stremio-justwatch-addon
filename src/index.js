@@ -22,6 +22,17 @@ const CONFIGURE_HTML = fs.readFileSync(
   "utf8",
 );
 
+// BeamUp's nginx doesn't set an explicit Host header on proxy_pass, so it
+// defaults to the internal upstream name with no domain (e.g.
+// "5cfe2edf73d5-omnicatalogs" instead of "5cfe2edf73d5-omnicatalogs.baby-beamup.club").
+// req.headers.host/x-forwarded-host are therefore unusable for self-referencing
+// URLs (manifest logo/background) on that host. ADDON_PUBLIC_URL lets a
+// deployment declare its own real public URL explicitly to work around it;
+// Vercel doesn't need it since its headers are already correct.
+const ADDON_PUBLIC_URL = process.env.ADDON_PUBLIC_URL
+  ? process.env.ADDON_PUBLIC_URL.replace(/\/+$/, "")
+  : null;
+
 // ─── Logger ───────────────────────────────────────────────────────────────────
 
 const LOG_FILE = path.join(__dirname, "..", "addon.log");
@@ -124,6 +135,7 @@ function parseExtra(raw) {
 }
 
 function getAddonBaseUrl(req) {
+  if (ADDON_PUBLIC_URL) return ADDON_PUBLIC_URL;
   const proto = req.headers["x-forwarded-proto"] || "http";
   const host =
     req.headers["x-forwarded-host"] ||

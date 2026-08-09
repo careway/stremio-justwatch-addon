@@ -112,7 +112,9 @@ function buildManifest(config, encodedConfig, pkgInfoMap, addonBaseUrl) {
     id: "community.omnicatalogs.stremio.addon",
     version,
     name: country ? `OmniCatalogs · ${country}` : "OmniCatalogs",
-    description: `Every service catalog from a good bunch of countries. Select the catalogs you want and enjoy searching and filtering through them.${country ? ` Country: ${country}.` : ""}`,
+    description: `Every streaming platform's catalog in one addon. Discover what's popular, trending, and new on Netflix, Disney+, HBO Max, Prime Video, and many more — organized by country and language, with translated cover art so everything feels native.
+    
+Pick your platforms and country, and you're set: up-to-date catalogs, filterable by genre, no hassle.${country ? ` Country: ${country}.` : ""}`,
     logo: `${addonBaseUrl}/static/logo.svg`,
     background: `${addonBaseUrl}/static/logo.svg`,
     resources: ["catalog"],

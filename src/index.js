@@ -391,7 +391,7 @@ async function router(req, res) {
       res,
       buildManifest(config, encodedConfig, pkgInfoMap, getAddonBaseUrl(req)),
       200,
-      "s-maxage=86400, stale-while-revalidate=172800",
+      "s-maxage=43200, stale-while-revalidate=43200",
     );
   }
 
@@ -410,7 +410,7 @@ async function router(req, res) {
       res,
       await handleCatalog({ type, id, extra: parseExtra(extraRaw) }, config),
       200,
-      "s-maxage=86400, stale-while-revalidate=172800",
+      "s-maxage=43200, stale-while-revalidate=43200",
     );
   }
 

@@ -101,43 +101,75 @@ async function cacheSet(key, data, ttl_s) {
   L2Cache.set(key, data, ttl_s);
 }
 
+// ─── Concurrency queue ────────────────────────────────────────────────────────
+// JustWatch rate-limits aggressively and starts returning 429s once we fire
+// requests at it in parallel — which catalog.js does (two searchTitles calls
+// via Promise.all when a page spans two batches). This queue serializes every
+// outbound GraphQL call through this module so at most one is ever in flight
+// at a time; everything else just waits its turn instead of racing.
+//
+// Caveat: this only serializes calls within a single warm serverless instance
+// (like the L1 cache in ./cache) — Vercel can still spin up several instances
+// handling different requests truly in parallel. There's no shared queue
+// across instances without a coordination point we don't have (e.g. a Redis
+// lock), so this reduces the chance of a 429 a lot but doesn't eliminate it
+// under real concurrent traffic.
+let gqlQueue = Promise.resolve();
+
+function enqueue(task) {
+  const run = gqlQueue.then(task, task);
+  // Keep the chain alive even if this task rejects, so later ones still run.
+  gqlQueue = run.then(
+    () => {},
+    () => {},
+  );
+  return run;
+}
+
 // ─── HTTP helper ──────────────────────────────────────────────────────────────
 
 async function gql(query, variables) {
-  try {
-    const { data } = await axios.post(
-      GRAPHQL_URL,
-      { query, variables },
-      {
-        headers: {
-          "Content-Type": "application/json",
-          "User-Agent":
-            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
-          Accept: "application/json",
-          "Accept-Language": "en-US,en;q=0.9",
+  return enqueue(async () => {
+    try {
+      const { data } = await axios.post(
+        GRAPHQL_URL,
+        { query, variables },
+        {
+          headers: {
+            "Content-Type": "application/json",
+            "User-Agent":
+              "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+            Accept: "application/json",
+            "Accept-Language": "en-US,en;q=0.9",
+          },
+          timeout: 10_000,
         },
-        timeout: 10_000,
-      },
-    );
-    if (data.errors) {
+      );
+      if (data.errors) {
+        console.error("GQL Request Query:", JSON.stringify(query, null, 2));
+        console.error(
+          "GQL Request Variables:",
+          JSON.stringify(variables, null, 2),
+        );
+        console.error("GQL Errors:", JSON.stringify(data.errors, null, 2));
+        throw new Error(`GraphQL errors: ${JSON.stringify(data.errors)}`);
+      }
+      return data.data;
+    } catch (err) {
       console.error("GQL Request Query:", JSON.stringify(query, null, 2));
       console.error(
         "GQL Request Variables:",
         JSON.stringify(variables, null, 2),
       );
-      console.error("GQL Errors:", JSON.stringify(data.errors, null, 2));
-      throw new Error(`GraphQL errors: ${JSON.stringify(data.errors)}`);
+      console.error(
+        "GQL Request failed:",
+        err.response
+          ? JSON.stringify(err.response.data, null, 2)
+          : err.message,
+      );
+      throw err;
     }
-    return data.data;
-  } catch (err) {
-    console.error("GQL Request Query:", JSON.stringify(query, null, 2));
-    console.error("GQL Request Variables:", JSON.stringify(variables, null, 2));
-    console.error(
-      "GQL Request failed:",
-      err.response ? JSON.stringify(err.response.data, null, 2) : err.message,
-    );
-    throw err;
-  }
+  });
 }
 
 // ─── Public API ───────────────────────────────────────────────────────────────

@@ -713,18 +713,55 @@
 
         <div class="row" style="flex-shrink: 0">
           <div class="field">
+            <label>Proveedor de posters</label>
+            <div class="custom-select" id="cs-poster-provider">
+              <div class="cs-trigger">
+                <span class="cs-label">Ninguno</span
+                ><span class="cs-arrow">▾</span>
+              </div>
+              <div class="cs-list" id="cs-poster-provider-list">
+                <div class="cs-option selected" data-value="">Ninguno</div>
+              </div>
+            </div>
+          </div>
+          <div class="field">
             <label
-              >RPDB API Key
-              <span style="font-size: 0.7em; color: var(--secondary)"
-                >(opcional)</span
+              id="poster-key-label"
+              style="
+                display: flex;
+                align-items: baseline;
+                gap: 0.4rem;
+                justify-content: space-between;
+              "
+            >
+              <span
+                >API Key
+                <span style="font-size: 0.7em; color: var(--secondary)"
+                  >(opcional)</span
+                ></span
+              >
+              <a
+                id="poster-key-help"
+                href="#"
+                target="_blank"
+                rel="noopener"
+                style="
+                  display: none;
+                  font-size: 1em;
+                  font-weight: 400;
+                  color: var(--accent);
+                  text-decoration: none;
+                "
+                >Conseguir API Key</a
               >
             </label>
             <input
-              id="rpdb-key"
+              id="poster-api-key"
               type="text"
-              placeholder="t8-xxxxxxxxxxxxxxxx"
+              placeholder="Elige un proveedor primero"
               autocomplete="off"
               spellcheck="false"
+              disabled
               style="
                 width: 100%;
                 background: var(--glass);
@@ -876,6 +913,94 @@
       // Load countries dynamically from API
       let countrySel = null;
       let languageSel = null;
+      let posterProviderSel = null;
+      let posterProvidersByID = {};
+
+      // ── Shared: pre-fill data from ?config= (mirrors src/config.js decodeConfig) ──
+      const cfgParam = new URLSearchParams(window.location.search).get(
+        "config",
+      );
+      const cfgParts = cfgParam ? cfgParam.split("_") : null;
+      const pendingPosterSegment = cfgParts
+        ? cfgParts
+            .slice(2)
+            .find((p) => p.startsWith("poster-") || p.startsWith("rpdb-"))
+        : null;
+
+      function parsePosterSegment(segment) {
+        if (!segment) return null;
+        if (segment.startsWith("rpdb-")) {
+          return { providerId: "rpdb", apiKey: segment.slice(5) };
+        }
+        const rest = segment.slice("poster-".length);
+        const sep = rest.indexOf("-");
+        if (sep > 0 && sep < rest.length - 1) {
+          return {
+            providerId: rest.slice(0, sep),
+            apiKey: rest.slice(sep + 1),
+          };
+        }
+        return null;
+      }
+
+      function updatePosterKeyField(providerId) {
+        const input = document.getElementById("poster-api-key");
+        const help = document.getElementById("poster-key-help");
+        const provider = posterProvidersByID[providerId];
+        if (!provider) {
+          input.disabled = true;
+          input.value = "";
+          input.placeholder = "Elige un proveedor primero";
+          help.style.display = "none";
+          return;
+        }
+        input.disabled = false;
+        input.placeholder = provider.keyPlaceholder || "";
+        if (provider.keyHelpUrl) {
+          help.href = provider.keyHelpUrl;
+          help.style.display = "inline";
+        } else {
+          help.style.display = "none";
+        }
+      }
+
+      // Load poster providers from API
+      (async () => {
+        try {
+          const res = await fetch("/api/poster-providers");
+          const providers = await res.json();
+          if (!Array.isArray(providers)) throw new Error("Bad response");
+
+          posterProvidersByID = Object.fromEntries(
+            providers.map((p) => [p.id, p]),
+          );
+
+          const list = document.getElementById("cs-poster-provider-list");
+          list.innerHTML =
+            `<div class="cs-option selected" data-value="">Ninguno</div>` +
+            providers
+              .map(
+                (p) =>
+                  `<div class="cs-option" data-value="${p.id}">${p.name}</div>`,
+              )
+              .join("");
+
+          posterProviderSel = initCustomSelect("cs-poster-provider", (v) => {
+            updatePosterKeyField(v);
+            if (resultEl.classList.contains("visible")) generateUrl();
+          });
+
+          // Pre-fill from ?config= once the provider list is ready.
+          const parsed = parsePosterSegment(pendingPosterSegment);
+          if (parsed && posterProvidersByID[parsed.providerId]) {
+            posterProviderSel.value = parsed.providerId;
+            updatePosterKeyField(parsed.providerId);
+            document.getElementById("poster-api-key").value = parsed.apiKey;
+          }
+        } catch (e) {
+          console.error("Failed to load poster providers:", e);
+        }
+      })();
 
       // Load languages from API
       (async () => {
@@ -946,18 +1071,17 @@
           });
 
           // ── Init: pre-fill from ?config= if coming from Stremio reconfigure ──
-          const cfgParam = new URLSearchParams(window.location.search).get(
-            "config",
-          );
-          if (cfgParam) {
-            const parts = cfgParam.split("_");
-            if (parts.length >= 2) {
-              const [country, lang, ...pkgs] = parts;
-              if (country) countrySel.value = country;
-              if (lang) languageSel.value = lang;
-              loadPackages(country || countrySel.value, pkgs);
-              return;
-            }
+          if (cfgParts && cfgParts.length >= 2) {
+            const [country, lang, ...rest] = cfgParts;
+            // Exclude the poster-provider segment — it's handled by the
+            // poster-providers loader above, not treated as a package.
+            const pkgs = rest.filter(
+              (p) => !p.startsWith("poster-") && !p.startsWith("rpdb-"),
+            );
+            if (country) countrySel.value = country;
+            if (lang) languageSel.value = lang;
+            loadPackages(country || countrySel.value, pkgs);
+            return;
           }
           loadPackages(defaultCountry.code);
         } catch (e) {
@@ -1054,9 +1178,17 @@
           ...pkgGrid.querySelectorAll('input[type="checkbox"]:checked'),
         ].map((i) => i.value);
         if (!selected.length) return null;
-        const rpdbKey = document.getElementById("rpdb-key").value.trim();
-        const rpdbPart = rpdbKey ? `rpdb-${rpdbKey}_` : "";
-        const config = `${countrySel.value}_${languageSel.value}_${rpdbPart}${selected.join("_")}`;
+        const posterProviderId = posterProviderSel
+          ? posterProviderSel.value
+          : "";
+        const posterApiKey = document
+          .getElementById("poster-api-key")
+          .value.trim();
+        const posterPart =
+          posterProviderId && posterApiKey
+            ? `poster-${posterProviderId}-${posterApiKey}_`
+            : "";
+        const config = `${countrySel.value}_${languageSel.value}_${posterPart}${selected.join("_")}`;
         const manifest = `${window.location.origin}/${config}/manifest.json`;
         urlOut.value = manifest;
         resultEl.classList.add("visible");
@@ -1079,9 +1211,11 @@
           generateUrl();
       });
 
-      document.getElementById("rpdb-key").addEventListener("input", () => {
-        if (resultEl.classList.contains("visible")) generateUrl();
-      });
+      document
+        .getElementById("poster-api-key")
+        .addEventListener("input", () => {
+          if (resultEl.classList.contains("visible")) generateUrl();
+        });
 
       btnGenerate.onclick = () => {
         const manifest = generateUrl();

@@ -2,16 +2,10 @@
 
 const { searchTitles } = require("./justwatch");
 const { getGenreCode, SORT_MAP, GENRES } = require("./config");
+const { resolvePosterUrl } = require("./posterProviders");
 
 const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 const TYPE_TO_JW = { movie: "MOVIE", series: "SHOW" };
-
-function getPoster(imdbId, jwPosterUrl, rpdbKey) {
-  if (rpdbKey)
-    return `https://api.ratingposterdb.com/${rpdbKey}/imdb/poster-default/${imdbId}.jpg`;
-  if (jwPosterUrl) return `https://images.justwatch.com${jwPosterUrl}`;
-  return `https://images.metahub.space/poster/medium/${imdbId}/img`;
-}
 
 function nodeToMeta(node, language, config) {
   const imdbId = node?.content?.externalIds?.imdbId;
@@ -23,7 +17,12 @@ function nodeToMeta(node, language, config) {
     id: imdbId,
     type: node.objectType === "MOVIE" ? "movie" : "series",
     name: node.content.title,
-    poster: getPoster(imdbId, node.content.posterUrl, config?.rpdbKey),
+    poster: resolvePosterUrl({
+      imdbId,
+      jwPosterUrl: node.content.posterUrl,
+      posterProvider: config?.posterProvider,
+      posterApiKey: config?.posterApiKey,
+    }),
     description: node.content.shortDescription || undefined,
     genres: (node.content.genres || []).map((g) => {
       const entry = GENRES.find((e) => e.code === g.shortName);

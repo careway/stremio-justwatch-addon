@@ -15,6 +15,7 @@ const {
 const { buildManifest } = require("./manifest");
 const { handleCatalog } = require("./catalog");
 const { getPackages } = require("./justwatch");
+const { listProviders: listPosterProviders } = require("./posterProviders");
 const { TTL_S, PACKAGES_TTL_S } = require("./ttl");
 
 // HTTP Cache-Control strings, derived from the same TTL_H base as the
@@ -322,6 +323,18 @@ async function router(req, res) {
       );
     } catch (err) {
       console.error("[api/languages] Error:", err);
+      return respond(res, [], 200, "no-store");
+    }
+  }
+
+  // ── /api/poster-providers  (poster provider adapters for the configure UI) ──
+  if (rawPath === "/api/poster-providers") {
+    try {
+      const providers = listPosterProviders();
+      res.setHeader("Vercel-Cache-Tag", `poster-providers`);
+      return respond(res, providers, 200, STATIC_CACHE_CONTROL);
+    } catch (err) {
+      console.error("[api/poster-providers] Error:", err);
       return respond(res, [], 200, "no-store");
     }
   }

@@ -15,6 +15,12 @@ const {
 const { buildManifest } = require("./manifest");
 const { handleCatalog } = require("./catalog");
 const { getPackages } = require("./justwatch");
+const { TTL_S, PACKAGES_TTL_S } = require("./ttl");
+
+// HTTP Cache-Control strings, derived from the same TTL_H base as the
+// server-side L1/L2 cache (see ./ttl) — one place controls both.
+const CATALOG_CACHE_CONTROL = `s-maxage=${TTL_S}, stale-while-revalidate=${TTL_S}`;
+const STATIC_CACHE_CONTROL = `s-maxage=${PACKAGES_TTL_S}, stale-while-revalidate=${PACKAGES_TTL_S * 2}`;
 
 const PORT = Number(process.env.PORT) || 7000;
 const CONFIGURE_HTML = fs.readFileSync(
@@ -279,7 +285,7 @@ async function router(req, res) {
       res,
       buildManifest(null, null, {}, getAddonBaseUrl(req)),
       200,
-      "s-maxage=86400, stale-while-revalidate=172800",
+      STATIC_CACHE_CONTROL,
     );
   }
 
@@ -293,11 +299,13 @@ async function router(req, res) {
         res,
         countries,
         200,
-        "s-maxage=86400, stale-while-revalidate=172800",
+        STATIC_CACHE_CONTROL,
       );
     } catch (err) {
       console.error("[api/countries] Error:", err);
-      return respond(res, []);
+      // Never cache an error response — a transient failure must not turn
+      // into an empty list stuck behind the CDN for anyone else.
+      return respond(res, [], 200, "no-store");
     }
   }
 
@@ -310,11 +318,11 @@ async function router(req, res) {
         res,
         languages,
         200,
-        "s-maxage=86400, stale-while-revalidate=172800",
+        STATIC_CACHE_CONTROL,
       );
     } catch (err) {
       console.error("[api/languages] Error:", err);
-      return respond(res, []);
+      return respond(res, [], 200, "no-store");
     }
   }
 
@@ -325,16 +333,17 @@ async function router(req, res) {
       return respond(res, { error: "Invalid country code" }, 400);
     }
     try {
+      const pkgs = await getPackages(country);
       res.setHeader("Vercel-Cache-Tag", `packages-${country}`);
       return respond(
         res,
-        await getPackages(country),
+        pkgs,
         200,
-        "s-maxage=86400, stale-while-revalidate=172800",
+        STATIC_CACHE_CONTROL,
       );
     } catch (err) {
       console.error("[api/packages] Error:", err);
-      return respond(res, []);
+      return respond(res, [], 200, "no-store");
     }
   }
 
@@ -379,11 +388,13 @@ async function router(req, res) {
   // /{config}/manifest.json
   if (rest === "manifest.json") {
     let pkgInfoMap = {};
+    let packagesOk = true;
     try {
       const pkgs = await getPackages(config.country);
       pkgInfoMap = Object.fromEntries(pkgs.map((p) => [p.shortName, p]));
     } catch (e) {
       console.error("[manifest] Could not fetch packages:", e);
+      packagesOk = false;
     }
 
     res.setHeader("Vercel-Cache-Tag", `manifest`);
@@ -391,7 +402,9 @@ async function router(req, res) {
       res,
       buildManifest(config, encodedConfig, pkgInfoMap, getAddonBaseUrl(req)),
       200,
-      "s-maxage=43200, stale-while-revalidate=43200",
+      // Packages fetch failed → manifest has degraded (technical, not clear)
+      // names. Don't let that stick around; retry on the next request.
+      packagesOk ? CATALOG_CACHE_CONTROL : "no-store",
     );
   }
 
@@ -406,11 +419,28 @@ async function router(req, res) {
       `catalog-${config.country}-${type}-${id},catalog,catalog-${config.country}`,
     );
     trackCatalogRequest(req);
+
+    let result;
+    try {
+      result = await handleCatalog(
+        { type, id, extra: parseExtra(extraRaw) },
+        config,
+      );
+    } catch (e) {
+      // handleCatalog already catches its own errors — this is only a safety
+      // net for an unexpected bug, so it never gets cached either.
+      console.error("[catalog] Unexpected error:", e);
+      result = { ok: false, metas: [] };
+    }
+
+    // Catalogs refresh every 4h. A failed/degraded fetch (result.ok === false)
+    // is never cached — otherwise the fallback placeholder would replace the
+    // real catalog for the full TTL instead of just this one request.
     return respond(
       res,
-      await handleCatalog({ type, id, extra: parseExtra(extraRaw) }, config),
+      { metas: result.metas },
       200,
-      "s-maxage=43200, stale-while-revalidate=43200",
+      result.ok ? CATALOG_CACHE_CONTROL : "no-store",
     );
   }
 

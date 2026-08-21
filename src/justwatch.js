@@ -3,6 +3,7 @@
 const axios = require("axios");
 const { trackCacheHit, trackCacheMiss, track } = require("./analytics");
 const { L1Cache, L2Cache } = require("./cache");
+const { TTL_S, PACKAGES_TTL_S } = require("./ttl");
 const GRAPHQL_URL = "https://apis.justwatch.com/graphql";
 
 // ─── GraphQL Queries ──────────────────────────────────────────────────────────
@@ -63,14 +64,18 @@ const GET_PACKAGES_QUERY = `
 
 // ─── Cache ────────────────────────────────────────────────────────────────────
 
-const CACHE_TTL_S = 24 * 60 * 60; // 24 hours (Redis uses seconds)
-const CACHE_TTL_MS = CACHE_TTL_S * 1000; // 24 hours in ms (in-memory)
+// Catalog/search results (TTL_S) and provider/package lists (PACKAGES_TTL_S)
+// refresh on the cadence defined in ./ttl — everything derives from TTL_H
+// there, nothing is redefined here. There's no cron/scheduler in this
+// deployment (Vercel Hobby only guarantees daily cron; BeamUp has none at
+// all), so freshness is driven purely by TTL expiry + stale-while-revalidate,
+// not by an active refresh job.
 
 /**
  * Lookup order: L1 in-memory → L2 Redis
- * On a Redis hit, the value is promoted back into L1.
+ * On a Redis hit, the value is promoted back into L1 with the same TTL.
  */
-async function cacheGet(key) {
+async function cacheGet(key, ttl_s) {
   let data = await L1Cache.get(key);
   if (data) {
     trackCacheHit("L1", key);
@@ -80,7 +85,7 @@ async function cacheGet(key) {
   data = await L2Cache.get(key);
   if (data) {
     trackCacheHit("L2", key);
-    L1Cache.set(key, data, CACHE_TTL_S);
+    L1Cache.set(key, data, ttl_s);
     return data;
   }
 
@@ -163,7 +168,7 @@ async function searchTitles({
   offset = 0,
 } = {}) {
   const cacheKey = `search:${query}:${objectTypes.join(",")}:${packages.join(",")}:${genres.join(",")}:${sortBy}:${country}:${language}:${first}:${offset}`;
-  const cached = await cacheGet(cacheKey);
+  const cached = await cacheGet(cacheKey, TTL_S);
   if (cached) return cached;
 
   const filter = {};
@@ -184,7 +189,7 @@ async function searchTitles({
   });
 
   const nodes = (data?.popularTitles?.edges || []).map((e) => e.node);
-  await cacheSet(cacheKey, nodes, CACHE_TTL_S);
+  await cacheSet(cacheKey, nodes, TTL_S);
   return nodes;
 }
 
@@ -197,7 +202,7 @@ async function searchTitles({
  */
 async function getPackages(country = "US") {
   const cacheKey = `packages:${country}`;
-  const cached = await cacheGet(cacheKey);
+  const cached = await cacheGet(cacheKey, PACKAGES_TTL_S);
   if (cached) return cached;
 
   const rawData = await gql(GET_PACKAGES_QUERY, { country, platform: "WEB" });
@@ -217,7 +222,7 @@ async function getPackages(country = "US") {
         : null,
     }));
 
-  await cacheSet(cacheKey, pkgs, CACHE_TTL_S);
+  await cacheSet(cacheKey, pkgs, PACKAGES_TTL_S);
   return pkgs;
 }
 

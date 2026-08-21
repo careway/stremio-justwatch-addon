@@ -121,6 +121,7 @@ async function handleCatalog({ type, id, extra }, config) {
       });
     if (metas.length == 0) {
       return {
+        ok: true,
         metas: [
           {
             id: "tt0427229",
@@ -135,11 +136,15 @@ async function handleCatalog({ type, id, extra }, config) {
         ],
       };
     } else {
-      return { metas };
+      return { ok: true, metas };
     }
   } catch (err) {
     console.error("[catalog] Error:", err);
+    // ok: false tells the caller this is a degraded fallback, not real data —
+    // it must not be cached, or the placeholder would stick around for the
+    // full catalog TTL instead of retrying on the next request.
     return {
+      ok: false,
       metas: [
         {
           id: "tt33071426",

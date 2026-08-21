@@ -9,7 +9,7 @@ Discover where to watch movies and series on your favourite streaming platforms,
 - **Genre filtering** — 18 genres with localized names (14 languages)
 - **Stream links** — direct deep-links to each platform with price/quality labels
 - **Language-aware** — titles, descriptions and genres in the language you choose
-- **Two-layer cache** — L1 in-memory → L2 Upstash Redis (REST/HTTPS), 24-hour TTL
+- **Two-layer cache** — L1 in-memory → L2 Upstash Redis (REST/HTTPS). Catalog/search results refresh every 4h, provider package lists every 24h. Failed/degraded fetches are served as a fallback but never cached (`Cache-Control: no-store`), so the next request retries instead of getting stuck on stale placeholder data.
 
 ## Quick start (local)
 

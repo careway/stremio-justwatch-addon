@@ -716,7 +716,7 @@
             <label>Proveedor de posters</label>
             <div class="custom-select" id="cs-poster-provider">
               <div class="cs-trigger">
-                <span class="cs-label">Ninguno</span
+                <span class="cs-label notranslate" translate="no">Ninguno</span
                 ><span class="cs-arrow">▾</span>
               </div>
               <div class="cs-list" id="cs-poster-provider-list">
@@ -981,7 +981,7 @@
             providers
               .map(
                 (p) =>
-                  `<div class="cs-option" data-value="${p.id}">${p.name}</div>`,
+                  `<div class="cs-option notranslate" translate="no" data-value="${p.id}">${p.name}</div>`,
               )
               .join("");
 
@@ -1142,7 +1142,7 @@
             <input type="checkbox" id="pkg-${pkg.shortName}" value="${pkg.shortName}" ${isChecked ? "checked" : ""} style="display:none">
             <label class="pkg-label" for="pkg-${pkg.shortName}" title="${pkg.clearName}">
               ${icon}
-              <span class="pkg-name">${pkg.clearName}</span>
+              <span class="pkg-name notranslate" translate="no">${pkg.clearName}</span>
               <div class="pkg-check">
                 <svg width="8" height="8" viewBox="0 0 10 8" fill="none" stroke="#000" stroke-width="3"><polyline points="1,4 3.5,6.5 9,1"/></svg>
               </div>

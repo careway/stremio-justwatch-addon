@@ -102,28 +102,46 @@ async function cacheSet(key, data, ttl_s) {
 }
 
 // ─── Concurrency queue ────────────────────────────────────────────────────────
-// JustWatch rate-limits aggressively and starts returning 429s once we fire
-// requests at it in parallel — which catalog.js does (two searchTitles calls
-// via Promise.all when a page spans two batches). This queue serializes every
-// outbound GraphQL call through this module so at most one is ever in flight
-// at a time; everything else just waits its turn instead of racing.
+// Bounds how many outbound GraphQL calls to JustWatch can be in flight at
+// once. Measured directly against JustWatch (see project memory): no 429s at
+// any concurrency up to 256 in a single burst — failures only show up past
+// ~150-190 as request latency balloons and calls start missing the 10s
+// axios timeout below. MAX_CONCURRENCY=100 stays well under that knee while
+// still bounding worst-case fan-out (e.g. many catalogs loading at once on a
+// manifest fetch).
 //
-// Caveat: this only serializes calls within a single warm serverless instance
-// (like the L1 cache in ./cache) — Vercel can still spin up several instances
-// handling different requests truly in parallel. There's no shared queue
-// across instances without a coordination point we don't have (e.g. a Redis
-// lock), so this reduces the chance of a 429 a lot but doesn't eliminate it
-// under real concurrent traffic.
-let gqlQueue = Promise.resolve();
+// Caveat: this only bounds concurrency within a single warm serverless
+// instance (like the L1 cache in ./cache) — Vercel can still spin up several
+// instances handling different requests truly in parallel, and production
+// IP reputation may behave differently than the environment this was tested
+// from. There's no cross-instance coordination point (e.g. a Redis lock).
+const MAX_CONCURRENCY = 100;
+let activeCount = 0;
+const pending = [];
+
+function runNext() {
+  if (activeCount >= MAX_CONCURRENCY || pending.length === 0) return;
+  activeCount++;
+  const { task, resolve, reject } = pending.shift();
+  task().then(
+    (result) => {
+      activeCount--;
+      resolve(result);
+      runNext();
+    },
+    (err) => {
+      activeCount--;
+      reject(err);
+      runNext();
+    },
+  );
+}
 
 function enqueue(task) {
-  const run = gqlQueue.then(task, task);
-  // Keep the chain alive even if this task rejects, so later ones still run.
-  gqlQueue = run.then(
-    () => {},
-    () => {},
-  );
-  return run;
+  return new Promise((resolve, reject) => {
+    pending.push({ task, resolve, reject });
+    runNext();
+  });
 }
 
 // ─── HTTP helper ──────────────────────────────────────────────────────────────

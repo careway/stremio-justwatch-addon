@@ -123,6 +123,14 @@ function respondHtml(res, html) {
   res.writeHead(200, {
     "Content-Type": "text/html; charset=utf-8",
     "Content-Length": buf.length,
+    // /configure carries per-user state in its query string (?config=...).
+    // With no Cache-Control at all, an intermediary in front of the app
+    // (BeamUp's nginx, a CDN) is free to cache it by exact URL with its own
+    // default TTL — observed in production: a stale pre-poster-provider
+    // page kept being served for one specific ?config= URL, while other
+    // query variants hit the app fresh. This page must never be cached by
+    // a shared cache regardless of the platform's default.
+    "Cache-Control": "no-store",
   });
   res.end(buf);
 }

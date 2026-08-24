@@ -1,0 +1,13 @@
+{
+  "healthchecks": {
+    "web": [
+      {
+        "type": "startup",
+        "name": "web check",
+        "description": "Checks that the addon responds before routing traffic to it",
+        "path": "/",
+        "attempts": 3
+      }
+    ]
+  }
+}

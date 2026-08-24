@@ -24,10 +24,20 @@ const CATALOG_CACHE_CONTROL = `s-maxage=${TTL_S}, stale-while-revalidate=${TTL_S
 const STATIC_CACHE_CONTROL = `s-maxage=${PACKAGES_TTL_S}, stale-while-revalidate=${PACKAGES_TTL_S * 2}`;
 
 const PORT = Number(process.env.PORT) || 7000;
-const CONFIGURE_HTML = fs.readFileSync(
-  path.join(__dirname, "configure.html"),
-  "utf8",
-);
+const isProduction = process.env.NODE_ENV === "production";
+
+const CONFIGURE_HTML_PATH = path.join(__dirname, "configure.html");
+// Production caches it once at startup (cheap, and every deploy restarts the
+// process anyway). Dev re-reads on every request so editing configure.html
+// shows up immediately — no restart needed to see the change.
+const CONFIGURE_HTML_CACHED = isProduction
+  ? fs.readFileSync(CONFIGURE_HTML_PATH, "utf8")
+  : null;
+
+function getConfigureHtml() {
+  if (CONFIGURE_HTML_CACHED !== null) return CONFIGURE_HTML_CACHED;
+  return fs.readFileSync(CONFIGURE_HTML_PATH, "utf8");
+}
 
 // BeamUp's nginx doesn't set an explicit Host header on proxy_pass, so it
 // defaults to the internal upstream name with no domain (e.g.
@@ -43,7 +53,6 @@ const ADDON_PUBLIC_URL = process.env.ADDON_PUBLIC_URL
 // ─── Logger ───────────────────────────────────────────────────────────────────
 
 const LOG_FILE = path.join(__dirname, "..", "addon.log");
-const isProduction = process.env.NODE_ENV === "production";
 
 // File logging only in local dev (Vercel's filesystem is read-only)
 let logStream = null;
@@ -233,7 +242,7 @@ async function router(req, res) {
 
   // ── /configure  (config UI) ──────────────────────────────────────────────────
   if (rawPath === "" || rawPath === "/configure") {
-    return respondHtml(res, CONFIGURE_HTML);
+    return respondHtml(res, getConfigureHtml());
   }
 
   // ── /favicon.ico ─────────────────────────────────────────────────────────────

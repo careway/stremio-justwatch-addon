@@ -1,7 +1,7 @@
 "use strict";
 
-const { version } = require("../package.json");
-const { getGenreNames } = require("./config");
+const { version } = require("../../package.json");
+const { getGenreNames } = require("../data/catalogMeta");
 
 // Human-readable sort labels shown in Stremio's catalog header, per language
 const SORT_LABELS_I18N = {

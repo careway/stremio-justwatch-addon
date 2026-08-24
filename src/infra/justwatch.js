@@ -3,7 +3,7 @@
 const axios = require("axios");
 const { trackCacheHit, trackCacheMiss, track } = require("./analytics");
 const { L1Cache, L2Cache } = require("./cache");
-const { TTL_S, PACKAGES_TTL_S } = require("./ttl");
+const { TTL_S, PACKAGES_TTL_S } = require("../ttl");
 const GRAPHQL_URL = "https://apis.justwatch.com/graphql";
 
 // ─── GraphQL Queries ──────────────────────────────────────────────────────────

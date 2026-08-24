@@ -1,8 +1,8 @@
 "use strict";
 
-const { searchTitles } = require("./justwatch");
-const { getGenreCode, SORT_MAP, GENRES } = require("./config");
-const { resolvePosterUrl } = require("./posterProviders");
+const { searchTitles } = require("../infra/justwatch");
+const { getGenreCode, SORT_MAP, GENRES } = require("../data/catalogMeta");
+const { resolvePosterUrl } = require("../infra/posterProviders");
 
 const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 const TYPE_TO_JW = { movie: "MOVIE", series: "SHOW" };

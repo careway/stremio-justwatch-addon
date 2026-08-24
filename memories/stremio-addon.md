@@ -29,14 +29,53 @@ no Express, no Stremio Addon SDK. Package name `omnicatalogs`, repo name
   explicitly (`getAddonBaseUrl()` in `src/index.js` prefers it over request headers). Not needed
   on Vercel.
 
-## Architecture (current)
+## Architecture (current, reorganized 2026-08-24)
 
-- `src/index.js` — HTTP server, router, request logger (redirects `console.*`
-  to file+stdout), `getAddonBaseUrl()`, `getLanguageFromRequest()` (Accept-Language
-  → per-country fallback map `COUNTRY_LANGUAGE` → `en`). Also exposes
-  `/api/inv/<INV_KEY>?key=<cache-key>` — manual L1+L2 cache invalidation route,
-  key gated by the `INV_KEY` env var.
-- `src/justwatch.js` — JustWatch GraphQL client (`GetPopularTitles`,
+`src/` moved from a flat 10-file directory to a layered structure — pure
+structural refactor, zero behavior change, done in one commit. `src/index.js`
+never moved (kept `api/index.js`'s `require('../src/index')` valid with no
+edit) and is now a thin bootstrap only (`http.createServer` + exported
+`handler`); everything it used to do directly now lives under `src/http/`.
+
+- `src/index.js` — thin bootstrap: `handler(req,res)` (the exported
+  serverless entry) and the `require.main === module` local-dev listener.
+  Pulls from `./http/router`, `./http/logger`, `./http/responses`, `./http/request`.
+- `src/http/router.js` — the full route table (was the bulk of the old
+  `index.js`): `/configure`, `/static/*`, `/manifest.json`, `/api/countries`,
+  `/api/languages`, `/api/poster-providers`, `/api/packages`,
+  `/api/inv/<INV_KEY>?key=<cache-key>` (manual L1+L2 invalidation),
+  `/{config}/configure`, `/{config}/manifest.json`, `/{config}/catalog/...`.
+  Also owns `getConfigureHtml()` (prod: cached once at module load; dev:
+  re-read from disk per request — see **Config-page caching** below) and the
+  Cache-Control constants derived from `../ttl`. **Known pre-existing bug,
+  not introduced by the reorg, not yet fixed**: in the `/static/*` path-
+  traversal-rejection branch, the `mime` header value is referenced before
+  its own `const mime = ...` declaration (TDZ) — would throw if that branch
+  is ever hit (an actual `..` traversal attempt), caught by `handler`'s own
+  try/catch so it degrades to a generic 500 rather than crashing. Worth a
+  follow-up fix, deliberately left alone during the reorg to keep it a pure
+  move.
+- `src/http/responses.js` — `respond`, `respondHtml` (sends
+  `Cache-Control: no-store` — see **Config-page caching**), `redirect`.
+- `src/http/request.js` — `parseExtra`, `getAddonBaseUrl()` (BeamUp Host-
+  header quirk via `ADDON_PUBLIC_URL`), `getLanguageFromRequest()`
+  (Accept-Language → per-country fallback map `COUNTRY_LANGUAGE` → `en`), `PORT`.
+- `src/http/logger.js` — file+stdout logger, `console.*` monkey-patch,
+  `LOG_FILE` (top-level `addon.log`), exports `rawConsoleLog` (pre-patch
+  `console.log`) for the local-dev banner print in `index.js`.
+- `src/http/configure.html` — config UI, moved alongside the route that serves it.
+- `src/domain/catalog.js` — catalog handler: browse + genre filter, 2-batch
+  fetch/merge/dedupe for misaligned pagination offsets, poster resolution via
+  `../infra/posterProviders`. Failed/degraded results return
+  `{ ok: false, metas: [...placeholder] }`, never cached (`no-store`).
+- `src/domain/manifest.js` — dynamic manifest builder; `resources: ["catalog"]`
+  only, no stream resource. Reads `version` from `../../package.json` (two
+  levels up now — this path changed in the move, easy one to break again if
+  this file ever moves further).
+- `src/domain/userConfig.js` — split out of the old `config.js`:
+  `encodeConfig`/`decodeConfig` only (the addon's own URL config codec,
+  including the legacy poster-segment backward-compat branch).
+- `src/infra/justwatch.js` — JustWatch GraphQL client (`GetPopularTitles`,
   `GetPackages`). Two-layer cache via `./cache`. **Concurrency queue**:
   `QUEUE_ENABLED = false` as of 2026-08-24 — `enqueue()` bypasses the
   semaphore and runs tasks immediately (unbounded), because real Stremio
@@ -44,34 +83,34 @@ no Express, no Stremio Addon SDK. Package name `omnicatalogs`, repo name
   slot from a task that never settles — see **Concurrency tuning** below).
   The bounded-semaphore implementation (`runNext()`, `MAX_CONCURRENCY = 100`,
   `pending`) is still in the file, just dead code while disabled, kept there
-  to keep iterating on it rather than deleting it.
-- `src/cache.js` — L1 (in-process `Map`, survives warm serverless invocations)
-  + L2 (**Upstash Redis over REST/HTTPS** via `@upstash/redis` — not ioredis,
-  not host/port; works identically on Vercel/BeamUp/Render). Accepts either
-  `UPSTASH_REDIS_REST_URL`/`TOKEN` or the Vercel-KV-integration aliases
-  `REDIS_KV_REST_API_URL`/`TOKEN`. Falls back silently to L1-only if unset.
-- `src/ttl.js` — single source of truth for cache cadence: `TTL_H = 4`
-  (catalog/search) → `TTL_S`; `PACKAGES_TTL_H = TTL_H * 6` = 24h (provider
-  lists). HTTP `Cache-Control` headers in `index.js` derive from the same
-  constants — never hardcode a duration elsewhere.
-- `src/catalog.js` — catalog handler: browse + genre filter, 2-batch
-  fetch/merge/dedupe for misaligned pagination offsets, poster resolution via
-  `posterProviders.js`. Failed/degraded results return `{ ok: false, metas: [...placeholder] }`
-  and are never cached (`no-store`) so the next request retries instead of
-  sticking with fallback data for the full TTL.
-- `src/posterProviders.js` — **new (2026-08-21)**. Adapter registry for
-  third-party poster APIs (RPDB, TOP Posters), all sharing the RPDB URL shape
+  to keep iterating on it rather than deleting it — survived the file move
+  byte-for-byte (diff-verified).
+- `src/infra/cache.js` — L1 (in-process `Map`, survives warm serverless
+  invocations) + L2 (**Upstash Redis over REST/HTTPS** via `@upstash/redis` —
+  not ioredis, not host/port; works identically on Vercel/BeamUp/Render).
+  Accepts either `UPSTASH_REDIS_REST_URL`/`TOKEN` or the Vercel-KV-integration
+  aliases `REDIS_KV_REST_API_URL`/`TOKEN`. Falls back silently to L1-only if unset.
+- `src/infra/analytics.js` — Vercel Web Analytics wrapper (`trackCatalogRequest`,
+  `trackCacheHit`/`trackCacheMiss`).
+- `src/infra/posterProviders.js` — adapter registry for third-party poster
+  APIs (RPDB, TOP Posters), all sharing the RPDB URL shape
   `{base}/{apiKey}/imdb/poster-default/{imdbId}.jpg`. `resolvePosterUrl()`
   order: configured provider (needs both id + key) → JustWatch's own poster →
   Metahub as the no-key universal fallback.
-- `src/config.js` — GENRES (18 × 14 languages), `getGenreNames()`/`getGenreCode()`,
-  COUNTRIES, SORT_MAP, `encodeConfig`/`decodeConfig`.
-- `src/manifest.js` — dynamic manifest builder; `resources: ["catalog"]` only
-  — **no stream resource** (README still references a `stream.js` that no
-  longer exists in `src/` — stale doc, addon is catalog-only now).
-- `src/configure.html` — config UI: country + language + provider + poster
-  provider/API key selection.
-- `api/index.js` — Vercel serverless entry (`module.exports = require('../src/index')`).
+- `src/data/catalogMeta.js` — split out of the old `config.js`: GENRES
+  (18 × 14 languages), `getGenreNames()`/`getGenreCode()`, COUNTRIES,
+  `fetchCountriesFromJustWatch()`, `getSupportedLanguages()`, `SORT_MAP`.
+- `src/ttl.js` — **unmoved, still flat at `src/` root** (deliberately — it's
+  the one cross-cutting constant both `http/router.js` and
+  `infra/justwatch.js` depend on). Single source of truth for cache cadence:
+  `TTL_H = 4` (catalog/search) → `TTL_S`; `PACKAGES_TTL_H = TTL_H * 6` = 24h
+  (provider lists).
+- `api/index.js` — Vercel serverless entry (`module.exports = require('../src/index')`)
+  — needed **no edit** for the reorg since `src/index.js` never moved.
+- Also dropped one dead import while moving: old `index.js` imported
+  `encodeConfig` but never called it — not carried into the new `router.js`.
+- `test/translations.test.js` now requires `../src/data/catalogMeta` (was
+  `../src/config`); `test/security.test.js` unchanged (`../src/index` still valid).
 
 ## Config shape
 
@@ -84,7 +123,8 @@ Human-readable, not base64 (despite an older memory saying otherwise):
 Decoded to `{ country, language, packages, posterProvider, posterApiKey }`.
 `decodeConfig()` also handles a **legacy poster segment format** for
 backwards compatibility with already-installed manifest URLs — don't remove
-that branch without checking `src/config.js` around line 746.
+that branch without checking `src/domain/userConfig.js` (moved there in the
+2026-08-24 reorg, was `src/config.js`).
 
 ## Key facts
 
@@ -167,7 +207,7 @@ work — e.g. add a hard per-task timeout that always settles the promise
 regardless of what axios does, add slot-leak instrumentation/logging, or
 reintroduce bounded concurrency once the leak (if that's really what it is)
 is fixed. Toggle lives at the top of the "Concurrency queue" section in
-`src/justwatch.js`.
+`src/infra/justwatch.js` (moved there in the 2026-08-24 reorg, was `src/justwatch.js`).
 
 ### Incident: devcontainer IP got 403-blocked by JustWatch (2026-08-24)
 
@@ -214,6 +254,7 @@ realistic Stremio traffic for a hobby-scale addon.
 
 ## Recent history (as of 2026-08-24, branch `beamup`)
 
+0. `src/` reorganized from a flat 10-file directory into `http/` / `domain/` / `infra/` / `data/` — pure structural refactor, zero behavior change, verified via `node --test` + full manual route checklist — see **Architecture** above
 1. Concurrency queue changed from serialize-1 to bounded semaphore (100) — see above
 1b. Concurrency queue disabled again (`QUEUE_ENABLED = false`) same day — real Stremio hangs on cache miss, suspected slot-leak on BeamUp's single long-running process; semaphore code kept for later
 2. `f2cc115` style: configure.html button padding/font-size tweak

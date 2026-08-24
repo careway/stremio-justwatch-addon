@@ -3,7 +3,7 @@
 const assert = require("node:assert/strict");
 const { test, describe } = require("node:test");
 
-const { GENRES, getGenreNames, getGenreCode } = require("../src/config");
+const { GENRES, getGenreNames, getGenreCode } = require("../src/data/catalogMeta");
 
 // All languages present in the dataset
 const ALL_LANGS = ["es", "en", "de", "fr", "it", "pt", "nl", "sv", "no", "da", "fi", "pl", "ja", "ko"];

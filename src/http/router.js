@@ -74,13 +74,6 @@ async function router(req, res) {
     }
     const staticDir = path.resolve(__dirname, "..", "..", "static");
     const filePath = path.resolve(staticDir, fileName);
-    if (!filePath.startsWith(staticDir + path.sep) && filePath !== staticDir) {
-      res.writeHead(400, {
-        "Content-Type": mime,
-        "Cache-Control": "public, max-age=31104000",
-      });
-      return res.end();
-    }
     const ext = path.extname(fileName).toLowerCase();
     const mime =
       {
@@ -90,6 +83,13 @@ async function router(req, res) {
         ".ico": "image/x-icon",
         ".webmanifest": "application/manifest+json",
       }[ext] || "application/octet-stream";
+    if (!filePath.startsWith(staticDir + path.sep) && filePath !== staticDir) {
+      res.writeHead(400, {
+        "Content-Type": mime,
+        "Cache-Control": "public, max-age=31104000",
+      });
+      return res.end();
+    }
     try {
       const data = fs.readFileSync(filePath);
       res.writeHead(200, {

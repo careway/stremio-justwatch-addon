@@ -47,14 +47,23 @@ edit) and is now a thin bootstrap only (`http.createServer` + exported
   `/{config}/configure`, `/{config}/manifest.json`, `/{config}/catalog/...`.
   Also owns `getConfigureHtml()` (prod: cached once at module load; dev:
   re-read from disk per request — see **Config-page caching** below) and the
-  Cache-Control constants derived from `../ttl`. **Known pre-existing bug,
-  not introduced by the reorg, not yet fixed**: in the `/static/*` path-
-  traversal-rejection branch, the `mime` header value is referenced before
-  its own `const mime = ...` declaration (TDZ) — would throw if that branch
-  is ever hit (an actual `..` traversal attempt), caught by `handler`'s own
-  try/catch so it degrades to a generic 500 rather than crashing. Worth a
-  follow-up fix, deliberately left alone during the reorg to keep it a pure
-  move.
+  Cache-Control constants derived from `../ttl`. **Fixed (2026-08-24, right
+  after the reorg)**: the `/static/*` path-traversal-rejection branch used to
+  reference the `mime` header value before its own `const mime = ...`
+  declaration (TDZ) — moved the `mime`/`ext` computation above that check so
+  it's defined by the time it's read. Before the fix this threw a
+  `ReferenceError`, caught by `handler`'s own try/catch, degrading to a
+  generic 500 instead of the intended clean `400`. The branch is real and
+  reachable — not dead code — via an absolute-path bypass of the naive `..`
+  substring check: a request like `/static//etc/passwd` makes `fileName`
+  start with `/`, and `path.resolve(staticDir, fileName)` discards
+  `staticDir` entirely for an absolute second argument, so the result never
+  contains `..` (passes the first check) but does escape `staticDir`
+  (caught only by this second, previously-buggy check). Verified live:
+  `/static//etc/passwd` now returns a clean `400` with no error logged.
+  `test/security.test.js`'s traversal tests only assert `status !== 200`,
+  not the exact code, so they passed even while this returned a 500 — worth
+  remembering next time those tests seem to "confirm" something is fully fine.
 - `src/http/responses.js` — `respond`, `respondHtml` (sends
   `Cache-Control: no-store` — see **Config-page caching**), `redirect`.
 - `src/http/request.js` — `parseExtra`, `getAddonBaseUrl()` (BeamUp Host-

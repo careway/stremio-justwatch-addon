@@ -37,12 +37,14 @@ no Express, no Stremio Addon SDK. Package name `omnicatalogs`, repo name
   `/api/inv/<INV_KEY>?key=<cache-key>` — manual L1+L2 cache invalidation route,
   key gated by the `INV_KEY` env var.
 - `src/justwatch.js` — JustWatch GraphQL client (`GetPopularTitles`,
-  `GetPackages`). Two-layer cache via `./cache`. **Concurrency queue**: bounded
-  semaphore (`enqueue()`/`runNext()`, `MAX_CONCURRENCY = 100`) limiting how
-  many outbound GraphQL calls can be in flight at once. Only bounds within one
-  warm instance — no cross-instance lock. Was a hard `Promise`-chain
-  serializer (concurrency 1) until 2026-08-24 — see **Concurrency tuning**
-  below for why it changed and what was measured.
+  `GetPackages`). Two-layer cache via `./cache`. **Concurrency queue**:
+  `QUEUE_ENABLED = false` as of 2026-08-24 — `enqueue()` bypasses the
+  semaphore and runs tasks immediately (unbounded), because real Stremio
+  usage showed requests hanging on a cache miss (suspected leaked semaphore
+  slot from a task that never settles — see **Concurrency tuning** below).
+  The bounded-semaphore implementation (`runNext()`, `MAX_CONCURRENCY = 100`,
+  `pending`) is still in the file, just dead code while disabled, kept there
+  to keep iterating on it rather than deleting it.
 - `src/cache.js` — L1 (in-process `Map`, survives warm serverless invocations)
   + L2 (**Upstash Redis over REST/HTTPS** via `@upstash/redis` — not ioredis,
   not host/port; works identically on Vercel/BeamUp/Render). Accepts either
@@ -142,6 +144,31 @@ catalog), 0 error-fallbacks, 0.35s wall time, 0 new 403s. **Lesson**:
 verifying a fix against this app must check response *content*, not just
 HTTP status/latency — the error path is deliberately fast and returns 200.
 
+### Disabled again — real-world hangs on cache miss (2026-08-24, later same day)
+
+Despite the above local testing showing the bounded semaphore working, the
+user reported real Stremio usage still timing out, specifically some
+requests "getting stuck" on a cache miss. Leading theory (not confirmed):
+BeamUp runs this app as a single long-running Node process shared by every
+request — unlike Vercel's per-request isolation — so the semaphore's 100
+slots are truly global and persistent. If any one queued task never settles
+(resolves or rejects) — e.g. a hung TCP connection, or an edge case the 10s
+axios timeout doesn't actually catch — that slot leaks permanently. Over
+enough cache misses over enough uptime, leaked slots accumulate, capacity
+shrinks, and requests pile up behind the shrinking window until they time
+out — which would explain intermittent, hard-to-reproduce stalls that
+correlate with misses rather than a specific request pattern.
+
+Rather than debug the leak live in production, `QUEUE_ENABLED` was added and
+set to `false`: `enqueue()` short-circuits to `return task()`, so every
+outbound call runs immediately and unbounded again (equivalent to no queue
+at all). The semaphore code is untouched and still in the file for future
+work — e.g. add a hard per-task timeout that always settles the promise
+regardless of what axios does, add slot-leak instrumentation/logging, or
+reintroduce bounded concurrency once the leak (if that's really what it is)
+is fixed. Toggle lives at the top of the "Concurrency queue" section in
+`src/justwatch.js`.
+
 ### Incident: devcontainer IP got 403-blocked by JustWatch (2026-08-24)
 
 The concurrency probe above (bursts up to 256 parallel direct calls) was
@@ -188,6 +215,7 @@ realistic Stremio traffic for a hobby-scale addon.
 ## Recent history (as of 2026-08-24, branch `beamup`)
 
 1. Concurrency queue changed from serialize-1 to bounded semaphore (100) — see above
+1b. Concurrency queue disabled again (`QUEUE_ENABLED = false`) same day — real Stremio hangs on cache miss, suspected slot-leak on BeamUp's single long-running process; semaphore code kept for later
 2. `f2cc115` style: configure.html button padding/font-size tweak
 3. `09179b9` feat: poster provider support + poster URL resolution refactor (`posterProviders.js` added)
 4. `11e3818` feat: GraphQL concurrency queue to cut JustWatch 429s (superseded by #1 above)

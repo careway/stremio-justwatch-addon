@@ -115,6 +115,19 @@ async function cacheSet(key, data, ttl_s) {
 // instances handling different requests truly in parallel, and production
 // IP reputation may behave differently than the environment this was tested
 // from. There's no cross-instance coordination point (e.g. a Redis lock).
+//
+// DISABLED (2026-08-24): real Stremio usage showed some requests hanging for
+// a long time on a cache miss, causing client-side timeouts in Stremio
+// itself. Suspected cause — on BeamUp this module lives in one long-running
+// process shared by every request, so a single task that never settles
+// (hung TCP connection, an edge case axios' timeout doesn't catch) would
+// permanently occupy one of the 100 slots and never free it; repeated over
+// time that leaks capacity and eventually piles up requests behind it. Not
+// confirmed yet, just the leading theory. `enqueue()` now bypasses the
+// semaphore and runs tasks immediately (unbounded, like before any queue
+// existed) while the semaphore itself (`runNext`/`MAX_CONCURRENCY`/
+// `pending`) stays in place to keep iterating on it without ripping it out.
+const QUEUE_ENABLED = false;
 const MAX_CONCURRENCY = 100;
 let activeCount = 0;
 const pending = [];
@@ -138,6 +151,7 @@ function runNext() {
 }
 
 function enqueue(task) {
+  if (!QUEUE_ENABLED) return task();
   return new Promise((resolve, reject) => {
     pending.push({ task, resolve, reject });
     runNext();

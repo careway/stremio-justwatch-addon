@@ -130,9 +130,60 @@ than measured here are still possible.
 Based on this, the queue was changed to a bounded semaphore with
 `MAX_CONCURRENCY = 100` (well under the ~150-190 knee, but far above the
 ~24-catalog real-world fan-out this app ever generates) instead of removing
-the queue outright. Verified after the change: the same 24-catalog cold-load
-scenario resolved all requests in ~0.33-0.46s each (vs. a staircase up to
-631ms+ for just 6 requests before), no errors.
+the queue outright. A first "verification" right after the change looked
+clean (~0.33-0.46s per request, no errors) but was **invalid** — JustWatch
+had started blocking this devcontainer's IP by then (see incident below) and
+the fast times were actually the app's own error-fallback path (`ok: false`
+→ placeholder metas), not real data; only response *timing*, not body
+content, was checked. Once the block lifted, a proper re-run (24 parallel
+cold requests, response bodies inspected) confirmed real data: 18/24 genuine
+JustWatch results + 6 legitimately-empty catalogs (Filmin has no IE
+catalog), 0 error-fallbacks, 0.35s wall time, 0 new 403s. **Lesson**:
+verifying a fix against this app must check response *content*, not just
+HTTP status/latency — the error path is deliberately fast and returns 200.
+
+### Incident: devcontainer IP got 403-blocked by JustWatch (2026-08-24)
+
+The concurrency probe above (bursts up to 256 parallel direct calls) was
+followed, a few requests later, by **every** call to
+`apis.justwatch.com/graphql` from this devcontainer returning HTTP 403 with
+a bare `<!doctype html>...403 Forbidden` body — including a single
+non-parallel request with no query complexity. That's an edge/WAF-style
+block (unlike the app's normal error handling, no JSON body, no GraphQL
+`errors` array), not the "aggressive 429" the original code comment
+described. It self-resolved after roughly 5-10 minutes with no action taken.
+**Takeaway**: don't run high-concurrency bursts directly against JustWatch's
+live API from this environment without expecting a temporary IP block
+afterward — prefer testing this app's own server (warm cache, no real
+JustWatch calls) when possible, and if a direct-API probe is needed, treat
+it as a one-shot, not something to casually repeat. Production (Vercel/
+BeamUp) egresses from different IPs and is presumed unaffected, but this
+wasn't directly verified.
+
+## Local server capacity (2026-08-24)
+
+Stress-tested this app's own server (not JustWatch) with a warm L1 cache —
+93 distinct URLs (5 countries × 3 packages × 2 types × 3 sorts + a few
+non-catalog routes) round-robined at increasing concurrency, 5s client
+timeout:
+
+| concurrency | requests | failures | throughput | p50 | p99 |
+|---|---|---|---|---|---|
+| 100 | 1,000 | 0 | ~2,860 req/s | 29ms | 88ms |
+| 300 | 3,000 | 0 | ~3,120 req/s | 64ms | 936ms |
+| 500 | 5,000 | 0 | ~4,110 req/s | 61ms | 1.19s |
+| 1,000 | 10,000 | 0 | ~3,620 req/s | 118ms | 2.66s |
+| 2,000 | 20,000 | 224 timeouts (1.1%) | ~3,280 req/s | 244ms | 6.08s |
+| 3,000 | 30,000 | 1,269 timeouts (4.2%) | ~4,260 req/s | 403ms | 5.64s |
+
+**Zero errors up to 1,000 concurrent connections** on a warm cache; failures
+past 2,000 are client-side 5s timeouts from Node's single-threaded event
+loop queueing under load, not server errors — throughput stays flat
+(~3-4k req/s) even as failures appear, so it's a latency/queueing effect,
+not a crash. At 3,000 concurrency the load-generating client (also Node, same
+host) likely contended for CPU too, so results past ~2,000 aren't purely
+server-side. 1,000 concurrent with zero failures is a large margin over any
+realistic Stremio traffic for a hobby-scale addon.
 
 ## Recent history (as of 2026-08-24, branch `beamup`)
 

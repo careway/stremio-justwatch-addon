@@ -278,6 +278,28 @@
         background: var(--secondary);
         border-radius: 4px;
       }
+      .cs-search {
+        position: sticky;
+        top: 0;
+        z-index: 1;
+        display: block;
+        width: 100%;
+        background: #12152a;
+        border: none;
+        border-bottom: 1px solid var(--border);
+        border-radius: 12px 12px 0 0;
+        color: var(--text);
+        padding: 0.65rem 1rem;
+        font-size: 0.85rem;
+        font-family: inherit;
+        outline: none;
+      }
+      .cs-search::placeholder {
+        color: var(--muted);
+      }
+      .cs-search:focus {
+        border-bottom-color: var(--accent);
+      }
       .cs-option {
         padding: 0.65rem 1rem;
         font-size: 0.85rem;
@@ -606,8 +628,17 @@
                 <span class="cs-label">Cargando...</span
                 ><span class="cs-arrow">▾</span>
               </div>
-              <div class="cs-list" id="cs-country-list">
-                <!-- Countries will be loaded here dynamically -->
+              <div class="cs-list">
+                <input
+                  type="text"
+                  class="cs-search"
+                  placeholder="Buscar país..."
+                  autocomplete="off"
+                  spellcheck="false"
+                />
+                <div id="cs-country-list">
+                  <!-- Countries will be loaded here dynamically -->
+                </div>
               </div>
             </div>
           </div>
@@ -618,8 +649,17 @@
                 <span class="cs-label">Cargando...</span
                 ><span class="cs-arrow">▾</span>
               </div>
-              <div class="cs-list" id="cs-language-list">
-                <!-- Languages will be loaded here dynamically -->
+              <div class="cs-list">
+                <input
+                  type="text"
+                  class="cs-search"
+                  placeholder="Buscar idioma..."
+                  autocomplete="off"
+                  spellcheck="false"
+                />
+                <div id="cs-language-list">
+                  <!-- Languages will be loaded here dynamically -->
+                </div>
               </div>
             </div>
           </div>
@@ -1057,10 +1097,19 @@
     <script>
       /* LÓGICA DE JAVASCRIPT */
       /* ── Custom dropdowns ── */
+      // Accent/case-insensitive compare so "espana" still matches "España".
+      function normalizeSearchText(s) {
+        return s
+          .normalize("NFD")
+          .replace(/[̀-ͯ]/g, "")
+          .toLowerCase();
+      }
+
       function initCustomSelect(id, onChange) {
         const wrap = document.getElementById(id);
         const trigger = wrap.querySelector(".cs-trigger");
         const label = wrap.querySelector(".cs-label");
+        const searchInput = wrap.querySelector(".cs-search");
         const opts = wrap.querySelectorAll(".cs-option");
         let value = wrap.querySelector(".cs-option.selected").dataset.value;
 
@@ -1070,7 +1119,27 @@
             if (el !== wrap) el.classList.remove("open");
           });
           wrap.classList.toggle("open");
+          if (wrap.classList.contains("open") && searchInput) {
+            searchInput.value = "";
+            opts.forEach((o) => (o.style.display = ""));
+            // Focus after the click that opened it finishes bubbling,
+            // otherwise some browsers immediately blur it again.
+            setTimeout(() => searchInput.focus(), 0);
+          }
         });
+
+        if (searchInput) {
+          searchInput.addEventListener("click", (e) => e.stopPropagation());
+          searchInput.addEventListener("input", () => {
+            const query = normalizeSearchText(searchInput.value);
+            opts.forEach((o) => {
+              const matches = normalizeSearchText(o.textContent).includes(
+                query,
+              );
+              o.style.display = matches ? "" : "none";
+            });
+          });
+        }
 
         opts.forEach((opt) => {
           opt.addEventListener("click", () => {

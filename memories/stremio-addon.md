@@ -152,6 +152,23 @@ edit) and is now a thin bootstrap only (`http.createServer` + exported
   this bug. Mirrors how `.pkg-item`/`.pkg-label`/`.pkg-check` already did it
   correctly for the provider grid — same class-based, CSS-only
   `input:checked + label` pattern, just done right.
+  **Searchable country/language dropdowns (2026-08-25)**: `initCustomSelect()`
+  now looks for an optional `.cs-search` input inside the `.cs-list` — if
+  present, live-filters that dropdown's `.cs-option`s on `input` (via
+  `normalizeSearchText()`, an NFD-normalize + strip-combining-marks +
+  lowercase helper, so `"espana"` matches `"España"`), clears/refocuses it
+  each time the dropdown opens, and stops its own clicks from bubbling to
+  the document (which would otherwise close the dropdown). Only `#cs-country`
+  and `#cs-language` got a `.cs-search` input added to their markup — the
+  poster-provider dropdown (`#cs-poster-provider`, only 3-4 options) has none,
+  so `searchInput` is `null` there and every new code path no-ops, unchanged
+  from before. Required restructuring: the dynamic-population target
+  (`id="cs-country-list"` / `id="cs-language-list"`) used to be the `.cs-list`
+  element itself; now it's a plain nested `<div>` so the `.cs-search` input
+  (a sibling, sticky-positioned at the top via CSS) survives the `.innerHTML`
+  replacement when countries/languages load. JS population code
+  (`document.getElementById("cs-country-list")` etc.) needed no changes —
+  same id, just moved one level deeper in the DOM.
 - `src/domain/catalog.js` — catalog handler: browse + genre filter, 2-batch
   fetch/merge/dedupe for misaligned pagination offsets, poster resolution via
   `../infra/posterProviders`. Failed/degraded results return

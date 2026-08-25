@@ -102,10 +102,55 @@ edit) and is now a thin bootstrap only (`http.createServer` + exported
 - `src/infra/analytics.js` — Vercel Web Analytics wrapper (`trackCatalogRequest`,
   `trackCacheHit`/`trackCacheMiss`).
 - `src/infra/posterProviders.js` — adapter registry for third-party poster
-  APIs (RPDB, TOP Posters), all sharing the RPDB URL shape
-  `{base}/{apiKey}/imdb/poster-default/{imdbId}.jpg`. `resolvePosterUrl()`
-  order: configured provider (needs both id + key) → JustWatch's own poster →
-  Metahub as the no-key universal fallback.
+  APIs. RPDB and TOP Posters share the RPDB URL shape
+  `{base}/{apiKey}/imdb/poster-default/{imdbId}.jpg`, apiKey a short token in
+  a template we own (`requiresKey: true`). **BetterPosters (btttr.cc)** is
+  the odd one out: free/keyless by default
+  (`https://btttr.cc/poster/imdb/poster-default/{imdbId}.jpg`), but its "key"
+  field can optionally hold a *whole custom URL* the user builds themselves
+  at `btttr.cc/configure` → "AIOMetadata / Other Addon" path (confirmed by
+  reading that page's actual source, pasted in by the user 2026-08-25 — the
+  URL always contains the literal placeholder `{imdb_id}`, e.g.
+  `https://btttr.cc/poster-qa/imdb/poster-default/{imdb_id}.jpg?lang=es-ES`;
+  `poster`/`poster-g`/`poster-r`/`poster-n` + optional `q`/`a` suffix is
+  their style-toggle encoding, not something we need to construct ourselves —
+  we just substitute `{imdb_id}` into whatever they pasted).
+  `requiresKey: false` on an entry means "has a working default with no
+  input", not "rejects input" — `keyIsUrlTemplate: true` marks btttr's field
+  as accepting one anyway. `buildUrl` for btttr also defends against a real
+  btttr.cc-documented gotcha: iOS's clipboard can percent-encode a copied
+  pattern (`{imdb_id}` → `%7Bimdb_id%7D`); `resolveImdbIdPlaceholder()` tries
+  the raw string first, then its `decodeURIComponent()`'d form.
+  `resolvePosterUrl()` order: configured provider (needs an id, and either
+  `requiresKey === false` or a key was given) → JustWatch's own poster →
+  Metahub as the no-key universal fallback. The `requiresKey === false` check
+  is deliberately strict (not just falsy) — a future provider entry that
+  forgets to set the flag defaults to "needs a key", not silently keyless.
+  **Poster key encoding**: a plain short token (RPDB/TOP Posters) is kept
+  human-readable in the URL as-is; anything outside `[A-Za-z0-9-]` (i.e. a
+  btttr URL pattern, full of `:/.{}?=`) gets hex-encoded behind a `url-`
+  marker (`encodePosterKey`/`decodePosterKey` in `src/domain/userConfig.js`,
+  mirrored client-side in `configure.html` via TextEncoder/TextDecoder since
+  Buffer isn't available in the browser — **keep both in sync if this ever
+  changes**, they're independent implementations of the same scheme, not a
+  shared module). Segment shape: `poster-{id}-{encodedKey}`, or bare
+  `poster-{id}` with no key at all.
+  **`test/posterKeyCodec.test.js`** (2026-08-25) now enforces the client/server
+  agreement: it extracts the actual `<script>` snippet between
+  `const SAFE_POSTER_KEY_RE` and `function parsePosterSegment` out of
+  `configure.html` (`vm.runInContext`, sandboxed with `TextEncoder`/
+  `TextDecoder`) and runs the same key vectors through both implementations —
+  so a future edit to one side that isn't mirrored on the other now fails a
+  test instead of silently drifting. Writing that test caught a real bug on
+  first run: a *plain* key shaped exactly like our own marker (e.g. the
+  literal string `"url-deadbeef"`) was left un-encoded by `encodePosterKey`
+  (charset-safe) but then wrongly hex-decoded by `decodePosterKey`, corrupting
+  it. Fixed in both files by extracting one shared predicate
+  (`looksLikeEncodedKey` / `looksLikePosterKeyMarker`) that both encode and
+  decode consult, so a colliding plain key now gets hex-encoded too instead of
+  passed through — the ambiguity can't exist anymore by construction. If the
+  marker scheme changes again, keep it as one predicate on each side, not two
+  separate `if` conditions that can drift apart the same way.
 - `src/data/catalogMeta.js` — split out of the old `config.js`: GENRES
   (18 × 14 languages), `getGenreNames()`/`getGenreCode()`, COUNTRIES,
   `fetchCountriesFromJustWatch()`, `getSupportedLanguages()`, `SORT_MAP`.

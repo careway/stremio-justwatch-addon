@@ -927,17 +927,68 @@
             .find((p) => p.startsWith("poster-") || p.startsWith("rpdb-"))
         : null;
 
+      // Mirrors src/domain/userConfig.js's encodePosterKey/decodePosterKey —
+      // a poster "key" can be an arbitrary custom URL (BetterPosters), which
+      // doesn't fit the [A-Za-z0-9_-] charset a URL path segment allows, so
+      // anything outside that charset is hex-encoded behind a "url-" marker.
+      // Uses TextEncoder/TextDecoder instead of Buffer (browser, not Node).
+      // Keep byte-for-byte in sync with the server copy — see
+      // test/posterKeyCodec.test.js, which extracts this exact block and
+      // checks the two against each other and against real round trips.
+      const SAFE_POSTER_KEY_RE = /^[A-Za-z0-9-]+$/;
+
+      // A plain key shaped like "url-{even-length hex}" would be ambiguous —
+      // encode would otherwise leave it raw (charset-safe), decode would then
+      // wrongly treat it as hex and corrupt it. Both directions share this
+      // one predicate so they can't disagree on what "encoded" means.
+      function looksLikePosterKeyMarker(value) {
+        if (!value.startsWith("url-")) return false;
+        const hex = value.slice(4);
+        return hex.length > 0 && hex.length % 2 === 0 && /^[0-9a-f]+$/.test(hex);
+      }
+
+      function encodePosterKey(raw) {
+        if (SAFE_POSTER_KEY_RE.test(raw) && !looksLikePosterKeyMarker(raw)) {
+          return raw;
+        }
+        const hex = [...new TextEncoder().encode(raw)]
+          .map((b) => b.toString(16).padStart(2, "0"))
+          .join("");
+        return `url-${hex}`;
+      }
+
+      function decodePosterKey(encoded) {
+        if (looksLikePosterKeyMarker(encoded)) {
+          try {
+            const bytes = new Uint8Array(
+              encoded
+                .slice(4)
+                .match(/.{2}/g)
+                .map((h) => parseInt(h, 16)),
+            );
+            return new TextDecoder().decode(bytes);
+          } catch {
+            // fall through to the literal value below
+          }
+        }
+        return encoded;
+      }
+
       function parsePosterSegment(segment) {
         if (!segment) return null;
         if (segment.startsWith("rpdb-")) {
-          return { providerId: "rpdb", apiKey: segment.slice(5) };
+          return { providerId: "rpdb", apiKey: decodePosterKey(segment.slice(5)) };
         }
         const rest = segment.slice("poster-".length);
         const sep = rest.indexOf("-");
+        if (sep === -1) {
+          // Keyless provider: "poster-{providerId}", no "-{key}" suffix.
+          return rest ? { providerId: rest, apiKey: "" } : null;
+        }
         if (sep > 0 && sep < rest.length - 1) {
           return {
             providerId: rest.slice(0, sep),
-            apiKey: rest.slice(sep + 1),
+            apiKey: decodePosterKey(rest.slice(sep + 1)),
           };
         }
         return null;
@@ -1184,10 +1235,16 @@
         const posterApiKey = document
           .getElementById("poster-api-key")
           .value.trim();
-        const posterPart =
-          posterProviderId && posterApiKey
-            ? `poster-${posterProviderId}-${posterApiKey}_`
-            : "";
+        const posterProviderInfo = posterProvidersByID[posterProviderId];
+        const posterNeedsKey = posterProviderInfo
+          ? posterProviderInfo.requiresKey !== false
+          : true;
+        let posterPart = "";
+        if (posterProviderId && posterApiKey) {
+          posterPart = `poster-${posterProviderId}-${encodePosterKey(posterApiKey)}_`;
+        } else if (posterProviderId && !posterNeedsKey) {
+          posterPart = `poster-${posterProviderId}_`;
+        }
         const config = `${countrySel.value}_${languageSel.value}_${posterPart}${selected.join("_")}`;
         const manifest = `${window.location.origin}/${config}/manifest.json`;
         urlOut.value = manifest;

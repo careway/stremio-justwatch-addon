@@ -73,13 +73,28 @@ edit) and is now a thin bootstrap only (`http.createServer` + exported
   `LOG_FILE` (top-level `addon.log`), exports `rawConsoleLog` (pre-patch
   `console.log`) for the local-dev banner print in `index.js`.
 - `src/http/configure.html` — config UI, moved alongside the route that serves it.
-  4 steps as of 2026-08-25: (1) country/language, (2) platforms, (3) global
-  country catalogs toggle, (4) poster ratings. Step 3's checkbox
-  (`#global-catalogs-toggle`) just appends the literal string `"global"` to
-  the same `selected` packages array `generateUrl()` already builds from
-  `#pkg-grid` — no separate encoding path. Pre-fill on `?config=` reads it
-  back via `pkgs.includes("global")` (`pkgs` there already includes it
-  verbatim, nothing filters it out).
+  Still 3 steps: (1) country/language, (2) platforms — now including the
+  global-catalogs toggle as a subsection between the step-2 header and the
+  "Proveedores Disponibles" provider grid (not below the grid — repositioned
+  same day per explicit user request), not
+  its own step (moved there 2026-08-25 per explicit user request, was
+  briefly a separate step 3) — (3) poster ratings. The toggle
+  (`#global-catalogs-toggle`, `.toggle-item`/`.toggle-card`/`.toggle-dot`
+  classes) just appends the literal string `"global"` to the same `selected`
+  packages array `generateUrl()` already builds from `#pkg-grid` — no
+  separate encoding path. Pre-fill on `?config=` reads it back via
+  `pkgs.includes("global")` (`pkgs` there already includes it verbatim,
+  nothing filters it out). **Bug fixed same day**: the first version gave the
+  toggle's `<label>`/inner dot their checked-state colors via *inline*
+  `style="border:...; background:..."` while trying to override them from a
+  `:checked` sibling-selector rule in the `<style>` block — inline style
+  always wins over any stylesheet rule regardless of selector specificity,
+  so the checkbox toggled correctly (the URL reflected it) but the visual
+  indicator never updated. Fixed by moving all state-dependent visuals into
+  the `.toggle-card`/`.toggle-dot` classes (no inline style on those elements
+  at all now), mirroring how `.pkg-item`/`.pkg-label`/`.pkg-check` already
+  did it correctly for the provider grid — same class-based, CSS-only
+  `input:checked + label` pattern, just done right this time.
 - `src/domain/catalog.js` — catalog handler: browse + genre filter, 2-batch
   fetch/merge/dedupe for misaligned pagination offsets, poster resolution via
   `../infra/posterProviders`. Failed/degraded results return
@@ -335,7 +350,7 @@ realistic Stremio traffic for a hobby-scale addon.
 
 ## Recent history (as of 2026-08-25, branch `beamup`)
 
--1. New `/configure` step 3: whole-country "global" catalogs (Popular/Trending/New, no provider filter) via the `GLOBAL_PACKAGE_ID` pseudo-package — see **Architecture** entries for catalog.js/manifest.js/configure.html above and the **Config shape** note
+-1. Whole-country "global" catalogs (Popular/Trending/New, no provider filter) via the `GLOBAL_PACKAGE_ID` pseudo-package, toggled from a subsection inside the platforms step in `/configure` (not its own step — moved there + fixed a checked-state CSS bug same day) — see **Architecture** entries for catalog.js/manifest.js/configure.html above and the **Config shape** note
 0. `src/` reorganized from a flat 10-file directory into `http/` / `domain/` / `infra/` / `data/` — pure structural refactor, zero behavior change, verified via `node --test` + full manual route checklist — see **Architecture** above
 1. Concurrency queue changed from serialize-1 to bounded semaphore (100) — see above
 1b. Concurrency queue disabled again (`QUEUE_ENABLED = false`) same day — real Stremio hangs on cache miss, suspected slot-leak on BeamUp's single long-running process; semaphore code kept for later

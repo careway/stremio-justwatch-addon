@@ -374,17 +374,36 @@
         display: flex;
       }
 
-      #global-catalogs-label:hover {
-        transform: translateY(-2px);
+      .toggle-card {
+        display: flex;
+        align-items: center;
+        gap: 0.8rem;
+        padding: 0.8rem 1rem;
+        border: 1px solid var(--border);
+        border-radius: 16px;
+        cursor: pointer;
+        transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+        background: rgba(255, 255, 255, 0.03);
+      }
+      .toggle-card:hover {
         background: rgba(255, 255, 255, 0.08);
         border-color: var(--secondary);
       }
-      #global-catalogs-toggle:checked + #global-catalogs-label {
+      .toggle-item input:checked + .toggle-card {
         border-color: var(--accent);
         background: rgba(255, 121, 198, 0.12);
         box-shadow: 0 0 15px rgba(255, 121, 198, 0.1);
       }
-      #global-catalogs-toggle:checked + #global-catalogs-label #global-catalogs-check {
+      .toggle-dot {
+        width: 16px;
+        height: 16px;
+        min-width: 16px;
+        border-radius: 50%;
+        background: transparent;
+        border: 1px solid var(--muted);
+        transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+      }
+      .toggle-item input:checked + .toggle-card .toggle-dot {
         background: var(--accent);
         border-color: var(--accent);
         box-shadow: 0 0 8px var(--accent-glow);
@@ -538,7 +557,7 @@
               letter-spacing: 0.03em;
             "
           >
-            Configura tu addon en 4 pasos
+            Configura tu addon en 3 pasos
           </p>
         </div>
 
@@ -643,6 +662,24 @@
           >
         </div>
 
+        <div class="toggle-item" style="flex-shrink: 0; margin-bottom: 0.8rem">
+          <input
+            type="checkbox"
+            id="global-catalogs-toggle"
+            style="display: none"
+          />
+          <label for="global-catalogs-toggle" class="toggle-card">
+            <span class="toggle-dot"></span>
+            <span style="font-size: 0.75rem; color: var(--text)"
+              >Catálogos globales del país
+              <span style="color: var(--secondary)"
+                >— Popular, Tendencias y Nuevos de todo el país, sin filtrar
+                por plataforma</span
+              ></span
+            >
+          </label>
+        </div>
+
         <div
           style="
             display: flex;
@@ -706,97 +743,6 @@
               flex-shrink: 0;
             "
             >3</span
-          >
-          <span
-            style="
-              font-size: 0.7rem;
-              font-weight: 600;
-              color: var(--text);
-              letter-spacing: 0.05em;
-              text-transform: uppercase;
-            "
-            >Catálogos globales del país
-            <span
-              style="
-                color: var(--muted);
-                font-weight: 400;
-                text-transform: none;
-              "
-              >(opcional)</span
-            ></span
-          >
-        </div>
-
-        <div style="flex-shrink: 0; margin-bottom: 0.7rem">
-          <input
-            type="checkbox"
-            id="global-catalogs-toggle"
-            style="display: none"
-          />
-          <label
-            for="global-catalogs-toggle"
-            id="global-catalogs-label"
-            style="
-              display: flex;
-              align-items: center;
-              gap: 0.8rem;
-              padding: 0.9rem 1rem;
-              border: 1px solid var(--border);
-              border-radius: 16px;
-              cursor: pointer;
-              transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-              background: rgba(255, 255, 255, 0.03);
-            "
-          >
-            <span
-              id="global-catalogs-check"
-              style="
-                width: 16px;
-                height: 16px;
-                min-width: 16px;
-                border-radius: 50%;
-                background: transparent;
-                border: 1px solid var(--muted);
-                display: flex;
-                align-items: center;
-                justify-content: center;
-                transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-              "
-            ></span>
-            <span style="font-size: 0.75rem; color: var(--text)"
-              >Popular, Tendencias y Nuevos de todo el país
-              <span style="color: var(--secondary)"
-                >(sin filtrar por plataforma)</span
-              ></span
-            >
-          </label>
-        </div>
-
-        <!-- ── Paso 4 ── -->
-        <div
-          style="
-            display: flex;
-            align-items: center;
-            gap: 0.6rem;
-            margin: 1.2rem 0 0.7rem;
-            flex-shrink: 0;
-          "
-        >
-          <span
-            style="
-              background: var(--accent);
-              color: #0f0c29;
-              border-radius: 50%;
-              width: 1.3rem;
-              height: 1.3rem;
-              display: flex;
-              align-items: center;
-              justify-content: center;
-              font-size: 0.7rem;
-              font-weight: 700;
-              flex-shrink: 0;
-            "
-            >4</span
           >
           <span
             style="

@@ -1,7 +1,12 @@
 "use strict";
 
 const { searchTitles } = require("../infra/justwatch");
-const { getGenreCode, SORT_MAP, GENRES } = require("../data/catalogMeta");
+const {
+  getGenreCode,
+  SORT_MAP,
+  GENRES,
+  GLOBAL_PACKAGE_ID,
+} = require("../data/catalogMeta");
 const { resolvePosterUrl } = require("../infra/posterProviders");
 
 const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
@@ -35,8 +40,10 @@ function nodeToMeta(node, language, config) {
  * Catalog handler.
  *
  * Catalog ID format: jw_{sortKey}_{technicalName}
- *   sortKey      = 'pop' | 'new'
- *   technicalName = JustWatch package technical name (may contain underscores)
+ *   sortKey      = 'pop' | 'tnd' | 'new'
+ *   technicalName = JustWatch package technical name (may contain underscores),
+ *                    or GLOBAL_PACKAGE_ID for the whole-country, no-provider-filter
+ *                    catalogs (see ../data/catalogMeta)
  *
  * @param {object} args
  * @param {string} args.type   - 'movie' | 'series'
@@ -56,6 +63,9 @@ async function handleCatalog({ type, id, extra }, config) {
   const parts = id.split("_");
   const sortKey = parts[1] || "pop";
   const pkgName = parts.slice(2).join("_");
+  // "global" catalogs aggregate across every provider — no packages filter.
+  const packageFilter =
+    pkgName && pkgName !== GLOBAL_PACKAGE_ID ? [pkgName] : [];
   const sortBy = SORT_MAP[sortKey] || "POPULAR";
   const genreCode = genre ? getGenreCode(genre, config.language) : null;
 
@@ -73,7 +83,7 @@ async function handleCatalog({ type, id, extra }, config) {
       searchTitles({
         query: "",
         objectTypes: jwType ? [jwType] : [],
-        packages: pkgName ? [pkgName] : [],
+        packages: packageFilter,
         genres: genreCode ? [genreCode] : [],
         sortBy,
         country: config.country,
@@ -91,7 +101,7 @@ async function handleCatalog({ type, id, extra }, config) {
           searchTitles({
             query: "",
             objectTypes: jwType ? [jwType] : [],
-            packages: pkgName ? [pkgName] : [],
+            packages: packageFilter,
             genres: genreCode ? [genreCode] : [],
             sortBy,
             country: config.country,

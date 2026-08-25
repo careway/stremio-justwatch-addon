@@ -1,7 +1,7 @@
 "use strict";
 
 const { version } = require("../../package.json");
-const { getGenreNames } = require("../data/catalogMeta");
+const { getGenreNames, GLOBAL_PACKAGE_ID } = require("../data/catalogMeta");
 
 // Human-readable sort labels shown in Stremio's catalog header, per language
 const SORT_LABELS_I18N = {
@@ -68,10 +68,12 @@ function getSortLabel(key, language) {
  * Build a Stremio manifest dynamically for a given user config.
  *
  * Catalog ID format: jw_{sortKey}_{shortName}
- *   sortKey   = 'pop' | 'new'
- *   shortName = JustWatch package shortName (e.g. nfx, dnp, prv)
+ *   sortKey   = 'pop' | 'tnd' | 'new'
+ *   shortName = JustWatch package shortName (e.g. nfx, dnp, prv), or the
+ *               GLOBAL_PACKAGE_ID pseudo-package for whole-country catalogs
+ *               with no provider filter (see ../data/catalogMeta)
  *
- * 4 catalogs are generated per selected provider (2 sorts × 2 types).
+ * 6 catalogs are generated per selected provider/pseudo-package (3 sorts × 2 types).
  *
  * @param {object}  config          - { country, language, packages: string[] }
  * @param {string}  encodedConfig   - base64url-encoded config (for URLs)
@@ -86,7 +88,10 @@ function buildManifest(config, encodedConfig, pkgInfoMap, addonBaseUrl) {
   const catalogs = [];
 
   for (const shortName of packages) {
-    const info = pkgInfoMap[shortName] || { clearName: shortName };
+    const info =
+      shortName === GLOBAL_PACKAGE_ID
+        ? { clearName: "General" }
+        : pkgInfoMap[shortName] || { clearName: shortName };
 
     for (const sortKey of Object.keys(SORT_LABELS_I18N)) {
       const sortLabel = getSortLabel(sortKey, language);

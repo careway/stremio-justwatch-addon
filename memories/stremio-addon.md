@@ -73,14 +73,32 @@ edit) and is now a thin bootstrap only (`http.createServer` + exported
   `LOG_FILE` (top-level `addon.log`), exports `rawConsoleLog` (pre-patch
   `console.log`) for the local-dev banner print in `index.js`.
 - `src/http/configure.html` — config UI, moved alongside the route that serves it.
+  4 steps as of 2026-08-25: (1) country/language, (2) platforms, (3) global
+  country catalogs toggle, (4) poster ratings. Step 3's checkbox
+  (`#global-catalogs-toggle`) just appends the literal string `"global"` to
+  the same `selected` packages array `generateUrl()` already builds from
+  `#pkg-grid` — no separate encoding path. Pre-fill on `?config=` reads it
+  back via `pkgs.includes("global")` (`pkgs` there already includes it
+  verbatim, nothing filters it out).
 - `src/domain/catalog.js` — catalog handler: browse + genre filter, 2-batch
   fetch/merge/dedupe for misaligned pagination offsets, poster resolution via
   `../infra/posterProviders`. Failed/degraded results return
   `{ ok: false, metas: [...placeholder] }`, never cached (`no-store`).
+  **Global catalogs (2026-08-25)**: when the catalog ID's package segment is
+  `GLOBAL_PACKAGE_ID` ("global", from `../data/catalogMeta`), `packageFilter`
+  is `[]` instead of `[pkgName]` — an unfiltered JustWatch search across every
+  provider for the country, instead of filtering by a package literally named
+  "global" (which would just return zero results).
 - `src/domain/manifest.js` — dynamic manifest builder; `resources: ["catalog"]`
   only, no stream resource. Reads `version` from `../../package.json` (two
   levels up now — this path changed in the move, easy one to break again if
-  this file ever moves further).
+  this file ever moves further). **Global catalogs (2026-08-25)**: `packages`
+  is just a flat array the existing `for (const shortName of packages)` loop
+  already iterates — `"global"` rides through it as a pseudo-package with no
+  loop changes, only a special-cased display name (`"General"` instead of a
+  `pkgInfoMap` lookup, since that map only ever has real JustWatch packages).
+  Produces the same 6 catalogs (3 sorts × 2 types) as any real provider,
+  named e.g. `"General · Popular · ES"`.
 - `src/domain/userConfig.js` — split out of the old `config.js`:
   `encodeConfig`/`decodeConfig` only (the addon's own URL config codec,
   including the legacy poster-segment backward-compat branch).
@@ -153,7 +171,10 @@ edit) and is now a thin bootstrap only (`http.createServer` + exported
   separate `if` conditions that can drift apart the same way.
 - `src/data/catalogMeta.js` — split out of the old `config.js`: GENRES
   (18 × 14 languages), `getGenreNames()`/`getGenreCode()`, COUNTRIES,
-  `fetchCountriesFromJustWatch()`, `getSupportedLanguages()`, `SORT_MAP`.
+  `fetchCountriesFromJustWatch()`, `getSupportedLanguages()`, `SORT_MAP`, and
+  (2026-08-25) `GLOBAL_PACKAGE_ID = "global"` — the shared pseudo-package
+  constant `domain/manifest.js` and `domain/catalog.js` both import instead
+  of hardcoding the string independently.
 - `src/ttl.js` — **unmoved, still flat at `src/` root** (deliberately — it's
   the one cross-cutting constant both `http/router.js` and
   `infra/justwatch.js` depend on). Single source of truth for cache cadence:
@@ -180,11 +201,17 @@ backwards compatibility with already-installed manifest URLs — don't remove
 that branch without checking `src/domain/userConfig.js` (moved there in the
 2026-08-24 reorg, was `src/config.js`).
 
+`packages` can also contain the literal value `"global"` (2026-08-25) — a
+pseudo-package for whole-country, all-providers catalogs (see
+`GLOBAL_PACKAGE_ID` above). It round-trips through `encodeConfig`/
+`decodeConfig` unmodified, no codec changes needed for it.
+
 ## Key facts
 
 - **Package filter key**: `shortName` (e.g. `nfx`, `dnp`, `prv`) — NOT `technicalName`
-- **Catalog ID**: `jw_{sortKey}_{shortName}` (e.g. `jw_pop_nfx`)
-- **Sort keys**: `pop` → POPULAR, `new` → RELEASE_YEAR-ish (`SORT_MAP`)
+- **Catalog ID**: `jw_{sortKey}_{shortName}` (e.g. `jw_pop_nfx`, or
+  `jw_pop_global` for the whole-country pseudo-package)
+- **Sort keys**: `pop` → POPULAR, `tnd` → TRENDING, `new` → RELEASE_YEAR-ish (`SORT_MAP`)
 - **Synopsis/description**: `GET_POPULAR_TITLES_QUERY` requests `shortDescription`
   (added `0a1a2c0`, 2026-04-11); `nodeToMeta()` maps it to `meta.description`.
   Metas returned to Stremio have always included it since then — not a new
@@ -306,8 +333,9 @@ host) likely contended for CPU too, so results past ~2,000 aren't purely
 server-side. 1,000 concurrent with zero failures is a large margin over any
 realistic Stremio traffic for a hobby-scale addon.
 
-## Recent history (as of 2026-08-24, branch `beamup`)
+## Recent history (as of 2026-08-25, branch `beamup`)
 
+-1. New `/configure` step 3: whole-country "global" catalogs (Popular/Trending/New, no provider filter) via the `GLOBAL_PACKAGE_ID` pseudo-package — see **Architecture** entries for catalog.js/manifest.js/configure.html above and the **Config shape** note
 0. `src/` reorganized from a flat 10-file directory into `http/` / `domain/` / `infra/` / `data/` — pure structural refactor, zero behavior change, verified via `node --test` + full manual route checklist — see **Architecture** above
 1. Concurrency queue changed from serialize-1 to bounded semaphore (100) — see above
 1b. Concurrency queue disabled again (`QUEUE_ENABLED = false`) same day — real Stremio hangs on cache miss, suspected slot-leak on BeamUp's single long-running process; semaphore code kept for later

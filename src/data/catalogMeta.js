@@ -377,6 +377,11 @@ const SORT_MAP = {
   new: "RELEASE_YEAR",
 };
 
+// Pseudo-package id for the "whole country, no provider filter" catalogs —
+// travels through config.packages exactly like a real JustWatch shortName
+// (see ../domain/manifest.js and ../domain/catalog.js), but isn't one.
+const GLOBAL_PACKAGE_ID = "global";
+
 // ─── Language mapping ──────────────────────────────────────────────────────────
 const LANGUAGE_NAMES = {
   es: "Español",
@@ -709,6 +714,7 @@ module.exports = {
   getGenreNames,
   getGenreCode,
   SORT_MAP,
+  GLOBAL_PACKAGE_ID,
   COUNTRIES,
   fetchCountriesFromJustWatch,
   getSupportedLanguages,

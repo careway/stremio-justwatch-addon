@@ -301,6 +301,28 @@ from the packages filter) since neither is itself a package value.
   (added `0a1a2c0`, 2026-04-11); `nodeToMeta()` maps it to `meta.description`.
   Metas returned to Stremio have always included it since then — not a new
   addition, just previously undocumented here.
+- **Indian languages added, partial translation only (2026-08-27)**: added
+  `hi`/`te`/`ml`/`kn` (Hindi/Telugu/Malayalam/Kannada) — 19 languages total
+  now. Before adding, tested live against the real JustWatch API (mainstream
+  Hollywood titles, a Telugu blockbuster "Pushpa", and "Dangal", one of the
+  biggest Bollywood films ever): `content(language: hi/te/ml/kn)` returns
+  **byte-identical text to English** for all of them — JustWatch accepts
+  these as valid `Language` enum values (no GraphQL error) but has no actual
+  localized title/description data for them yet. Confirmed `ja`/`es` *do*
+  genuinely differ on the same titles, so this is a real JustWatch data gap
+  for these 4 specifically, not a general "unsupported language" pattern.
+  Added anyway per explicit user decision, since this addon's *own*
+  genre-name (`GENRES` in `data/catalogMeta.js`, all 17) and catalog-label
+  (`SORT_LABELS_I18N` in `domain/manifest.js`) translations are real and
+  addon-controlled, independent of JustWatch. `getSupportedLanguages()` now
+  tags each language with `partialTranslation` (from the new
+  `PARTIAL_TRANSLATION_LANGUAGES` set) so `/configure`'s language dropdown
+  can show a warning (`#language-warning`, driven by `updateLanguageWarning()`,
+  wired to the select's `onChange` and to the `?config=` pre-fill path) —
+  titles/descriptions will stay in English for these 4, only genres and
+  catalog headers are actually translated. No backend/URL-format changes —
+  `language` was already a free-form 2-3 letter code, `hi`/`te`/`ml`/`kn`
+  just work like any other value already did.
 - **Unreleased-title filtering (2026-08-25)**: JustWatch's `RELEASE_YEAR` sort
   (the "new" catalogs) surfaces announced/upcoming titles with a far-future
   release date alongside already-released ones — user-reported example:

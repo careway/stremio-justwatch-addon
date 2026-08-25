@@ -625,6 +625,27 @@
           </div>
         </div>
 
+        <div
+          id="language-warning"
+          style="
+            display: none;
+            background: rgba(255, 121, 198, 0.12);
+            border: 1px solid var(--accent);
+            border-radius: 12px;
+            padding: 0.7rem 1rem;
+            margin-bottom: 1.2rem;
+            font-size: 0.72rem;
+            line-height: 1.4;
+            color: var(--text);
+            flex-shrink: 0;
+          "
+        >
+          ⚠ Este idioma solo traduce los géneros y las cabeceras de catálogo
+          (Popular / Tendencias / Nuevo). Los títulos y sinopsis de las
+          películas y series seguirán en inglés — JustWatch todavía no tiene
+          esos datos traducidos a este idioma.
+        </div>
+
         <!-- ── Paso 2 ── -->
         <div
           style="
@@ -1082,6 +1103,12 @@
       let countrySel = null;
       let languageSel = null;
       let posterProviderSel = null;
+      let partialTranslationLanguages = new Set();
+
+      function updateLanguageWarning(code) {
+        document.getElementById("language-warning").style.display =
+          partialTranslationLanguages.has(code) ? "block" : "none";
+      }
       let posterProvidersByID = {};
 
       // ── Shared: pre-fill data from ?config= (mirrors src/config.js decodeConfig) ──
@@ -1239,11 +1266,15 @@
           const defaultLanguage =
             languages.find((l) => l.code === "es") || languages[0];
 
+          partialTranslationLanguages = new Set(
+            languages.filter((l) => l.partialTranslation).map((l) => l.code),
+          );
+
           // Populate the language options
           languageList.innerHTML = languages
             .map(
               (l) =>
-                `<div class="cs-option${l.code === defaultLanguage.code ? " selected" : ""}" data-value="${l.code}">${l.name}</div>`,
+                `<div class="cs-option${l.code === defaultLanguage.code ? " selected" : ""}" data-value="${l.code}">${l.name}${l.partialTranslation ? " ⚠" : ""}</div>`,
             )
             .join("");
 
@@ -1252,9 +1283,11 @@
           label.textContent = defaultLanguage.name;
 
           // Initialize the custom select for languages
-          languageSel = initCustomSelect("cs-language", () => {
+          languageSel = initCustomSelect("cs-language", (v) => {
+            updateLanguageWarning(v);
             if (resultEl.classList.contains("visible")) generateUrl();
           });
+          updateLanguageWarning(defaultLanguage.code);
         } catch (e) {
           console.error("Failed to load languages:", e);
           // Fallback: show error message in language dropdown
@@ -1307,7 +1340,10 @@
                 !p.startsWith("gsorts-"),
             );
             if (country) countrySel.value = country;
-            if (lang) languageSel.value = lang;
+            if (lang) {
+              languageSel.value = lang;
+              updateLanguageWarning(lang);
+            }
 
             const sortsSegment = rest.find((p) => p.startsWith("sorts-"));
             if (sortsSegment) {

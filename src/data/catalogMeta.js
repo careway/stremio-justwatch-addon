@@ -22,6 +22,10 @@ const GENRES = [
       ja: "アクション",
       ko: "액션",
       ar: "حركة",
+      hi: "एक्शन",
+      te: "యాక్షన్",
+      ml: "ആക്ഷൻ",
+      kn: "ಆಕ್ಷನ್",
     },
   },
   {
@@ -42,6 +46,10 @@ const GENRES = [
       ja: "アニメーション",
       ko: "애니메이션",
       ar: "رسوم متحركة",
+      hi: "एनिमेशन",
+      te: "యానిమేషన్",
+      ml: "ആനിമേഷൻ",
+      kn: "ಅನಿಮೇಷನ್",
     },
   },
   {
@@ -62,6 +70,10 @@ const GENRES = [
       ja: "コメディ",
       ko: "코미디",
       ar: "كوميديا",
+      hi: "कॉमेडी",
+      te: "కామెడీ",
+      ml: "കോമഡി",
+      kn: "ಹಾಸ್ಯ",
     },
   },
   {
@@ -82,6 +94,10 @@ const GENRES = [
       ja: "犯罪",
       ko: "범죄",
       ar: "جريمة",
+      hi: "क्राइम",
+      te: "క్రైమ్",
+      ml: "ക്രൈം",
+      kn: "ಅಪರಾಧ",
     },
   },
   {
@@ -102,6 +118,10 @@ const GENRES = [
       ja: "ドキュメンタリー",
       ko: "다큐멘터리",
       ar: "وثائقي",
+      hi: "डॉक्यूमेंट्री",
+      te: "డాక్యుమెంటరీ",
+      ml: "ഡോക്യുമെന്ററി",
+      kn: "ಸಾಕ್ಷ್ಯಚಿತ್ರ",
     },
   },
   {
@@ -122,6 +142,10 @@ const GENRES = [
       ja: "ドラマ",
       ko: "드라마",
       ar: "دراما",
+      hi: "ड्रामा",
+      te: "డ్రామా",
+      ml: "ഡ്രാമ",
+      kn: "ನಾಟಕ",
     },
   },
   {
@@ -142,6 +166,10 @@ const GENRES = [
       ja: "ファミリー",
       ko: "가족",
       ar: "عائلي",
+      hi: "फैमिली",
+      te: "ఫ్యామిలీ",
+      ml: "കുടുംബം",
+      kn: "ಕುಟುಂಬ",
     },
   },
   {
@@ -162,6 +190,10 @@ const GENRES = [
       ja: "ファンタジー",
       ko: "판타지",
       ar: "خيال",
+      hi: "फैंटेसी",
+      te: "ఫాంటసీ",
+      ml: "ഫാന്റസി",
+      kn: "ಫ್ಯಾಂಟಸಿ",
     },
   },
   {
@@ -182,6 +214,10 @@ const GENRES = [
       ja: "ホラー",
       ko: "공포",
       ar: "رعب",
+      hi: "हॉरर",
+      te: "హర్రర్",
+      ml: "ഹൊറർ",
+      kn: "ಭಯಾನಕ",
     },
   },
   {
@@ -202,6 +238,10 @@ const GENRES = [
       ja: "歴史",
       ko: "역사",
       ar: "تاريخ",
+      hi: "इतिहास",
+      te: "చరిత్ర",
+      ml: "ചരിത്രം",
+      kn: "ಇತಿಹಾಸ",
     },
   },
   {
@@ -222,6 +262,10 @@ const GENRES = [
       ja: "音楽",
       ko: "음악",
       ar: "موسيقى",
+      hi: "संगीत",
+      te: "సంగీతం",
+      ml: "സംഗീതം",
+      kn: "ಸಂಗೀತ",
     },
   },
   {
@@ -242,6 +286,10 @@ const GENRES = [
       ja: "ロマンス",
       ko: "로맨스",
       ar: "رومانسي",
+      hi: "रोमांस",
+      te: "రొమాన్స్",
+      ml: "റൊമാൻസ്",
+      kn: "ಪ್ರಣಯ",
     },
   },
   {
@@ -262,6 +310,10 @@ const GENRES = [
       ja: "SF",
       ko: "SF",
       ar: "خيال علمي",
+      hi: "साइंस फिक्शन",
+      te: "సైన్స్ ఫిక్షన్",
+      ml: "സയൻസ് ഫിക്ഷൻ",
+      kn: "ಸೈನ್ಸ್ ಫಿಕ್ಷನ್",
     },
   },
   {
@@ -282,6 +334,10 @@ const GENRES = [
       ja: "スポーツ",
       ko: "스포츠",
       ar: "رياضة",
+      hi: "खेल",
+      te: "క్రీడలు",
+      ml: "കായികം",
+      kn: "ಕ್ರೀಡೆ",
     },
   },
   {
@@ -302,6 +358,10 @@ const GENRES = [
       ja: "スリラー",
       ko: "스릴러",
       ar: "إثارة",
+      hi: "थ्रिलर",
+      te: "థ్రిల్లర్",
+      ml: "ത്രില്ലർ",
+      kn: "ಥ್ರಿಲ್ಲರ್",
     },
   },
   {
@@ -322,6 +382,10 @@ const GENRES = [
       ja: "西部劇",
       ko: "서부극",
       ar: "غربي",
+      hi: "वेस्टर्न",
+      te: "వెస్ట్రన్",
+      ml: "വെസ്റ്റേൺ",
+      kn: "ವೆಸ್ಟರ್ನ್",
     },
   },
   {
@@ -342,6 +406,10 @@ const GENRES = [
       ja: "戦争",
       ko: "전쟁",
       ar: "حرب",
+      hi: "युद्ध",
+      te: "యుద్ధం",
+      ml: "യുദ്ധം",
+      kn: "ಯುದ್ಧ",
     },
   },
 ];
@@ -399,11 +467,27 @@ const LANGUAGE_NAMES = {
   ja: "日本語",
   ko: "한국어",
   ar: "العربية",
+  hi: "हिन्दी",
+  te: "తెలుగు",
+  ml: "മലയാളം",
+  kn: "ಕನ್ನಡ",
 };
+
+// Languages where this addon's own genre names and catalog-sort labels
+// (Popular/Trending/New) are properly translated, but JustWatch itself
+// doesn't yet have localized title/description data — confirmed live
+// against the real API (2026-08-27): even major titles (mainstream
+// Hollywood, and Telugu/Hindi blockbusters like "Pushpa" and "Dangal")
+// return byte-identical content for hi/te/ml/kn vs. plain English, while
+// e.g. ja/es genuinely differ. Surfaced to the client via getSupportedLanguages()
+// so /configure can warn instead of silently looking "broken".
+const PARTIAL_TRANSLATION_LANGUAGES = new Set(["hi", "te", "ml", "kn"]);
 
 /**
  * Get all supported languages extracted from GENRES translations.
- * Returns a sorted list with language code and display name.
+ * Returns a sorted list with language code, display name, and whether
+ * JustWatch's own title/description content isn't localized for it yet
+ * (see PARTIAL_TRANSLATION_LANGUAGES).
  */
 function getSupportedLanguages() {
   // Extract unique language codes from GENRES
@@ -417,6 +501,7 @@ function getSupportedLanguages() {
     .map((code) => ({
       code,
       name: LANGUAGE_NAMES[code] || code,
+      partialTranslation: PARTIAL_TRANSLATION_LANGUAGES.has(code),
     }))
     .sort((a, b) => {
       // Sort: Spanish first, then English, then alphabetically

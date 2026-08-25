@@ -95,11 +95,20 @@ function buildManifest(config, encodedConfig, pkgInfoMap, addonBaseUrl) {
 
   const catalogs = [];
 
-  for (const shortName of packages) {
+  // Global catalogs are listed before any provider's, regardless of the
+  // order packages were selected in — Array#sort is stable, so this only
+  // moves GLOBAL_PACKAGE_ID to the front without reshuffling the rest.
+  const orderedPackages = [...packages].sort((a, b) => {
+    if (a === GLOBAL_PACKAGE_ID) return -1;
+    if (b === GLOBAL_PACKAGE_ID) return 1;
+    return 0;
+  });
+
+  for (const shortName of orderedPackages) {
     const isGlobal = shortName === GLOBAL_PACKAGE_ID;
-    const info = isGlobal
-      ? { clearName: "General" }
-      : pkgInfoMap[shortName] || { clearName: shortName };
+    const clearName = isGlobal
+      ? null
+      : pkgInfoMap[shortName]?.clearName || shortName;
 
     for (const sortKey of isGlobal ? globalSortKeys : sortKeys) {
       const sortLabel = getSortLabel(sortKey, language);
@@ -107,7 +116,12 @@ function buildManifest(config, encodedConfig, pkgInfoMap, addonBaseUrl) {
         catalogs.push({
           type,
           id: `jw_${sortKey}_${shortName}`,
-          name: `${info.clearName} · ${sortLabel}${country ? ` · ${country}` : ""}`,
+          // Global catalogs drop the provider-name segment entirely — just
+          // the sort type and country, e.g. "Popular · ES" — instead of
+          // naming it after the pseudo-package.
+          name: isGlobal
+            ? `${sortLabel}${country ? ` · ${country}` : ""}`
+            : `${clearName} · ${sortLabel}${country ? ` · ${country}` : ""}`,
           extra: [
             {
               name: "genre",

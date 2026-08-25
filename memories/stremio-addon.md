@@ -141,10 +141,16 @@ edit) and is now a thin bootstrap only (`http.createServer` + exported
   this file ever moves further). **Global catalogs (2026-08-25)**: `packages`
   is just a flat array the existing `for (const shortName of packages)` loop
   already iterates — `"global"` rides through it as a pseudo-package with no
-  loop changes, only a special-cased display name (`"General"` instead of a
-  `pkgInfoMap` lookup, since that map only ever has real JustWatch packages).
-  Produces the same 6 catalogs (3 sorts × 2 types) as any real provider,
-  named e.g. `"General · Popular · ES"`. **Selectable sort types
+  loop changes, only a special-cased display name. Produces the same 6
+  catalogs (3 sorts × 2 types) as any real provider. **Naming and ordering
+  (2026-08-25, refined same day per explicit request)**: global catalog
+  names carry no provider-name segment at all — just `"{sortLabel} ·
+  {country}"` (e.g. `"Popular · ES"`), not `"General · Popular · ES"` as
+  first shipped. `orderedPackages` (a stable sort moving `GLOBAL_PACKAGE_ID`
+  to the front, everything else keeping its relative order) makes global
+  catalogs list first in the manifest regardless of where `"global"` falls
+  in `config.packages` — e.g. `nfx_dnp_global` still produces global's 6
+  catalogs before Netflix's or Disney+'s. **Selectable sort types
   (2026-08-25)**: two *independent* sort-key lists now feed the loop —
   `config.sorts` (defaults to all of `SORT_MAP`'s keys) for every real
   provider package, and `config.globalSorts` (same default) used only when

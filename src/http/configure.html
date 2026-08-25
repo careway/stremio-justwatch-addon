@@ -728,22 +728,40 @@
               style="padding: 0.6rem 0.4rem; justify-content: center"
             >
               <span class="toggle-dot"></span>
-              <span style="font-size: 0.72rem; color: var(--text)"
-                >Nuevos</span
-              >
+              <span style="font-size: 0.72rem; color: var(--text)">Nuevos</span>
             </label>
           </div>
         </div>
 
-        <label
+        <div
           style="
-            color: var(--secondary);
-            font-size: 0.65rem;
-            display: block;
-            margin-bottom: 0.4rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-end;
+            margin-bottom: 0.8rem;
           "
-          >Catálogos de proveedores disponibles</label
         >
+          <label style="color: var(--secondary); font-size: 0.65rem"
+            >Catálogos de proveedores</label
+          >
+          <div style="display: flex; gap: 8px">
+            <!-- TODO button removed -->
+            <button
+              class="btn-show-more"
+              id="btn-none"
+              style="
+                margin: 0;
+                padding: 4px 10px;
+                font-size: 9px;
+                border-color: var(--muted);
+                color: var(--muted);
+              "
+            >
+              LIMPIAR
+            </button>
+          </div>
+        </div>
+
         <div
           style="
             display: flex;
@@ -801,39 +819,8 @@
               style="padding: 0.6rem 0.4rem; justify-content: center"
             >
               <span class="toggle-dot"></span>
-              <span style="font-size: 0.72rem; color: var(--text)"
-                >Nuevos</span
-              >
+              <span style="font-size: 0.72rem; color: var(--text)">Nuevos</span>
             </label>
-          </div>
-        </div>
-
-        <div
-          style="
-            display: flex;
-            justify-content: space-between;
-            align-items: flex-end;
-            margin-bottom: 0.8rem;
-          "
-        >
-          <label style="color: var(--secondary); font-size: 0.65rem"
-            >Proveedores Disponibles</label
-          >
-          <div style="display: flex; gap: 8px">
-            <!-- TODO button removed -->
-            <button
-              class="btn-show-more"
-              id="btn-none"
-              style="
-                margin: 0;
-                padding: 4px 10px;
-                font-size: 9px;
-                border-color: var(--muted);
-                color: var(--muted);
-              "
-            >
-              LIMPIAR
-            </button>
           </div>
         </div>
 
@@ -1125,7 +1112,9 @@
       function looksLikePosterKeyMarker(value) {
         if (!value.startsWith("url-")) return false;
         const hex = value.slice(4);
-        return hex.length > 0 && hex.length % 2 === 0 && /^[0-9a-f]+$/.test(hex);
+        return (
+          hex.length > 0 && hex.length % 2 === 0 && /^[0-9a-f]+$/.test(hex)
+        );
       }
 
       function encodePosterKey(raw) {
@@ -1158,7 +1147,10 @@
       function parsePosterSegment(segment) {
         if (!segment) return null;
         if (segment.startsWith("rpdb-")) {
-          return { providerId: "rpdb", apiKey: decodePosterKey(segment.slice(5)) };
+          return {
+            providerId: "rpdb",
+            apiKey: decodePosterKey(segment.slice(5)),
+          };
         }
         const rest = segment.slice("poster-".length);
         const sep = rest.indexOf("-");
@@ -1335,9 +1327,7 @@
             // types; absent (but "global" present) means all three, matching
             // links generated before this per-type selector existed.
             if (pkgs.includes("global")) {
-              const gsortsSegment = rest.find((p) =>
-                p.startsWith("gsorts-"),
-              );
+              const gsortsSegment = rest.find((p) => p.startsWith("gsorts-"));
               const enabledGlobalSorts = gsortsSegment
                 ? gsortsSegment.slice("gsorts-".length).split("-")
                 : ["pop", "tnd", "new"];
@@ -1458,8 +1448,7 @@
         if (providerPkgs.length && !enabledSorts.length) return null;
 
         const enabledGlobalSorts = ALL_SORT_KEYS.filter(
-          (key) =>
-            document.getElementById(`global-sort-${key}-toggle`).checked,
+          (key) => document.getElementById(`global-sort-${key}-toggle`).checked,
         );
 
         const selected = [...providerPkgs];

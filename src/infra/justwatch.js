@@ -32,6 +32,7 @@ const GET_POPULAR_TITLES_QUERY = `
           content(country: $country, language: $language) {
             title
             shortDescription
+            originalReleaseDate
             genres {
               shortName
             }

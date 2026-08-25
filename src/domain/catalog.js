@@ -12,6 +12,21 @@ const { resolvePosterUrl } = require("../infra/posterProviders");
 const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 const TYPE_TO_JW = { movie: "MOVIE", series: "SHOW" };
 
+/**
+ * JustWatch's catalog includes announced/upcoming titles (e.g. sequels with
+ * a far-future release date) alongside already-released ones — most visible
+ * on the "new" (RELEASE_YEAR) sort, where they'd otherwise surface first.
+ * Excludes only titles with a *known* future release date; a missing date
+ * is treated as released rather than hidden, so incomplete JustWatch
+ * metadata never silently drops legitimate titles.
+ */
+function isUnreleased(node) {
+  const releaseDate = node?.content?.originalReleaseDate;
+  if (!releaseDate) return false;
+  const today = new Date().toISOString().slice(0, 10);
+  return releaseDate > today;
+}
+
 function nodeToMeta(node, language, config) {
   const imdbId = node?.content?.externalIds?.imdbId;
   if (!imdbId) return null;
@@ -121,6 +136,7 @@ async function handleCatalog({ type, id, extra }, config) {
     const seen = new Set();
     const metas = [...titles1, ...titles2]
       .filter((n) => !jwType || n.objectType === jwType)
+      .filter((n) => !isUnreleased(n))
       .map((n) => nodeToMeta(n, config.language, config))
       .filter((meta) => {
         if (!meta || !meta.id) return false;

@@ -231,6 +231,23 @@ pseudo-package for whole-country, all-providers catalogs (see
   (added `0a1a2c0`, 2026-04-11); `nodeToMeta()` maps it to `meta.description`.
   Metas returned to Stremio have always included it since then — not a new
   addition, just previously undocumented here.
+- **Unreleased-title filtering (2026-08-25)**: JustWatch's `RELEASE_YEAR` sort
+  (the "new" catalogs) surfaces announced/upcoming titles with a far-future
+  release date alongside already-released ones — user-reported example:
+  Avatar sequels years out. Fixed by adding `originalReleaseDate` (ISO
+  `YYYY-MM-DD`, confirmed live against the real API — also has
+  `originalReleaseYear` but the exact date is far more precise, e.g. a movie
+  releasing later this same calendar year should still be excluded) to
+  `GET_POPULAR_TITLES_QUERY` in `infra/justwatch.js`, and an `isUnreleased()`
+  filter in `domain/catalog.js` that drops any node whose date is after
+  today (string-compares fine since ISO dates sort lexicographically). A
+  *missing* date is treated as released (not filtered) — deliberately
+  conservative, so incomplete JustWatch metadata never hides a legitimate
+  title. Applied to every sort, not just "new" — nothing should list a title
+  nobody can actually stream yet. **Caveat**: existing cached search results
+  (L1/L2, up to the 4h TTL) predate this field and won't retroactively gain
+  the filter until they naturally expire or are manually invalidated via
+  `/api/inv/<INV_KEY>`.
 - **JustWatch API**: `https://apis.justwatch.com/graphql`
 - **Language**: parsed per-request from `Accept-Language`, injected into
   `config.language` if not already encoded in the URL

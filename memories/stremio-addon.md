@@ -87,36 +87,45 @@ edit) and is now a thin bootstrap only (`http.createServer` + exported
   `LOG_FILE` (top-level `addon.log`), exports `rawConsoleLog` (pre-patch
   `console.log`) for the local-dev banner print in `index.js`.
 - `src/http/configure.html` — config UI, moved alongside the route that serves it.
-  Still 3 steps: (1) country/language, (2) platforms — now including, between
-  the step-2 header and the "Proveedores Disponibles" provider grid: the
-  global-catalogs toggle, then a "Tipos de catálogo" row of 3 independent
-  chips (Popular/Tendencias/Nuevos, `#sort-{pop,tnd,new}-toggle`, all checked
-  by default) — (3) poster ratings. Both live as a subsection of step 2, not
-  their own step (briefly were, moved back 2026-08-25 per explicit request).
-  The global toggle (`#global-catalogs-toggle`) just appends the literal
-  string `"global"` to the same `selected` packages array `generateUrl()`
-  already builds from `#pkg-grid`. The sort chips build a `sorts-{key1}-...`
-  segment (own `ALL_SORT_KEYS` const mirroring the server's), omitted when
-  all 3 are checked (the default) — same "omit when default" convention as
-  the poster segment. `generateUrl()` returns `null` (no URL generated) if
-  either the packages selection or the sorts selection is completely empty.
-  Pre-fill on `?config=` reads both back: `pkgs.includes("global")` for the
-  toggle (`pkgs` already includes it verbatim, nothing filters it out), and
-  a dedicated `sorts-` segment parse for the three chips (absent segment
-  leaves them at their default all-checked state). **Bug fixed same day**:
-  the first version of the global toggle gave its `<label>`/inner dot their
-  checked-state colors via *inline* `style="border:...; background:..."`
+  Still 3 steps. Step 2 ("Elige tus plataformas") now has **two independent
+  groups**, each with its own 3 sort-type chips (Popular/Tendencias/Nuevos —
+  `.toggle-item`/`.toggle-card`/`.toggle-dot` classes, `ALL_SORT_KEYS` const
+  mirroring the server's `SORT_MAP` keys):
+  1. **"Catálogos globales"** — `#global-sort-{pop,tnd,new}-toggle`, all
+     **unchecked by default** (global catalogs are opt-in). There is no
+     separate on/off toggle for this group — checking ≥1 chip *is* what adds
+     the `"global"` pseudo-package to the packages array; unchecking all 3
+     removes it entirely. This replaced an earlier single `#global-catalogs-toggle`
+     checkbox (removed 2026-08-25, same day it was added — see history).
+  2. **"Catálogos de proveedores disponibles"** — `#sort-{pop,tnd,new}-toggle`,
+     all **checked by default** (matches the pre-existing behavior of always
+     generating all 3), followed by the existing "Proveedores Disponibles"
+     grid + LIMPIAR button + `#pkg-grid`.
+  The two groups are genuinely independent — e.g. Netflix can be set to only
+  "New" while global stays on "Popular + Trending". `generateUrl()` builds
+  two separate segments, `sorts-{...}` (providers) and `gsorts-{...}`
+  (global), each omitted when its group is at the "everything" default —
+  same "omit when default" convention as the poster segment. Returns `null`
+  (no URL) if providers are selected but their sort group is fully
+  unchecked, or if nothing at all ends up selected. Pre-fill on `?config=`:
+  `sorts-` always parses into the provider chips; a `gsorts-` (or its
+  absence, meaning "all three") only gets applied to the global chips when
+  `"global"` is actually present in the decoded packages — otherwise they
+  stay at their unchecked default.
+  **Bug fixed 2026-08-25** (before the two-group split existed): the first
+  version of the (now-removed) global toggle gave its `<label>`/inner dot
+  their checked-state colors via *inline* `style="border:...; background:..."`
   while trying to override them from a `:checked` sibling-selector rule in
   the `<style>` block — inline style always wins over any stylesheet rule
   regardless of selector specificity, so the checkbox toggled correctly (the
   URL reflected it) but the visual indicator never updated. Fixed by moving
   all state-dependent visuals into the `.toggle-card`/`.toggle-dot` classes
-  (no inline style on those elements at all now, only non-state layout
-  properties like padding stay inline) — the sort chips reuse those same
-  classes from the start, so they never had this bug. Mirrors how
-  `.pkg-item`/`.pkg-label`/`.pkg-check` already did it correctly for the
-  provider grid — same class-based, CSS-only
-  `input:checked + label` pattern, just done right this time.
+  (no inline style on those elements at all, only non-state layout
+  properties like padding stay inline) — every chip added since (both sort
+  groups) reuses those same classes from the start, so none of them ever hit
+  this bug. Mirrors how `.pkg-item`/`.pkg-label`/`.pkg-check` already did it
+  correctly for the provider grid — same class-based, CSS-only
+  `input:checked + label` pattern, just done right.
 - `src/domain/catalog.js` — catalog handler: browse + genre filter, 2-batch
   fetch/merge/dedupe for misaligned pagination offsets, poster resolution via
   `../infra/posterProviders`. Failed/degraded results return
@@ -136,24 +145,34 @@ edit) and is now a thin bootstrap only (`http.createServer` + exported
   `pkgInfoMap` lookup, since that map only ever has real JustWatch packages).
   Produces the same 6 catalogs (3 sorts × 2 types) as any real provider,
   named e.g. `"General · Popular · ES"`. **Selectable sort types
-  (2026-08-25)**: `config.sorts` (from `userConfig.js`, defaults to all of
-  `SORT_MAP`'s keys) replaces the old unconditional
-  `Object.keys(SORT_LABELS_I18N)` as the sort-key loop source — applies
-  uniformly to every package including `"global"`, so unchecking e.g.
-  "Popular" removes it everywhere at once, not per-provider.
+  (2026-08-25)**: two *independent* sort-key lists now feed the loop —
+  `config.sorts` (defaults to all of `SORT_MAP`'s keys) for every real
+  provider package, and `config.globalSorts` (same default) used only when
+  `shortName === GLOBAL_PACKAGE_ID`. `isGlobal` picks which list applies per
+  package inside the loop. First cut of this feature had one shared `sorts`
+  list for everything including global; split into two the same day per
+  explicit user request ("el catálogo global puede seleccionar tipos
+  diferentes a los de los proveedores") — e.g. Netflix on "New" only while
+  global stays on "Popular + Trending" is a real, intended combination now.
 - `src/domain/userConfig.js` — split out of the old `config.js`:
   `encodeConfig`/`decodeConfig` (the addon's own URL config codec, including
-  the legacy poster-segment backward-compat branch). **Sort-types segment
-  (2026-08-25)**: `"sorts-{key1}-{key2}…"` (e.g. `sorts-tnd-new`), decoded
-  into `config.sorts`. Now imports `SORT_MAP` from `../data/catalogMeta` for
-  the canonical key list (`ALL_SORT_KEYS`) — this file's first real
-  dependency on another module. Segment is omitted from the encoded URL
-  entirely when every sort is selected (the default), so untouched configs
-  produce byte-identical URLs to before this existed; absent on decode also
-  means "all three", so pre-existing installed URLs keep behaving exactly as
-  before. `test/posterKeyCodec.test.js`'s one exact-shape `deepEqual` against
-  a full decoded object had to gain the new `sorts` field — everything else
-  there checks individual properties and needed no change.
+  the legacy poster-segment backward-compat branch). **Two independent
+  sort-types segments (2026-08-25)**: `"sorts-{key1}-{key2}…"` (e.g.
+  `sorts-tnd-new`) decodes into `config.sorts`, applying to real provider
+  packages. `"gsorts-{key1}-{key2}…"` is the same idea but fully independent,
+  decoding into `config.globalSorts` and applying only to the `"global"`
+  pseudo-package — **only meaningful, and only ever emitted by `encodeConfig`,
+  when `"global"` is actually in `config.packages`**; if `gsorts-` is absent
+  but global is selected, defaults to all three (matches links from the
+  brief window where only one shared `sorts` list existed for everything).
+  Both segments omitted from the encoded URL when their group is at "every
+  sort selected" (the default), so untouched configs stay byte-identical to
+  before either existed. Now imports `SORT_MAP` *and* `GLOBAL_PACKAGE_ID`
+  from `../data/catalogMeta` — this file's first real dependency on another
+  module. `test/posterKeyCodec.test.js`'s one exact-shape `deepEqual` against
+  a full decoded object had to gain both new fields (`sorts` then later
+  `globalSorts`) — everything else there checks individual properties and
+  needed no change either time.
 - `src/infra/justwatch.js` — JustWatch GraphQL client (`GetPopularTitles`,
   `GetPackages`). Two-layer cache via `./cache`. **Concurrency queue**:
   `QUEUE_ENABLED = false` as of 2026-08-24 — `enqueue()` bypasses the
@@ -258,11 +277,13 @@ pseudo-package for whole-country, all-providers catalogs (see
 `GLOBAL_PACKAGE_ID` above). It round-trips through `encodeConfig`/
 `decodeConfig` unmodified, no codec changes needed for it.
 
-`sorts` (2026-08-25) is `["pop", "tnd", "new"]` by default (every sort
-catalog), or a subset when the URL has a `sorts-{key1}-{key2}…` segment —
-see the manifest.js/userConfig.js **Architecture** entries above. Unlike
-`global`, this one *did* need real codec work (a dedicated segment,
-excluded from the packages filter) since it's not itself a package value.
+`sorts` and `globalSorts` (2026-08-25) are each `["pop", "tnd", "new"]` by
+default (every sort catalog), or a subset from a `sorts-{...}` /
+`gsorts-{...}` segment respectively — fully independent of each other, see
+the manifest.js/userConfig.js **Architecture** entries above. Unlike
+`global`, these *did* need real codec work (dedicated segments, excluded
+from the packages filter) since neither is itself a package value.
+`globalSorts` only matters when `packages` contains `"global"`.
 
 ## Key facts
 
@@ -411,7 +432,7 @@ realistic Stremio traffic for a hobby-scale addon.
 ## Recent history (as of 2026-08-25, branch `beamup`)
 
 -2. Filter unreleased titles from every catalog (`originalReleaseDate` vs today) — see **Key facts**
--1. Whole-country "global" catalogs (Popular/Trending/New, no provider filter) via the `GLOBAL_PACKAGE_ID` pseudo-package, toggled from a subsection inside the platforms step in `/configure`, plus an independent per-sort-type selector (3 chips, applies to every package including global) via the new `sorts` config field — see **Architecture** entries for catalog.js/manifest.js/userConfig.js/configure.html above and the **Config shape** note
+-1. Whole-country "global" catalogs (Popular/Trending/New, no provider filter) via the `GLOBAL_PACKAGE_ID` pseudo-package. Went through a few iterations same day: single on/off toggle → shared `sorts` selector for everything → final shape is two fully independent sort-type selectors ("Catálogos globales" vs "Catálogos de proveedores disponibles" in `/configure`), `config.sorts` for real providers and `config.globalSorts` for global, each its own URL segment (`sorts-`/`gsorts-`) — see **Architecture** entries for catalog.js/manifest.js/userConfig.js/configure.html above and the **Config shape** note
 0. `src/` reorganized from a flat 10-file directory into `http/` / `domain/` / `infra/` / `data/` — pure structural refactor, zero behavior change, verified via `node --test` + full manual route checklist — see **Architecture** above
 1. Concurrency queue changed from serialize-1 to bounded semaphore (100) — see above
 1b. Concurrency queue disabled again (`QUEUE_ENABLED = false`) same day — real Stremio hangs on cache miss, suspected slot-leak on BeamUp's single long-running process; semaphore code kept for later

@@ -662,22 +662,77 @@
           >
         </div>
 
-        <div class="toggle-item" style="flex-shrink: 0; margin-bottom: 0.6rem">
-          <input
-            type="checkbox"
-            id="global-catalogs-toggle"
-            style="display: none"
-          />
-          <label for="global-catalogs-toggle" class="toggle-card">
-            <span class="toggle-dot"></span>
-            <span style="font-size: 0.75rem; color: var(--text)"
-              >Catálogos globales del país
-              <span style="color: var(--secondary)"
-                >— Popular, Tendencias y Nuevos de todo el país, sin filtrar
-                por plataforma</span
-              ></span
+        <label
+          style="
+            color: var(--secondary);
+            font-size: 0.65rem;
+            display: block;
+            margin-bottom: 0.4rem;
+          "
+          >Catálogos globales
+          <span style="color: var(--muted); font-weight: 400"
+            >(opcional — todo el país, sin filtrar por plataforma)</span
+          ></label
+        >
+        <div
+          style="
+            display: flex;
+            gap: 0.5rem;
+            margin-bottom: 1rem;
+            flex-shrink: 0;
+          "
+        >
+          <div class="toggle-item" style="flex: 1">
+            <input
+              type="checkbox"
+              id="global-sort-pop-toggle"
+              style="display: none"
+            />
+            <label
+              for="global-sort-pop-toggle"
+              class="toggle-card"
+              style="padding: 0.6rem 0.4rem; justify-content: center"
             >
-          </label>
+              <span class="toggle-dot"></span>
+              <span style="font-size: 0.72rem; color: var(--text)"
+                >Popular</span
+              >
+            </label>
+          </div>
+          <div class="toggle-item" style="flex: 1">
+            <input
+              type="checkbox"
+              id="global-sort-tnd-toggle"
+              style="display: none"
+            />
+            <label
+              for="global-sort-tnd-toggle"
+              class="toggle-card"
+              style="padding: 0.6rem 0.4rem; justify-content: center"
+            >
+              <span class="toggle-dot"></span>
+              <span style="font-size: 0.72rem; color: var(--text)"
+                >Tendencias</span
+              >
+            </label>
+          </div>
+          <div class="toggle-item" style="flex: 1">
+            <input
+              type="checkbox"
+              id="global-sort-new-toggle"
+              style="display: none"
+            />
+            <label
+              for="global-sort-new-toggle"
+              class="toggle-card"
+              style="padding: 0.6rem 0.4rem; justify-content: center"
+            >
+              <span class="toggle-dot"></span>
+              <span style="font-size: 0.72rem; color: var(--text)"
+                >Nuevos</span
+              >
+            </label>
+          </div>
         </div>
 
         <label
@@ -687,10 +742,7 @@
             display: block;
             margin-bottom: 0.4rem;
           "
-          >Tipos de catálogo
-          <span style="color: var(--muted); font-weight: 400"
-            >(aplica a todas las plataformas y al catálogo global)</span
-          ></label
+          >Catálogos de proveedores disponibles</label
         >
         <div
           style="
@@ -1259,12 +1311,11 @@
               (p) =>
                 !p.startsWith("poster-") &&
                 !p.startsWith("rpdb-") &&
-                !p.startsWith("sorts-"),
+                !p.startsWith("sorts-") &&
+                !p.startsWith("gsorts-"),
             );
             if (country) countrySel.value = country;
             if (lang) languageSel.value = lang;
-            document.getElementById("global-catalogs-toggle").checked =
-              pkgs.includes("global");
 
             const sortsSegment = rest.find((p) => p.startsWith("sorts-"));
             if (sortsSegment) {
@@ -1277,6 +1328,25 @@
                 enabledSorts.includes("tnd");
               document.getElementById("sort-new-toggle").checked =
                 enabledSorts.includes("new");
+            }
+
+            // Global catalogs are enabled purely by "global" being present in
+            // pkgs — no separate on/off toggle. A gsorts- segment picks which
+            // types; absent (but "global" present) means all three, matching
+            // links generated before this per-type selector existed.
+            if (pkgs.includes("global")) {
+              const gsortsSegment = rest.find((p) =>
+                p.startsWith("gsorts-"),
+              );
+              const enabledGlobalSorts = gsortsSegment
+                ? gsortsSegment.slice("gsorts-".length).split("-")
+                : ["pop", "tnd", "new"];
+              document.getElementById("global-sort-pop-toggle").checked =
+                enabledGlobalSorts.includes("pop");
+              document.getElementById("global-sort-tnd-toggle").checked =
+                enabledGlobalSorts.includes("tnd");
+              document.getElementById("global-sort-new-toggle").checked =
+                enabledGlobalSorts.includes("new");
             }
 
             loadPackages(country || countrySel.value, pkgs);
@@ -1375,17 +1445,27 @@
       const ALL_SORT_KEYS = ["pop", "tnd", "new"];
 
       function generateUrl() {
-        const selected = [
+        const providerPkgs = [
           ...pkgGrid.querySelectorAll('input[type="checkbox"]:checked'),
         ].map((i) => i.value);
-        if (document.getElementById("global-catalogs-toggle").checked) {
-          selected.push("global");
-        }
-        if (!selected.length) return null;
+
         const enabledSorts = ALL_SORT_KEYS.filter(
           (key) => document.getElementById(`sort-${key}-toggle`).checked,
         );
-        if (!enabledSorts.length) return null;
+        // Real providers selected but every catalog type for them is off —
+        // that combination can never produce anything, so it's the same as
+        // not having selected those providers at all.
+        if (providerPkgs.length && !enabledSorts.length) return null;
+
+        const enabledGlobalSorts = ALL_SORT_KEYS.filter(
+          (key) =>
+            document.getElementById(`global-sort-${key}-toggle`).checked,
+        );
+
+        const selected = [...providerPkgs];
+        if (enabledGlobalSorts.length) selected.push("global");
+        if (!selected.length) return null;
+
         const posterProviderId = posterProviderSel
           ? posterProviderSel.value
           : "";
@@ -1403,10 +1483,15 @@
           posterPart = `poster-${posterProviderId}_`;
         }
         const sortsPart =
-          enabledSorts.length < ALL_SORT_KEYS.length
+          providerPkgs.length && enabledSorts.length < ALL_SORT_KEYS.length
             ? `sorts-${enabledSorts.join("-")}_`
             : "";
-        const config = `${countrySel.value}_${languageSel.value}_${posterPart}${sortsPart}${selected.join("_")}`;
+        const gsortsPart =
+          enabledGlobalSorts.length &&
+          enabledGlobalSorts.length < ALL_SORT_KEYS.length
+            ? `gsorts-${enabledGlobalSorts.join("-")}_`
+            : "";
+        const config = `${countrySel.value}_${languageSel.value}_${posterPart}${sortsPart}${gsortsPart}${selected.join("_")}`;
         const manifest = `${window.location.origin}/${config}/manifest.json`;
         urlOut.value = manifest;
         resultEl.classList.add("visible");
@@ -1418,7 +1503,6 @@
         pkgGrid
           .querySelectorAll('input[type="checkbox"]')
           .forEach((c) => (c.checked = false));
-        document.getElementById("global-catalogs-toggle").checked = false;
         if (resultEl.classList.contains("visible")) generateUrl();
       };
 
@@ -1430,15 +1514,14 @@
           generateUrl();
       });
 
-      document
-        .getElementById("global-catalogs-toggle")
-        .addEventListener("change", () => {
-          if (resultEl.classList.contains("visible")) generateUrl();
-        });
-
       for (const key of ALL_SORT_KEYS) {
         document
           .getElementById(`sort-${key}-toggle`)
+          .addEventListener("change", () => {
+            if (resultEl.classList.contains("visible")) generateUrl();
+          });
+        document
+          .getElementById(`global-sort-${key}-toggle`)
           .addEventListener("change", () => {
             if (resultEl.classList.contains("visible")) generateUrl();
           });

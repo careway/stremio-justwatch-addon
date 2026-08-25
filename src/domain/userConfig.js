@@ -1,6 +1,6 @@
 "use strict";
 
-const { SORT_MAP } = require("../data/catalogMeta");
+const { SORT_MAP, GLOBAL_PACKAGE_ID } = require("../data/catalogMeta");
 
 // Every sort catalog type this addon knows how to generate (see SORT_MAP) —
 // the default when a config doesn't specify a subset, so pre-existing
@@ -62,10 +62,15 @@ function decodePosterKey(encoded) {
  * The key itself is run through encodePosterKey() — see above.
  *
  * The "sorts-{key1}-{key2}…" segment picks which catalog types (Popular /
- * Trending / New — see SORT_MAP) get generated, applying uniformly to every
- * selected package including the "global" pseudo-package. Omitted entirely
- * when every sort is selected (the default), so untouched configs produce
- * the same URL as before this existed.
+ * Trending / New — see SORT_MAP) get generated for every *real* provider
+ * package. Omitted entirely when every sort is selected (the default), so
+ * untouched configs produce the same URL as before this existed.
+ *
+ * "gsorts-{key1}-{key2}…" is the same idea but independent, applying only
+ * to the "global" pseudo-package (see GLOBAL_PACKAGE_ID) — global catalogs
+ * can show a different subset of sorts than real providers. Only emitted
+ * when "global" is actually selected; omitted (defaulting to every sort)
+ * when global is selected with all three types.
  */
 function encodeConfig(config) {
   const parts = [config.country, config.language || "en"];
@@ -79,6 +84,12 @@ function encodeConfig(config) {
   const sorts = config.sorts || ALL_SORT_KEYS;
   if (sorts.length < ALL_SORT_KEYS.length) {
     parts.push(`sorts-${sorts.join("-")}`);
+  }
+  if (config.packages.includes(GLOBAL_PACKAGE_ID)) {
+    const globalSorts = config.globalSorts || ALL_SORT_KEYS;
+    if (globalSorts.length < ALL_SORT_KEYS.length) {
+      parts.push(`gsorts-${globalSorts.join("-")}`);
+    }
   }
   parts.push(...config.packages);
   return parts.join("_");
@@ -150,13 +161,41 @@ function decodeConfig(encoded) {
           /^[a-z0-9-]{1,30}$/.test(p) &&
           !p.startsWith("rpdb-") &&
           !p.startsWith("poster-") &&
-          !p.startsWith("sorts-"),
+          !p.startsWith("sorts-") &&
+          !p.startsWith("gsorts-"),
       )
       .slice(0, 200);
 
+    // Global sort-types segment: "gsorts-{key1}-{key2}…" — independent of
+    // `sorts` above, applies only to the "global" pseudo-package. Only
+    // meaningful when "global" is actually selected; absent (but global
+    // selected) → every sort, matching links generated before this
+    // per-global-type selector existed.
+    let globalSorts = ALL_SORT_KEYS;
+    if (packages.includes(GLOBAL_PACKAGE_ID)) {
+      const gsortsSegment = parts
+        .slice(2)
+        .find((p) => p.startsWith("gsorts-"));
+      if (gsortsSegment) {
+        const requested = gsortsSegment
+          .slice("gsorts-".length)
+          .split("-")
+          .filter((s) => ALL_SORT_KEYS.includes(s));
+        if (requested.length) globalSorts = requested;
+      }
+    }
+
     if (!country) return null;
 
-    return { country, language, packages, posterProvider, posterApiKey, sorts };
+    return {
+      country,
+      language,
+      packages,
+      posterProvider,
+      posterApiKey,
+      sorts,
+      globalSorts,
+    };
   } catch {
     return null;
   }

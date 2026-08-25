@@ -75,9 +75,11 @@ function getSortLabel(key, language) {
  *
  * Up to 6 catalogs are generated per selected provider/pseudo-package (one
  * per selected sort type × 2 types) — which sorts are included is itself
- * configurable (config.sorts), applying uniformly to every package.
+ * configurable, and *independently so* for real providers (config.sorts,
+ * shared by all of them) vs the "global" pseudo-package (config.globalSorts)
+ * — a user can e.g. want only Trending on Netflix but Popular+New globally.
  *
- * @param {object}  config          - { country, language, packages: string[], sorts?: string[] }
+ * @param {object}  config          - { country, language, packages: string[], sorts?: string[], globalSorts?: string[] }
  * @param {string}  encodedConfig   - base64url-encoded config (for URLs)
  * @param {object}  pkgInfoMap      - technicalName → { clearName, iconUrl, ... }
  * @param {string}  addonBaseUrl    - Full origin e.g. https://my-addon.onrender.com
@@ -86,18 +88,20 @@ function buildManifest(config, encodedConfig, pkgInfoMap, addonBaseUrl) {
   const country = config?.country || null;
   const language = config?.language || "en";
   const packages = config?.packages || [];
-  const sortKeys =
-    config?.sorts?.length > 0 ? config.sorts : Object.keys(SORT_LABELS_I18N);
+  const allSortKeys = Object.keys(SORT_LABELS_I18N);
+  const sortKeys = config?.sorts?.length > 0 ? config.sorts : allSortKeys;
+  const globalSortKeys =
+    config?.globalSorts?.length > 0 ? config.globalSorts : allSortKeys;
 
   const catalogs = [];
 
   for (const shortName of packages) {
-    const info =
-      shortName === GLOBAL_PACKAGE_ID
-        ? { clearName: "General" }
-        : pkgInfoMap[shortName] || { clearName: shortName };
+    const isGlobal = shortName === GLOBAL_PACKAGE_ID;
+    const info = isGlobal
+      ? { clearName: "General" }
+      : pkgInfoMap[shortName] || { clearName: shortName };
 
-    for (const sortKey of sortKeys) {
+    for (const sortKey of isGlobal ? globalSortKeys : sortKeys) {
       const sortLabel = getSortLabel(sortKey, language);
       for (const type of ["movie", "series"]) {
         catalogs.push({

@@ -147,6 +147,7 @@ describe("encodeConfig / decodeConfig — poster provider segment", () => {
       posterProvider: "rpdb",
       posterApiKey: "t8-xxxx",
       sorts: ["pop", "tnd", "new"],
+      globalSorts: ["pop", "tnd", "new"],
     });
   });
 

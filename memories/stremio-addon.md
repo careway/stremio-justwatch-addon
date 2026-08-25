@@ -40,8 +40,34 @@ no Express, no Stremio Addon SDK. Package name `omnicatalogs`, repo name
   (`render.yaml`, free plan, spins down after 15 min idle)
 - **BeamUp quirk**: its nginx doesn't forward a real Host header, so manifest.json's
   self-referencing logo/background URLs come out unreachable unless `ADDON_PUBLIC_URL` is set
-  explicitly (`getAddonBaseUrl()` in `src/index.js` prefers it over request headers). Not needed
-  on Vercel.
+  explicitly (`getAddonBaseUrl()` in `src/http/request.js` — moved there in the 2026-08-24 reorg,
+  prefers it over request headers). Not needed on Vercel.
+- **BeamUp sits behind Cloudflare — confirmed 2026-08-25 via response headers**
+  (`server: cloudflare`, `cf-cache-status: HIT`, `age: <seconds>`) on
+  `https://5cfe2edf73d5-omnicatalogs.baby-beamup.club`. This is the root
+  cause of two separate incidents now: the `/configure` staleness bug (fixed
+  in `respondHtml()`, `Cache-Control: no-store`) and a second one — BetterPosters
+  shipped in code but stayed invisible on production because `/api/poster-providers`
+  sent `s-maxage=86400, stale-while-revalidate=172800` (`STATIC_CACHE_CONTROL`)
+  and Cloudflare dutifully cached it for up to ~3 days from the *previous*
+  deploy. Fixed (2026-08-25) by switching `/api/countries`, `/api/languages`,
+  and `/api/poster-providers` to `no-store` in `src/http/router.js` — none of
+  the three ever call an external API (`fetchCountriesFromJustWatch()` and
+  `getSupportedLanguages()` are pure in-memory/hardcoded data, see
+  `data/catalogMeta.js`; `listPosterProviders()` reads a static array in
+  `infra/posterProviders.js`), so there's no real performance cost to caching
+  being wrong here — only downside. `/api/packages` (a genuine JustWatch
+  GraphQL call) and `/manifest.json` intentionally kept `STATIC_CACHE_CONTROL`
+  — those have a real reason to cache. **This class of bug will recur** for
+  any future purely-static addon-data route added with `STATIC_CACHE_CONTROL`
+  instead of `no-store` — default new static-data routes to `no-store` unless
+  there's a genuine external call behind them worth protecting.
+  **Caveat**: this fix only prevents *future* staleness — it can't retroactively
+  purge whatever Cloudflare already has cached from before the fix was
+  deployed; that still has to age out on its own (up to the `s-maxage` +
+  `stale-while-revalidate` window from whenever it was last populated), since
+  this project has no Cloudflare dashboard access to force-purge it (BeamUp
+  owns that zone, not the user).
 
 ## Architecture (current, reorganized 2026-08-24)
 

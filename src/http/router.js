@@ -114,37 +114,34 @@ async function router(req, res) {
     );
   }
 
-  // ── /api/countries  (fetch supported countries from JustWatch) ─────────────────
+  // ── /api/countries  (addon-defined country list, no external call) ─────────────
   if (rawPath === "/api/countries") {
     try {
       const countries = await fetchCountriesFromJustWatch();
 
       res.setHeader("Vercel-Cache-Tag", `countries`);
-      return respond(
-        res,
-        countries,
-        200,
-        STATIC_CACHE_CONTROL,
-      );
+      // No external call here despite the function name (FALLBACK_COUNTRIES
+      // is a hardcoded list, see data/catalogMeta.js) — nothing costly to
+      // protect by caching this at the edge. Caching it anyway is what
+      // caused a real incident: BeamUp sits behind Cloudflare, and an
+      // edge-cached response can outlive a deploy by up to 3 days
+      // (s-maxage + stale-while-revalidate), so a data change here would
+      // silently not show up for anyone hitting the cached edge response —
+      // same class of bug already fixed for /configure (see respondHtml).
+      return respond(res, countries, 200, "no-store");
     } catch (err) {
       console.error("[api/countries] Error:", err);
-      // Never cache an error response — a transient failure must not turn
-      // into an empty list stuck behind the CDN for anyone else.
       return respond(res, [], 200, "no-store");
     }
   }
 
-  // ── /api/languages  (get supported languages) ──────────────────────────────────
+  // ── /api/languages  (addon-defined language list, no external call) ────────────
   if (rawPath === "/api/languages") {
     try {
       const languages = getSupportedLanguages();
       res.setHeader("Vercel-Cache-Tag", `languages`);
-      return respond(
-        res,
-        languages,
-        200,
-        STATIC_CACHE_CONTROL,
-      );
+      // See the /api/countries comment above — same reasoning, same fix.
+      return respond(res, languages, 200, "no-store");
     } catch (err) {
       console.error("[api/languages] Error:", err);
       return respond(res, [], 200, "no-store");
@@ -156,7 +153,11 @@ async function router(req, res) {
     try {
       const providers = listPosterProviders();
       res.setHeader("Vercel-Cache-Tag", `poster-providers`);
-      return respond(res, providers, 200, STATIC_CACHE_CONTROL);
+      // See the /api/countries comment above — same reasoning, same fix.
+      // (This is literally what surfaced the bug: BetterPosters shipped and
+      // stayed invisible on production behind a stale Cloudflare-cached
+      // response for this exact route.)
+      return respond(res, providers, 200, "no-store");
     } catch (err) {
       console.error("[api/poster-providers] Error:", err);
       return respond(res, [], 200, "no-store");

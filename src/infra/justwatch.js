@@ -241,6 +241,15 @@ async function searchTitles({
   if (objectTypes.length) filter.objectTypes = objectTypes;
   if (packages.length) filter.packages = packages;
   if (genres.length) filter.genres = genres;
+  // JustWatch's RELEASE_YEAR sort puts announced/upcoming titles first,
+  // sometimes years out (e.g. Avatar sequels dated 2029/2031) — without
+  // this, a full page of "new" results could be almost entirely titles
+  // nobody can watch yet, filtered out client-side (see isUnreleased() in
+  // domain/catalog.js) down to a handful of survivors. This is a coarse,
+  // year-level pre-filter (confirmed live against the real API) that keeps
+  // that waste from happening in the first place; the exact-date filter
+  // still catches the remainder (this-year-but-not-yet-released titles).
+  filter.releaseYear = { max: new Date().getFullYear() };
 
   const data = await gql(GET_POPULAR_TITLES_QUERY, {
     popularTitlesFilter: filter,

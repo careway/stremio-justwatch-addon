@@ -318,6 +318,33 @@ from the packages filter) since neither is itself a package value.
   (L1/L2, up to the 4h TTL) predate this field and won't retroactively gain
   the filter until they naturally expire or are manually invalidated via
   `/api/inv/<INV_KEY>`.
+  **Follow-up fix, same feature, 2026-08-27 — page-starvation**: user
+  reported the global "new" movies catalog showing only ~4 titles. Root
+  cause: JustWatch's `RELEASE_YEAR` sort puts the *most future* titles
+  first, not most-recently-released — measured live for ES/movies: of the
+  first 50 results, 46 were dated 2028-2031 (Avatar 4 at #3, Avatar 5 at
+  #1) and only 4 had already released. `isUnreleased()` was correctly
+  dropping all 46, but by then the page was already spent — one 50-item
+  fetch just doesn't contain enough real survivors near the top of that
+  sort order. Fixed at the source: `searchTitles()` in `infra/justwatch.js`
+  now always sends `filter.releaseYear = { max: <current year> }` to
+  JustWatch itself (confirmed live: `TitleFilter.releaseYear.max` is a real,
+  working field, year-granularity only — not a client invention). That
+  alone took the same live sample from 4/50 to 37/50 survivors — most of
+  the waste was titles dated *years* out, which a year-level filter kills
+  before pagination ever happens; the exclusively-this-year-but-unreleased
+  remainder (13/50 in that sample) is exactly what the existing exact-date
+  `isUnreleased()` filter is still needed for — the two are complementary,
+  neither replaces the other. End-to-end verified via `handleCatalog()`
+  directly: global "new" movies went from the reported ~4 metas to 25.
+  Applied unconditionally (not just for `sortBy: RELEASE_YEAR`) since
+  `searchTitles()` has one shared filter-building path — harmless for
+  POPULAR/TRENDING, which don't surface far-future titles in the first
+  place. Not included in the cache key (computed fresh each call from
+  `new Date().getFullYear()`); could theoretically serve a stale year's
+  filter for a few hours right at a Dec 31 → Jan 1 boundary within one L1/L2
+  TTL window — same class of accepted imprecision as the TTL system
+  elsewhere in this app, not worth special-casing.
 - **JustWatch API**: `https://apis.justwatch.com/graphql`
 - **Language**: parsed per-request from `Accept-Language`, injected into
   `config.language` if not already encoded in the URL

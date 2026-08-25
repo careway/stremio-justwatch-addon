@@ -1,5 +1,13 @@
 "use strict";
 
+const { SORT_MAP } = require("../data/catalogMeta");
+
+// Every sort catalog type this addon knows how to generate (see SORT_MAP) —
+// the default when a config doesn't specify a subset, so pre-existing
+// installed URLs (from before this selector existed) keep behaving exactly
+// as before: all three.
+const ALL_SORT_KEYS = Object.keys(SORT_MAP);
+
 // ─── Poster key encoding ──────────────────────────────────────────────────────
 // The whole config string is one URL path segment, so it (and every part of
 // it, once "_"-split) is restricted to [A-Za-z0-9_-]. Most provider keys are
@@ -47,11 +55,17 @@ function decodePosterKey(encoded) {
 
 /**
  * Encode config as a human-readable URL segment.
- * Format: {COUNTRY}_{language}_{poster-provider[-key]}_{pkg1}_{pkg2}…
+ * Format: {COUNTRY}_{language}_{poster-provider[-key]}_{sorts-...}_{pkg1}_{pkg2}…
  * e.g. ES_es_poster-rpdb-t8-xxxx_nfx_dnp_prv, or ES_es_poster-btttr_nfx for a
  * keyless provider (see ../infra/posterProviders — not every provider needs
  * an API key, so the "-{key}" suffix is only appended when one is set).
  * The key itself is run through encodePosterKey() — see above.
+ *
+ * The "sorts-{key1}-{key2}…" segment picks which catalog types (Popular /
+ * Trending / New — see SORT_MAP) get generated, applying uniformly to every
+ * selected package including the "global" pseudo-package. Omitted entirely
+ * when every sort is selected (the default), so untouched configs produce
+ * the same URL as before this existed.
  */
 function encodeConfig(config) {
   const parts = [config.country, config.language || "en"];
@@ -62,13 +76,17 @@ function encodeConfig(config) {
         : `poster-${config.posterProvider}`,
     );
   }
+  const sorts = config.sorts || ALL_SORT_KEYS;
+  if (sorts.length < ALL_SORT_KEYS.length) {
+    parts.push(`sorts-${sorts.join("-")}`);
+  }
   parts.push(...config.packages);
   return parts.join("_");
 }
 
 /**
  * Decode a plain config string back to a config object.
- * Format: {COUNTRY}_{language}_{poster-provider-key}_{pkg1}_{pkg2}…
+ * Format: {COUNTRY}_{language}_{poster-provider-key}_{sorts-...}_{pkg1}_{pkg2}…
  * Returns null if the string is missing required fields.
  */
 function decodeConfig(encoded) {
@@ -111,19 +129,34 @@ function decodeConfig(encoded) {
       }
     }
 
+    // Sort-types segment: "sorts-{key1}-{key2}…" (e.g. "sorts-tnd-new" for
+    // Trending + New only). Absent, or nothing valid parses out of it →
+    // every sort (matches pre-existing behavior for configs from before
+    // this selector existed).
+    let sorts = ALL_SORT_KEYS;
+    const sortsSegment = parts.slice(2).find((p) => p.startsWith("sorts-"));
+    if (sortsSegment) {
+      const requested = sortsSegment
+        .slice("sorts-".length)
+        .split("-")
+        .filter((s) => ALL_SORT_KEYS.includes(s));
+      if (requested.length) sorts = requested;
+    }
+
     const packages = parts
       .slice(2)
       .filter(
         (p) =>
           /^[a-z0-9-]{1,30}$/.test(p) &&
           !p.startsWith("rpdb-") &&
-          !p.startsWith("poster-"),
+          !p.startsWith("poster-") &&
+          !p.startsWith("sorts-"),
       )
       .slice(0, 200);
 
     if (!country) return null;
 
-    return { country, language, packages, posterProvider, posterApiKey };
+    return { country, language, packages, posterProvider, posterApiKey, sorts };
   } catch {
     return null;
   }

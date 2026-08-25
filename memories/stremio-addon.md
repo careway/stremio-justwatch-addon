@@ -15,6 +15,20 @@ no Express, no Stremio Addon SDK. Package name `omnicatalogs`, repo name
   the real Stremio app)
 - **Log**: `addon.log`, gitignored, skipped entirely when `NODE_ENV=production`
   or `process.env.VERCEL` is set (read-only FS there)
+- **Port 7000 can be answered by a process this sandbox can't see or kill**
+  (2026-08-25) — `curl localhost:7000` sometimes succeeds with `pgrep -af
+  node` showing *nothing*, meaning some other session/host process (likely
+  the user's own `npm run dev`, port-forwarded into this container) is
+  answering it, invisible to this sandbox's process table. That process has
+  been observed serving **stale code** (pre-dating edits made seconds
+  earlier) with no way from here to confirm or force a reload. **Don't trust
+  `curl http://127.0.0.1:7000/...` as verification of a code change** — if
+  `pgrep -af "node src/index.js"` (excluding the `bash -c` wrapper line)
+  shows nothing right before the curl, whatever answered isn't a process
+  this session controls. Prefer direct in-process checks instead (`node -e
+  "require('./src/...')..."`, calling the actual functions) — that's what
+  caught this the first time: an HTTP check showed stale output while a
+  direct `require()` of the same code was already correct.
 
 ## Remotes / deploy targets
 
@@ -73,27 +87,35 @@ edit) and is now a thin bootstrap only (`http.createServer` + exported
   `LOG_FILE` (top-level `addon.log`), exports `rawConsoleLog` (pre-patch
   `console.log`) for the local-dev banner print in `index.js`.
 - `src/http/configure.html` — config UI, moved alongside the route that serves it.
-  Still 3 steps: (1) country/language, (2) platforms — now including the
-  global-catalogs toggle as a subsection between the step-2 header and the
-  "Proveedores Disponibles" provider grid (not below the grid — repositioned
-  same day per explicit user request), not
-  its own step (moved there 2026-08-25 per explicit user request, was
-  briefly a separate step 3) — (3) poster ratings. The toggle
-  (`#global-catalogs-toggle`, `.toggle-item`/`.toggle-card`/`.toggle-dot`
-  classes) just appends the literal string `"global"` to the same `selected`
-  packages array `generateUrl()` already builds from `#pkg-grid` — no
-  separate encoding path. Pre-fill on `?config=` reads it back via
-  `pkgs.includes("global")` (`pkgs` there already includes it verbatim,
-  nothing filters it out). **Bug fixed same day**: the first version gave the
-  toggle's `<label>`/inner dot their checked-state colors via *inline*
-  `style="border:...; background:..."` while trying to override them from a
-  `:checked` sibling-selector rule in the `<style>` block — inline style
-  always wins over any stylesheet rule regardless of selector specificity,
-  so the checkbox toggled correctly (the URL reflected it) but the visual
-  indicator never updated. Fixed by moving all state-dependent visuals into
-  the `.toggle-card`/`.toggle-dot` classes (no inline style on those elements
-  at all now), mirroring how `.pkg-item`/`.pkg-label`/`.pkg-check` already
-  did it correctly for the provider grid — same class-based, CSS-only
+  Still 3 steps: (1) country/language, (2) platforms — now including, between
+  the step-2 header and the "Proveedores Disponibles" provider grid: the
+  global-catalogs toggle, then a "Tipos de catálogo" row of 3 independent
+  chips (Popular/Tendencias/Nuevos, `#sort-{pop,tnd,new}-toggle`, all checked
+  by default) — (3) poster ratings. Both live as a subsection of step 2, not
+  their own step (briefly were, moved back 2026-08-25 per explicit request).
+  The global toggle (`#global-catalogs-toggle`) just appends the literal
+  string `"global"` to the same `selected` packages array `generateUrl()`
+  already builds from `#pkg-grid`. The sort chips build a `sorts-{key1}-...`
+  segment (own `ALL_SORT_KEYS` const mirroring the server's), omitted when
+  all 3 are checked (the default) — same "omit when default" convention as
+  the poster segment. `generateUrl()` returns `null` (no URL generated) if
+  either the packages selection or the sorts selection is completely empty.
+  Pre-fill on `?config=` reads both back: `pkgs.includes("global")` for the
+  toggle (`pkgs` already includes it verbatim, nothing filters it out), and
+  a dedicated `sorts-` segment parse for the three chips (absent segment
+  leaves them at their default all-checked state). **Bug fixed same day**:
+  the first version of the global toggle gave its `<label>`/inner dot their
+  checked-state colors via *inline* `style="border:...; background:..."`
+  while trying to override them from a `:checked` sibling-selector rule in
+  the `<style>` block — inline style always wins over any stylesheet rule
+  regardless of selector specificity, so the checkbox toggled correctly (the
+  URL reflected it) but the visual indicator never updated. Fixed by moving
+  all state-dependent visuals into the `.toggle-card`/`.toggle-dot` classes
+  (no inline style on those elements at all now, only non-state layout
+  properties like padding stay inline) — the sort chips reuse those same
+  classes from the start, so they never had this bug. Mirrors how
+  `.pkg-item`/`.pkg-label`/`.pkg-check` already did it correctly for the
+  provider grid — same class-based, CSS-only
   `input:checked + label` pattern, just done right this time.
 - `src/domain/catalog.js` — catalog handler: browse + genre filter, 2-batch
   fetch/merge/dedupe for misaligned pagination offsets, poster resolution via
@@ -113,10 +135,25 @@ edit) and is now a thin bootstrap only (`http.createServer` + exported
   loop changes, only a special-cased display name (`"General"` instead of a
   `pkgInfoMap` lookup, since that map only ever has real JustWatch packages).
   Produces the same 6 catalogs (3 sorts × 2 types) as any real provider,
-  named e.g. `"General · Popular · ES"`.
+  named e.g. `"General · Popular · ES"`. **Selectable sort types
+  (2026-08-25)**: `config.sorts` (from `userConfig.js`, defaults to all of
+  `SORT_MAP`'s keys) replaces the old unconditional
+  `Object.keys(SORT_LABELS_I18N)` as the sort-key loop source — applies
+  uniformly to every package including `"global"`, so unchecking e.g.
+  "Popular" removes it everywhere at once, not per-provider.
 - `src/domain/userConfig.js` — split out of the old `config.js`:
-  `encodeConfig`/`decodeConfig` only (the addon's own URL config codec,
-  including the legacy poster-segment backward-compat branch).
+  `encodeConfig`/`decodeConfig` (the addon's own URL config codec, including
+  the legacy poster-segment backward-compat branch). **Sort-types segment
+  (2026-08-25)**: `"sorts-{key1}-{key2}…"` (e.g. `sorts-tnd-new`), decoded
+  into `config.sorts`. Now imports `SORT_MAP` from `../data/catalogMeta` for
+  the canonical key list (`ALL_SORT_KEYS`) — this file's first real
+  dependency on another module. Segment is omitted from the encoded URL
+  entirely when every sort is selected (the default), so untouched configs
+  produce byte-identical URLs to before this existed; absent on decode also
+  means "all three", so pre-existing installed URLs keep behaving exactly as
+  before. `test/posterKeyCodec.test.js`'s one exact-shape `deepEqual` against
+  a full decoded object had to gain the new `sorts` field — everything else
+  there checks individual properties and needed no change.
 - `src/infra/justwatch.js` — JustWatch GraphQL client (`GetPopularTitles`,
   `GetPackages`). Two-layer cache via `./cache`. **Concurrency queue**:
   `QUEUE_ENABLED = false` as of 2026-08-24 — `enqueue()` bypasses the
@@ -210,7 +247,7 @@ Human-readable, not base64 (despite an older memory saying otherwise):
 /{COUNTRY}_{LANGUAGE}_{pkg1}_{pkg2}…/manifest.json
 ```
 
-Decoded to `{ country, language, packages, posterProvider, posterApiKey }`.
+Decoded to `{ country, language, packages, posterProvider, posterApiKey, sorts }`.
 `decodeConfig()` also handles a **legacy poster segment format** for
 backwards compatibility with already-installed manifest URLs — don't remove
 that branch without checking `src/domain/userConfig.js` (moved there in the
@@ -220,6 +257,12 @@ that branch without checking `src/domain/userConfig.js` (moved there in the
 pseudo-package for whole-country, all-providers catalogs (see
 `GLOBAL_PACKAGE_ID` above). It round-trips through `encodeConfig`/
 `decodeConfig` unmodified, no codec changes needed for it.
+
+`sorts` (2026-08-25) is `["pop", "tnd", "new"]` by default (every sort
+catalog), or a subset when the URL has a `sorts-{key1}-{key2}…` segment —
+see the manifest.js/userConfig.js **Architecture** entries above. Unlike
+`global`, this one *did* need real codec work (a dedicated segment,
+excluded from the packages filter) since it's not itself a package value.
 
 ## Key facts
 
@@ -367,7 +410,8 @@ realistic Stremio traffic for a hobby-scale addon.
 
 ## Recent history (as of 2026-08-25, branch `beamup`)
 
--1. Whole-country "global" catalogs (Popular/Trending/New, no provider filter) via the `GLOBAL_PACKAGE_ID` pseudo-package, toggled from a subsection inside the platforms step in `/configure` (not its own step — moved there + fixed a checked-state CSS bug same day) — see **Architecture** entries for catalog.js/manifest.js/configure.html above and the **Config shape** note
+-2. Filter unreleased titles from every catalog (`originalReleaseDate` vs today) — see **Key facts**
+-1. Whole-country "global" catalogs (Popular/Trending/New, no provider filter) via the `GLOBAL_PACKAGE_ID` pseudo-package, toggled from a subsection inside the platforms step in `/configure`, plus an independent per-sort-type selector (3 chips, applies to every package including global) via the new `sorts` config field — see **Architecture** entries for catalog.js/manifest.js/userConfig.js/configure.html above and the **Config shape** note
 0. `src/` reorganized from a flat 10-file directory into `http/` / `domain/` / `infra/` / `data/` — pure structural refactor, zero behavior change, verified via `node --test` + full manual route checklist — see **Architecture** above
 1. Concurrency queue changed from serialize-1 to bounded semaphore (100) — see above
 1b. Concurrency queue disabled again (`QUEUE_ENABLED = false`) same day — real Stremio hangs on cache miss, suspected slot-leak on BeamUp's single long-running process; semaphore code kept for later

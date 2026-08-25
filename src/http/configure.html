@@ -662,7 +662,7 @@
           >
         </div>
 
-        <div class="toggle-item" style="flex-shrink: 0; margin-bottom: 0.8rem">
+        <div class="toggle-item" style="flex-shrink: 0; margin-bottom: 0.6rem">
           <input
             type="checkbox"
             id="global-catalogs-toggle"
@@ -678,6 +678,82 @@
               ></span
             >
           </label>
+        </div>
+
+        <label
+          style="
+            color: var(--secondary);
+            font-size: 0.65rem;
+            display: block;
+            margin-bottom: 0.4rem;
+          "
+          >Tipos de catálogo
+          <span style="color: var(--muted); font-weight: 400"
+            >(aplica a todas las plataformas y al catálogo global)</span
+          ></label
+        >
+        <div
+          style="
+            display: flex;
+            gap: 0.5rem;
+            margin-bottom: 0.8rem;
+            flex-shrink: 0;
+          "
+        >
+          <div class="toggle-item" style="flex: 1">
+            <input
+              type="checkbox"
+              id="sort-pop-toggle"
+              checked
+              style="display: none"
+            />
+            <label
+              for="sort-pop-toggle"
+              class="toggle-card"
+              style="padding: 0.6rem 0.4rem; justify-content: center"
+            >
+              <span class="toggle-dot"></span>
+              <span style="font-size: 0.72rem; color: var(--text)"
+                >Popular</span
+              >
+            </label>
+          </div>
+          <div class="toggle-item" style="flex: 1">
+            <input
+              type="checkbox"
+              id="sort-tnd-toggle"
+              checked
+              style="display: none"
+            />
+            <label
+              for="sort-tnd-toggle"
+              class="toggle-card"
+              style="padding: 0.6rem 0.4rem; justify-content: center"
+            >
+              <span class="toggle-dot"></span>
+              <span style="font-size: 0.72rem; color: var(--text)"
+                >Tendencias</span
+              >
+            </label>
+          </div>
+          <div class="toggle-item" style="flex: 1">
+            <input
+              type="checkbox"
+              id="sort-new-toggle"
+              checked
+              style="display: none"
+            />
+            <label
+              for="sort-new-toggle"
+              class="toggle-card"
+              style="padding: 0.6rem 0.4rem; justify-content: center"
+            >
+              <span class="toggle-dot"></span>
+              <span style="font-size: 0.72rem; color: var(--text)"
+                >Nuevos</span
+              >
+            </label>
+          </div>
         </div>
 
         <div
@@ -1177,15 +1253,32 @@
           // ── Init: pre-fill from ?config= if coming from Stremio reconfigure ──
           if (cfgParts && cfgParts.length >= 2) {
             const [country, lang, ...rest] = cfgParts;
-            // Exclude the poster-provider segment — it's handled by the
-            // poster-providers loader above, not treated as a package.
+            // Exclude the poster-provider and sort-types segments — handled
+            // separately below, not treated as packages.
             const pkgs = rest.filter(
-              (p) => !p.startsWith("poster-") && !p.startsWith("rpdb-"),
+              (p) =>
+                !p.startsWith("poster-") &&
+                !p.startsWith("rpdb-") &&
+                !p.startsWith("sorts-"),
             );
             if (country) countrySel.value = country;
             if (lang) languageSel.value = lang;
             document.getElementById("global-catalogs-toggle").checked =
               pkgs.includes("global");
+
+            const sortsSegment = rest.find((p) => p.startsWith("sorts-"));
+            if (sortsSegment) {
+              const enabledSorts = sortsSegment
+                .slice("sorts-".length)
+                .split("-");
+              document.getElementById("sort-pop-toggle").checked =
+                enabledSorts.includes("pop");
+              document.getElementById("sort-tnd-toggle").checked =
+                enabledSorts.includes("tnd");
+              document.getElementById("sort-new-toggle").checked =
+                enabledSorts.includes("new");
+            }
+
             loadPackages(country || countrySel.value, pkgs);
             return;
           }
@@ -1279,6 +1372,8 @@
         draw(10);
       }
 
+      const ALL_SORT_KEYS = ["pop", "tnd", "new"];
+
       function generateUrl() {
         const selected = [
           ...pkgGrid.querySelectorAll('input[type="checkbox"]:checked'),
@@ -1287,6 +1382,10 @@
           selected.push("global");
         }
         if (!selected.length) return null;
+        const enabledSorts = ALL_SORT_KEYS.filter(
+          (key) => document.getElementById(`sort-${key}-toggle`).checked,
+        );
+        if (!enabledSorts.length) return null;
         const posterProviderId = posterProviderSel
           ? posterProviderSel.value
           : "";
@@ -1303,7 +1402,11 @@
         } else if (posterProviderId && !posterNeedsKey) {
           posterPart = `poster-${posterProviderId}_`;
         }
-        const config = `${countrySel.value}_${languageSel.value}_${posterPart}${selected.join("_")}`;
+        const sortsPart =
+          enabledSorts.length < ALL_SORT_KEYS.length
+            ? `sorts-${enabledSorts.join("-")}_`
+            : "";
+        const config = `${countrySel.value}_${languageSel.value}_${posterPart}${sortsPart}${selected.join("_")}`;
         const manifest = `${window.location.origin}/${config}/manifest.json`;
         urlOut.value = manifest;
         resultEl.classList.add("visible");
@@ -1332,6 +1435,14 @@
         .addEventListener("change", () => {
           if (resultEl.classList.contains("visible")) generateUrl();
         });
+
+      for (const key of ALL_SORT_KEYS) {
+        document
+          .getElementById(`sort-${key}-toggle`)
+          .addEventListener("change", () => {
+            if (resultEl.classList.contains("visible")) generateUrl();
+          });
+      }
 
       document
         .getElementById("poster-api-key")

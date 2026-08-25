@@ -146,6 +146,7 @@ describe("encodeConfig / decodeConfig — poster provider segment", () => {
       packages: ["nfx", "dnp"],
       posterProvider: "rpdb",
       posterApiKey: "t8-xxxx",
+      sorts: ["pop", "tnd", "new"],
     });
   });
 

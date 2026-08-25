@@ -73,9 +73,11 @@ function getSortLabel(key, language) {
  *               GLOBAL_PACKAGE_ID pseudo-package for whole-country catalogs
  *               with no provider filter (see ../data/catalogMeta)
  *
- * 6 catalogs are generated per selected provider/pseudo-package (3 sorts × 2 types).
+ * Up to 6 catalogs are generated per selected provider/pseudo-package (one
+ * per selected sort type × 2 types) — which sorts are included is itself
+ * configurable (config.sorts), applying uniformly to every package.
  *
- * @param {object}  config          - { country, language, packages: string[] }
+ * @param {object}  config          - { country, language, packages: string[], sorts?: string[] }
  * @param {string}  encodedConfig   - base64url-encoded config (for URLs)
  * @param {object}  pkgInfoMap      - technicalName → { clearName, iconUrl, ... }
  * @param {string}  addonBaseUrl    - Full origin e.g. https://my-addon.onrender.com
@@ -84,6 +86,8 @@ function buildManifest(config, encodedConfig, pkgInfoMap, addonBaseUrl) {
   const country = config?.country || null;
   const language = config?.language || "en";
   const packages = config?.packages || [];
+  const sortKeys =
+    config?.sorts?.length > 0 ? config.sorts : Object.keys(SORT_LABELS_I18N);
 
   const catalogs = [];
 
@@ -93,7 +97,7 @@ function buildManifest(config, encodedConfig, pkgInfoMap, addonBaseUrl) {
         ? { clearName: "General" }
         : pkgInfoMap[shortName] || { clearName: shortName };
 
-    for (const sortKey of Object.keys(SORT_LABELS_I18N)) {
+    for (const sortKey of sortKeys) {
       const sortLabel = getSortLabel(sortKey, language);
       for (const type of ["movie", "series"]) {
         catalogs.push({

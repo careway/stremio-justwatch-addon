@@ -154,8 +154,8 @@ function buildManifest(config, encodedConfig, pkgInfoMap, addonBaseUrl) {
     description: `Every streaming platform's catalog in one addon. Discover what's popular, trending, and new on Netflix, Disney+, HBO Max, Prime Video, and many more — organized by country and language, with translated cover art so everything feels native.
     
 Pick your platforms and country, and you're set: up-to-date catalogs, filterable by genre, no hassle.${country ? ` Country: ${country}.` : ""}`,
-    logo: `${addonBaseUrl}/static/logo.svg`,
-    background: `${addonBaseUrl}/static/logo.svg`,
+    logo: `${addonBaseUrl}/static/logo-256.png`,
+    background: `${addonBaseUrl}/static/background.png`,
     resources: ["catalog"],
     types: ["movie", "series"],
     catalogs,

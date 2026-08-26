@@ -776,20 +776,42 @@ const COUNTRY_NAMES = {
   ZW: "zimbabue",
 };
 
-let cachedCountries = null;
+// Country names come from ICU (Node ships full-icu since v14), so the whole
+// list is localized into every language in LANGUAGE_NAMES without a
+// hand-maintained table. FALLBACK_COUNTRIES' Spanish names are the fallback
+// for any code ICU doesn't know.
+const localizedCountriesByLang = new Map();
+
+function localizeCountries(lang) {
+  const code = (lang || "es").toLowerCase().split("-")[0];
+  const cached = localizedCountriesByLang.get(code);
+  if (cached) return cached;
+
+  let displayNames = null;
+  try {
+    displayNames = new Intl.DisplayNames([code], {
+      type: "region",
+      fallback: "none",
+    });
+  } catch {
+    // Unsupported locale or an ICU-less build — keep the hardcoded names.
+  }
+
+  const localized = FALLBACK_COUNTRIES.map((c) => ({
+    code: c.code,
+    name: (displayNames && displayNames.of(c.code)) || c.name,
+  })).sort((a, b) => a.name.localeCompare(b.name, code));
+
+  localizedCountriesByLang.set(code, localized);
+  return localized;
+}
 
 /**
- * Get supported countries list.
- * Returns countries sorted by Spanish name.
+ * Get supported countries list, with names localized to `lang`.
  * Note: JustWatch API has introspection disabled, so we use a hardcoded list.
  */
-async function fetchCountriesFromJustWatch() {
-  if (cachedCountries) return cachedCountries;
-
-  cachedCountries = FALLBACK_COUNTRIES.sort((a, b) =>
-    a.name.localeCompare(b.name, "es"),
-  );
-  return cachedCountries;
+async function fetchCountriesFromJustWatch(lang = "es") {
+  return localizeCountries(lang);
 }
 
 const COUNTRIES = FALLBACK_COUNTRIES;

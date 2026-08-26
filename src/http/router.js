@@ -121,10 +121,12 @@ async function router(req, res) {
     );
   }
 
-  // ── /api/countries  (addon-defined country list, no external call) ─────────────
+  // ── /api/countries?lang=xx  (addon-defined country list, no external call) ───
   if (rawPath === "/api/countries") {
     try {
-      const countries = await fetchCountriesFromJustWatch();
+      const countries = await fetchCountriesFromJustWatch(
+        qs.get("lang") || "es",
+      );
 
       res.setHeader("Vercel-Cache-Tag", `countries`);
       // No external call here despite the function name (FALLBACK_COUNTRIES

@@ -1310,6 +1310,13 @@
           }
           updatePosterKeyField(posterProviderSel.value);
         }
+        // Country names are localized server-side, so they need a re-fetch —
+        // both the names and their alphabetical order change per language.
+        if (countrySel && countriesLang !== uiLang) {
+          loadCountries(countrySel.value).catch((e) =>
+            console.error("Failed to reload countries:", e),
+          );
+        }
         updateLangFabLabel();
       }
 
@@ -1670,37 +1677,69 @@
         }
       })();
 
-      // Load countries dynamically from API (existing code)
-      (async () => {
-        try {
-          const res = await fetch("/api/countries");
-          const countries = await res.json();
-          if (!Array.isArray(countries) || countries.length === 0) {
-            throw new Error("No countries returned");
+      // Load countries dynamically from API. Country names are localized
+      // server-side, so a page-language switch means re-fetching the list:
+      // the names *and* their alphabetical order change with the language.
+      let countriesLang = null;
+
+      async function loadCountries(selectedCode) {
+        const lang = uiLang;
+        const res = await fetch(
+          `/api/countries?lang=${encodeURIComponent(lang)}`,
+        );
+        const countries = await res.json();
+        if (!Array.isArray(countries) || countries.length === 0) {
+          throw new Error("No countries returned");
+        }
+
+        const selected =
+          countries.find((c) => c.code === selectedCode) ||
+          countries.find((c) => c.code === "ES") ||
+          countries[0];
+        const list = document.getElementById("cs-country-list");
+        const label = document.querySelector("#cs-country .cs-label");
+
+        if (countrySel) {
+          // Already initialized: rename and re-sort the existing option nodes
+          // instead of rebuilding them, so initCustomSelect's listeners (bound
+          // to those exact nodes and to the trigger) survive the switch.
+          const nameByCode = new Map(countries.map((c) => [c.code, c.name]));
+          const nodes = [...list.querySelectorAll(".cs-option")];
+          for (const node of nodes) {
+            const name = nameByCode.get(node.dataset.value);
+            if (name) node.textContent = name;
           }
-
-          const countryList = document.getElementById("cs-country-list");
-          const defaultCountry =
-            countries.find((c) => c.code === "ES") || countries[0];
-
-          // Populate the country options
-          countryList.innerHTML = countries
+          nodes
+            .sort((a, b) => a.textContent.localeCompare(b.textContent, lang))
+            .forEach((node) => list.appendChild(node));
+          const selectedNode = list.querySelector(".cs-option.selected");
+          if (selectedNode) label.textContent = selectedNode.textContent;
+        } else {
+          list.innerHTML = countries
             .map(
               (c) =>
-                `<div class="cs-option${c.code === defaultCountry.code ? " selected" : ""}" data-value="${c.code}">${c.name}</div>`,
+                `<div class="cs-option${c.code === selected.code ? " selected" : ""}" data-value="${c.code}">${c.name}</div>`,
             )
             .join("");
-
-          // Update the trigger label to show the default country
-          const label = document.querySelector("#cs-country .cs-label");
           label.removeAttribute("data-i18n");
-          label.textContent = defaultCountry.name;
-
-          // Initialize the custom select for countries
+          label.textContent = selected.name;
           countrySel = initCustomSelect("cs-country", (v) => {
             loadPackages(v);
             if (resultEl.classList.contains("visible")) generateUrl();
           });
+        }
+        countriesLang = lang;
+
+        // The page language may have changed while this request was in flight.
+        if (countriesLang !== uiLang) return loadCountries(selected.code);
+        return selected.code;
+      }
+
+      (async () => {
+        try {
+          const defaultCode = await loadCountries(
+            cfgParts && cfgParts[0] ? cfgParts[0] : null,
+          );
 
           // ── Init: pre-fill from ?config= if coming from Stremio reconfigure ──
           if (cfgParts && cfgParts.length >= 2) {
@@ -1753,7 +1792,7 @@
             loadPackages(country || countrySel.value, pkgs);
             return;
           }
-          loadPackages(defaultCountry.code);
+          loadPackages(defaultCode);
         } catch (e) {
           console.error("Failed to load countries:", e);
           // Fallback: show error message in country dropdown

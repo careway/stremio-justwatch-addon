@@ -53,6 +53,17 @@ const PROVIDERS = [
       `https://api.top-posters.com/${apiKey}/imdb/poster-default/${imdbId}.jpg`,
   },
   {
+    id: "erdb",
+    name: "EasyRatingsDB (ERDB)",
+    // Token-based: every style/layout/rating-provider choice lives server-side
+    // behind the token, so the addon only ever needs the "Tk-…" string.
+    requiresKey: true,
+    keyPlaceholder: "Tk-xxxxxxxxxxxxxxx",
+    keyHelpUrl: "https://easyratingsdb.com/configurator",
+    buildUrl: (imdbId, apiKey) =>
+      `https://easyratingsdb.com/${apiKey}/poster/${imdbId}.jpg`,
+  },
+  {
     id: "btttr",
     name: "BetterPosters",
     // Free and keyless by default. But unlike the other two, the "key"
@@ -109,7 +120,14 @@ function resolvePosterUrl({
  */
 function listProviders() {
   return PROVIDERS.map(
-    ({ id, name, requiresKey, keyIsUrlTemplate, keyPlaceholder, keyHelpUrl }) => ({
+    ({
+      id,
+      name,
+      requiresKey,
+      keyIsUrlTemplate,
+      keyPlaceholder,
+      keyHelpUrl,
+    }) => ({
       id,
       name,
       requiresKey,

@@ -10,13 +10,20 @@ const {
   fetchCountriesFromJustWatch,
   getSupportedLanguages,
 } = require("../data/catalogMeta");
+const { getUiStrings, RTL_UI_LANGUAGES } = require("../data/uiStrings");
 const { buildManifest } = require("../domain/manifest");
 const { handleCatalog } = require("../domain/catalog");
 const { getPackages } = require("../infra/justwatch");
-const { listProviders: listPosterProviders } = require("../infra/posterProviders");
+const {
+  listProviders: listPosterProviders,
+} = require("../infra/posterProviders");
 const { TTL_S, PACKAGES_TTL_S } = require("../ttl");
 const { respond, respondHtml, redirect } = require("./responses");
-const { parseExtra, getAddonBaseUrl, getLanguageFromRequest } = require("./request");
+const {
+  parseExtra,
+  getAddonBaseUrl,
+  getLanguageFromRequest,
+} = require("./request");
 
 const isProduction = process.env.NODE_ENV === "production";
 
@@ -148,6 +155,27 @@ async function router(req, res) {
     }
   }
 
+  // ── /api/ui-strings?lang=xx  (translations for the /configure page) ─────────
+  if (rawPath === "/api/ui-strings") {
+    const lang = (qs.get("lang") || "es").toLowerCase();
+    if (!/^[a-z]{2,3}(-[a-z0-9]{2,8})?$/.test(lang)) {
+      return respond(res, { error: "Invalid language code" }, 400, "no-store");
+    }
+    const code = lang.split("-")[0];
+    res.setHeader("Vercel-Cache-Tag", `ui-strings`);
+    // See the /api/countries comment above — same reasoning, same fix.
+    return respond(
+      res,
+      {
+        lang: code,
+        rtl: RTL_UI_LANGUAGES.includes(code),
+        strings: getUiStrings(code),
+      },
+      200,
+      "no-store",
+    );
+  }
+
   // ── /api/poster-providers  (poster provider adapters for the configure UI) ──
   if (rawPath === "/api/poster-providers") {
     try {
@@ -173,12 +201,7 @@ async function router(req, res) {
     try {
       const pkgs = await getPackages(country);
       res.setHeader("Vercel-Cache-Tag", `packages-${country}`);
-      return respond(
-        res,
-        pkgs,
-        200,
-        STATIC_CACHE_CONTROL,
-      );
+      return respond(res, pkgs, 200, STATIC_CACHE_CONTROL);
     } catch (err) {
       console.error("[api/packages] Error:", err);
       return respond(res, [], 200, "no-store");

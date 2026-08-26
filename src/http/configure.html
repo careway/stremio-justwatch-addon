@@ -539,6 +539,106 @@
         margin-top: 0.5rem;
       }
 
+      /* BOTÓN DE IDIOMA (flota en la esquina superior derecha de la tarjeta) */
+      .lang-fab-wrap {
+        position: sticky;
+        top: 1.5rem;
+        align-self: flex-end;
+        /* Se superpone al encabezado en vez de empujarlo hacia abajo. */
+        margin-bottom: -54px;
+        z-index: 999;
+      }
+      .translate-fab {
+        width: 54px;
+        height: 54px;
+        border-radius: 16px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0;
+        overflow: hidden;
+        background: var(--glass);
+        backdrop-filter: blur(20px);
+        border: 1px solid var(--border);
+        color: var(--text);
+        font-family: inherit;
+        text-decoration: none;
+        cursor: pointer;
+        box-shadow:
+          0 10px 30px rgba(0, 0, 0, 0.5),
+          0 0 20px var(--accent-glow);
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+      }
+      .translate-fab:hover,
+      .lang-fab-wrap.open .translate-fab {
+        width: auto;
+        padding: 0 1.1rem 0 0.9rem;
+        border-color: var(--accent);
+        transform: translateY(-3px);
+        box-shadow:
+          0 15px 35px rgba(0, 0, 0, 0.5),
+          0 0 30px var(--accent-glow);
+      }
+      .translate-fab svg {
+        width: 24px;
+        height: 24px;
+        flex-shrink: 0;
+        color: var(--accent);
+      }
+      .translate-fab span {
+        max-width: 0;
+        overflow: hidden;
+        white-space: nowrap;
+        font-size: 0.75rem;
+        font-weight: 700;
+        letter-spacing: 0.02em;
+        transition: max-width 0.3s ease;
+      }
+      .translate-fab:hover span,
+      .lang-fab-wrap.open .translate-fab span {
+        max-width: 160px;
+        margin-left: 0.6rem;
+      }
+
+      .lang-menu {
+        display: none;
+        position: absolute;
+        right: 0;
+        top: calc(100% + 0.8rem);
+        min-width: 190px;
+        max-height: 320px;
+        overflow-y: auto;
+        padding: 0.4rem;
+        background: var(--glass);
+        backdrop-filter: blur(20px);
+        border: 1px solid var(--border);
+        border-radius: 16px;
+        box-shadow: 0 15px 35px rgba(0, 0, 0, 0.5);
+      }
+      .lang-fab-wrap.open .lang-menu {
+        display: block;
+      }
+      .lang-menu button {
+        display: block;
+        width: 100%;
+        text-align: left;
+        background: none;
+        border: 0;
+        border-radius: 10px;
+        color: var(--text);
+        font-family: inherit;
+        font-size: 0.8rem;
+        padding: 0.55rem 0.8rem;
+        cursor: pointer;
+      }
+      .lang-menu button:hover {
+        background: rgba(255, 255, 255, 0.08);
+      }
+      .lang-menu button[aria-selected="true"] {
+        color: var(--accent);
+        font-weight: 700;
+      }
+
       /* RESPONSIVE */
       @media (max-width: 1000px) {
         .app-wrapper {
@@ -563,6 +663,35 @@
     <div class="app-wrapper">
       <!-- MAIN CARD -->
       <main class="card">
+        <!-- BOTÓN FLOTANTE: IDIOMA DE LA PÁGINA -->
+        <div class="lang-fab-wrap">
+          <div class="lang-menu" id="lang-menu" role="listbox"></div>
+          <button
+            type="button"
+            id="translate-fab"
+            class="translate-fab"
+            data-i18n-title="uiLanguage"
+            title="Idioma de la página"
+          >
+            <svg
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            >
+              <path d="M5 8l6 6" />
+              <path d="M4 14l6-6 2-3" />
+              <path d="M2 5h12" />
+              <path d="M7 2h1" />
+              <path d="M22 22l-5-10-5 10" />
+              <path d="M14 18h6" />
+            </svg>
+            <span id="lang-fab-label">Español</span>
+          </button>
+        </div>
+
         <div class="header">
           <img
             src="/static/logo.svg"
@@ -571,6 +700,7 @@
           />
           <h1>OmniCatalog</h1>
           <p
+            data-i18n="tagline"
             style="
               font-size: 0.7rem;
               color: var(--muted);
@@ -609,6 +739,7 @@
             >1</span
           >
           <span
+            data-i18n="step1"
             style="
               font-size: 0.7rem;
               font-weight: 600;
@@ -622,16 +753,17 @@
 
         <div class="row">
           <div class="field">
-            <label>Región</label>
+            <label data-i18n="region">Región</label>
             <div class="custom-select" id="cs-country">
               <div class="cs-trigger">
-                <span class="cs-label">Cargando...</span
+                <span class="cs-label" data-i18n="loading">Cargando...</span
                 ><span class="cs-arrow">▾</span>
               </div>
               <div class="cs-list">
                 <input
                   type="text"
                   class="cs-search"
+                  data-i18n-placeholder="searchCountry"
                   placeholder="Buscar país..."
                   autocomplete="off"
                   spellcheck="false"
@@ -643,16 +775,17 @@
             </div>
           </div>
           <div class="field">
-            <label>Idioma Portada</label>
+            <label data-i18n="titleLanguage">Idioma de los títulos</label>
             <div class="custom-select" id="cs-language">
               <div class="cs-trigger">
-                <span class="cs-label">Cargando...</span
+                <span class="cs-label" data-i18n="loading">Cargando...</span
                 ><span class="cs-arrow">▾</span>
               </div>
               <div class="cs-list">
                 <input
                   type="text"
                   class="cs-search"
+                  data-i18n-placeholder="searchLanguage"
                   placeholder="Buscar idioma..."
                   autocomplete="off"
                   spellcheck="false"
@@ -667,6 +800,7 @@
 
         <div
           id="language-warning"
+          data-i18n="languageWarning"
           style="
             display: none;
             background: rgba(255, 121, 198, 0.12);
@@ -681,7 +815,7 @@
           "
         >
           ⚠ Este idioma solo traduce los géneros y las cabeceras de catálogo
-          (Popular / Tendencias / Nuevo). Los títulos y sinopsis de las
+          (Popular / Tendencias / Nuevos). Los títulos y sinopsis de las
           películas y series seguirán en inglés — el proveedor todavía no tiene
           esos datos traducidos a este idioma.
         </div>
@@ -712,6 +846,7 @@
             >2</span
           >
           <span
+            data-i18n="step2"
             style="
               font-size: 0.7rem;
               font-weight: 600;
@@ -730,8 +865,10 @@
             display: block;
             margin-bottom: 0.4rem;
           "
-          >Catálogos globales
-          <span style="color: var(--muted); font-weight: 400"
+          ><span data-i18n="globalCatalogs">Catálogos globales</span>
+          <span
+            data-i18n="globalCatalogsHint"
+            style="color: var(--muted); font-weight: 400"
             >(opcional — todo el país, sin filtrar por plataforma)</span
           ></label
         >
@@ -755,7 +892,9 @@
               style="padding: 0.6rem 0.4rem; justify-content: center"
             >
               <span class="toggle-dot"></span>
-              <span style="font-size: 0.72rem; color: var(--text)"
+              <span
+                data-i18n="sortPop"
+                style="font-size: 0.72rem; color: var(--text)"
                 >Popular</span
               >
             </label>
@@ -772,7 +911,9 @@
               style="padding: 0.6rem 0.4rem; justify-content: center"
             >
               <span class="toggle-dot"></span>
-              <span style="font-size: 0.72rem; color: var(--text)"
+              <span
+                data-i18n="sortTnd"
+                style="font-size: 0.72rem; color: var(--text)"
                 >Tendencias</span
               >
             </label>
@@ -789,7 +930,11 @@
               style="padding: 0.6rem 0.4rem; justify-content: center"
             >
               <span class="toggle-dot"></span>
-              <span style="font-size: 0.72rem; color: var(--text)">Nuevos</span>
+              <span
+                data-i18n="sortNew"
+                style="font-size: 0.72rem; color: var(--text)"
+                >Nuevos</span
+              >
             </label>
           </div>
         </div>
@@ -802,7 +947,9 @@
             margin-bottom: 0.8rem;
           "
         >
-          <label style="color: var(--secondary); font-size: 0.65rem"
+          <label
+            data-i18n="providerCatalogs"
+            style="color: var(--secondary); font-size: 0.65rem"
             >Catálogos de proveedores</label
           >
           <div style="display: flex; gap: 8px">
@@ -810,6 +957,7 @@
             <button
               class="btn-show-more"
               id="btn-none"
+              data-i18n="clear"
               style="
                 margin: 0;
                 padding: 4px 10px;
@@ -844,7 +992,9 @@
               style="padding: 0.6rem 0.4rem; justify-content: center"
             >
               <span class="toggle-dot"></span>
-              <span style="font-size: 0.72rem; color: var(--text)"
+              <span
+                data-i18n="sortPop"
+                style="font-size: 0.72rem; color: var(--text)"
                 >Popular</span
               >
             </label>
@@ -862,7 +1012,9 @@
               style="padding: 0.6rem 0.4rem; justify-content: center"
             >
               <span class="toggle-dot"></span>
-              <span style="font-size: 0.72rem; color: var(--text)"
+              <span
+                data-i18n="sortTnd"
+                style="font-size: 0.72rem; color: var(--text)"
                 >Tendencias</span
               >
             </label>
@@ -880,7 +1032,11 @@
               style="padding: 0.6rem 0.4rem; justify-content: center"
             >
               <span class="toggle-dot"></span>
-              <span style="font-size: 0.72rem; color: var(--text)">Nuevos</span>
+              <span
+                data-i18n="sortNew"
+                style="font-size: 0.72rem; color: var(--text)"
+                >Nuevos</span
+              >
             </label>
           </div>
         </div>
@@ -928,8 +1084,9 @@
               letter-spacing: 0.05em;
               text-transform: uppercase;
             "
-            >Muestra los ratings en las portadas
+            ><span data-i18n="step3">Muestra los ratings en las portadas</span>
             <span
+              data-i18n="optional"
               style="
                 color: var(--muted);
                 font-weight: 400;
@@ -942,7 +1099,7 @@
 
         <div class="row" style="flex-shrink: 0">
           <div class="field">
-            <label>Proveedor de posters</label>
+            <label data-i18n="posterProvider">Proveedor de pósters</label>
             <div class="custom-select" id="cs-poster-provider">
               <div class="cs-trigger">
                 <span class="cs-label notranslate" translate="no">Ninguno</span
@@ -964,8 +1121,10 @@
               "
             >
               <span
-                >API Key
-                <span style="font-size: 0.7em; color: var(--secondary)"
+                ><span data-i18n="apiKey">API Key</span>
+                <span
+                  data-i18n="optional"
+                  style="font-size: 0.7em; color: var(--secondary)"
                   >(opcional)</span
                 ></span
               >
@@ -974,6 +1133,7 @@
                 href="#"
                 target="_blank"
                 rel="noopener"
+                data-i18n="getApiKey"
                 style="
                   display: none;
                   font-size: 1em;
@@ -987,6 +1147,7 @@
             <input
               id="poster-api-key"
               type="text"
+              data-i18n-placeholder="chooseProviderFirst"
               placeholder="Elige un proveedor primero"
               autocomplete="off"
               spellcheck="false"
@@ -1007,7 +1168,7 @@
         </div>
 
         <div class="actions" style="flex-shrink: 0; padding-top: 1rem">
-          <button class="btn-primary" id="btn-generate">
+          <button class="btn-primary" id="btn-generate" data-i18n="install">
             Instalar en Stremio
           </button>
 
@@ -1017,18 +1178,21 @@
               <div class="dot dot-amber"></div>
               <div class="dot dot-green"></div>
               <span
+                data-i18n="manifestGenerated"
                 style="
                   font-size: 0.6rem;
                   color: var(--muted);
                   margin-left: 5px;
                   font-family: monospace;
                 "
-                >Manifest URL Generated</span
+                >URL del manifest generada</span
               >
             </div>
             <div class="url-box">
               <input class="url-input" id="url-out" type="text" readonly />
-              <button class="btn-copy" id="btn-copy">COPIAR</button>
+              <button class="btn-copy" id="btn-copy" data-i18n="copy">
+                COPIAR
+              </button>
             </div>
           </div>
         </div>
@@ -1048,10 +1212,13 @@
           />
           <span class="creator-name">careway</span>
           <p class="creator-bio">
-            Computer scientist &amp; volleyball lover. Too lazy to configure
-            AIOStreams as I only wants my streaming services catalog, so I built
-            my own addon instead — just hit install and it works. ☕<br /><br />
-            Feel free to donate if you like the addon!
+            <span data-i18n="creatorBio"
+              >Informático y amante del voleibol. Demasiado vago para configurar
+              AIOStreams cuando solo quería el catálogo de mis servicios de
+              streaming, así que me hice mi propio addon — le das a instalar y
+              funciona. ☕</span
+            ><br /><br />
+            <span data-i18n="creatorDonate">¡Dona si te gusta el addon!</span>
           </p>
 
           <div class="creator-links">
@@ -1070,7 +1237,7 @@
                   d="M20.317 4.37a19.791 19.791 0 0 0-4.885-1.515.074.074 0 0 0-.079.037c-.21.375-.444.864-.608 1.25a18.27 18.27 0 0 0-5.487 0 12.64 12.64 0 0 0-.617-1.25.077.077 0 0 0-.079-.037A19.736 19.736 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 0 0 .031.057 19.9 19.9 0 0 0 5.993 3.03.078.078 0 0 0 .084-.028c.462-.63.874-1.295 1.226-1.994a.076.076 0 0 0-.041-.106 13.107 13.107 0 0 1-1.872-.892.077.077 0 0 1-.008-.128 10.2 10.2 0 0 0 .372-.292.074.074 0 0 1 .077-.01c3.928 1.793 8.18 1.793 12.062 0a.074.074 0 0 1 .078.01c.12.098.246.198.373.292a.077.077 0 0 1-.006.127 12.299 12.299 0 0 1-1.873.892.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.028 19.839 19.839 0 0 0 6.002-3.03.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.03z"
                 />
               </svg>
-              DISCORD COMMUNITY
+              <span data-i18n="discord">COMUNIDAD DE DISCORD</span>
             </a>
             <a
               href="https://ko-fi.com/careway"
@@ -1087,7 +1254,7 @@
                   d="M23.881 8.948c-.773-4.085-4.859-4.593-4.859-4.593H.723c-.604 0-.679.798-.679.798s-.082 7.324-.022 11.822c.164 2.424 2.586 2.672 2.586 2.672s8.267-.023 11.966-.049c2.438-.426 2.683-2.566 2.658-3.734 4.352.24 7.422-2.831 6.649-6.916zm-11.062 3.511c-1.246 1.453-4.011 3.976-4.011 3.976s-.121.119-.31.023c-.076-.057-.108-.09-.108-.09-.443-.441-3.368-3.049-4.034-3.954-.709-.965-1.041-2.7-.091-3.71.951-1.01 3.005-1.086 4.363.407 0 0 1.565-1.782 3.468-.963 1.904.82 1.832 2.692.723 4.311zm6.173.478c-.928.116-1.682-.028-1.682-.028V7.284h1.77s1.971.551 1.971 2.638c0 1.913-.985 2.667-2.059 3.015z"
                 />
               </svg>
-              SUPPORT ON KO-FI
+              <span data-i18n="kofi">APÓYAME EN KO-FI</span>
             </a>
           </div>
         </div>
@@ -1096,13 +1263,139 @@
 
     <script>
       /* LÓGICA DE JAVASCRIPT */
+
+      /* ── i18n propio: mismos idiomas que ofrecen los catálogos ── */
+      const UI_LANG_KEY = "omnicatalog.uiLang";
+      const DEFAULT_UI_LANG = "es";
+      let uiLang = DEFAULT_UI_LANG;
+      let uiStrings = {};
+      let availableLanguages = [];
+
+      function t(key, vars) {
+        let text = uiStrings[key];
+        if (text === undefined) return "";
+        if (vars) {
+          for (const [name, value] of Object.entries(vars)) {
+            text = text.split(`{${name}}`).join(value);
+          }
+        }
+        return text;
+      }
+
+      function applyTranslations() {
+        document.documentElement.lang = uiLang;
+        for (const el of document.querySelectorAll("[data-i18n]")) {
+          const key = el.dataset.i18n;
+          if (uiStrings[key] === undefined) continue;
+          el.textContent =
+            el.dataset.i18nCount !== undefined
+              ? t(key, { n: el.dataset.i18nCount })
+              : t(key);
+        }
+        for (const el of document.querySelectorAll("[data-i18n-placeholder]")) {
+          const key = el.dataset.i18nPlaceholder;
+          if (uiStrings[key] !== undefined) el.placeholder = t(key);
+        }
+        for (const el of document.querySelectorAll("[data-i18n-title]")) {
+          const key = el.dataset.i18nTitle;
+          if (uiStrings[key] !== undefined) el.title = t(key);
+        }
+        // Poster provider: the trigger label mirrors the selected option, and
+        // the API-key placeholder is set from JS — neither is a data-i18n node.
+        if (posterProviderSel) {
+          if (!posterProviderSel.value) {
+            document.querySelector(
+              "#cs-poster-provider .cs-label",
+            ).textContent = t("none");
+          }
+          updatePosterKeyField(posterProviderSel.value);
+        }
+        updateLangFabLabel();
+      }
+
+      function updateLangFabLabel() {
+        const current = availableLanguages.find((l) => l.code === uiLang);
+        const label = document.getElementById("lang-fab-label");
+        if (current) label.textContent = current.name;
+        for (const btn of document.querySelectorAll("#lang-menu button")) {
+          btn.setAttribute(
+            "aria-selected",
+            btn.dataset.lang === uiLang ? "true" : "false",
+          );
+        }
+      }
+
+      async function setUiLanguage(code, persist = true) {
+        try {
+          const res = await fetch(
+            `/api/ui-strings?lang=${encodeURIComponent(code)}`,
+          );
+          const data = await res.json();
+          if (!data || !data.strings) throw new Error("Bad response");
+          uiStrings = data.strings;
+          uiLang = data.lang;
+          document.documentElement.dir = data.rtl ? "rtl" : "ltr";
+          if (persist) {
+            try {
+              localStorage.setItem(UI_LANG_KEY, uiLang);
+            } catch {
+              // private mode / storage disabled — the choice just won't stick
+            }
+          }
+          applyTranslations();
+        } catch (e) {
+          console.error("Failed to load UI strings:", e);
+        }
+      }
+
+      function buildLanguageMenu() {
+        const menu = document.getElementById("lang-menu");
+        menu.innerHTML = "";
+        for (const lang of availableLanguages) {
+          const btn = document.createElement("button");
+          btn.type = "button";
+          btn.dataset.lang = lang.code;
+          btn.textContent = lang.name;
+          btn.setAttribute("role", "option");
+          btn.addEventListener("click", () => {
+            document.querySelector(".lang-fab-wrap").classList.remove("open");
+            setUiLanguage(lang.code);
+          });
+          menu.appendChild(btn);
+        }
+        updateLangFabLabel();
+      }
+
+      function initialUiLanguage() {
+        const codes = availableLanguages.map((l) => l.code);
+        let stored = null;
+        try {
+          stored = localStorage.getItem(UI_LANG_KEY);
+        } catch {
+          // storage disabled — fall back to the browser language below
+        }
+        if (stored && codes.includes(stored)) return stored;
+        const nav = (navigator.language || "").toLowerCase().split("-")[0];
+        return codes.includes(nav) ? nav : DEFAULT_UI_LANG;
+      }
+
+      document
+        .getElementById("translate-fab")
+        .addEventListener("click", (e) => {
+          e.stopPropagation();
+          document.querySelector(".lang-fab-wrap").classList.toggle("open");
+        });
+      document
+        .getElementById("lang-menu")
+        .addEventListener("click", (e) => e.stopPropagation());
+      document.addEventListener("click", () => {
+        document.querySelector(".lang-fab-wrap").classList.remove("open");
+      });
+
       /* ── Custom dropdowns ── */
       // Accent/case-insensitive compare so "espana" still matches "España".
       function normalizeSearchText(s) {
-        return s
-          .normalize("NFD")
-          .replace(/[̀-ͯ]/g, "")
-          .toLowerCase();
+        return s.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
       }
 
       function initCustomSelect(id, onChange) {
@@ -1145,6 +1438,9 @@
           opt.addEventListener("click", () => {
             opts.forEach((o) => o.classList.remove("selected"));
             opt.classList.add("selected");
+            // The placeholder label starts as the translated "Loading...";
+            // once it shows a real choice it must stop being retranslated.
+            label.removeAttribute("data-i18n");
             label.textContent = opt.textContent;
             value = opt.dataset.value;
             wrap.classList.remove("open");
@@ -1162,6 +1458,7 @@
             if (!match) return;
             opts.forEach((o) => o.classList.remove("selected"));
             match.classList.add("selected");
+            label.removeAttribute("data-i18n");
             label.textContent = match.textContent;
             value = v;
           },
@@ -1270,7 +1567,8 @@
         if (!provider) {
           input.disabled = true;
           input.value = "";
-          input.placeholder = "Elige un proveedor primero";
+          input.placeholder =
+            t("chooseProviderFirst") || "Elige un proveedor primero";
           help.style.display = "none";
           return;
         }
@@ -1297,7 +1595,7 @@
 
           const list = document.getElementById("cs-poster-provider-list");
           list.innerHTML =
-            `<div class="cs-option selected" data-value="">Ninguno</div>` +
+            `<div class="cs-option selected" data-value="" data-i18n="none">${t("none")}</div>` +
             providers
               .map(
                 (p) =>
@@ -1335,6 +1633,12 @@
           const defaultLanguage =
             languages.find((l) => l.code === "es") || languages[0];
 
+          // The page's own language picker offers exactly the same languages
+          // the catalogs can be served in.
+          availableLanguages = languages;
+          buildLanguageMenu();
+          await setUiLanguage(initialUiLanguage(), false);
+
           partialTranslationLanguages = new Set(
             languages.filter((l) => l.partialTranslation).map((l) => l.code),
           );
@@ -1349,6 +1653,7 @@
 
           // Update the trigger label to show the default language
           const label = document.querySelector("#cs-language .cs-label");
+          label.removeAttribute("data-i18n");
           label.textContent = defaultLanguage.name;
 
           // Initialize the custom select for languages
@@ -1361,7 +1666,7 @@
           console.error("Failed to load languages:", e);
           // Fallback: show error message in language dropdown
           const languageList = document.getElementById("cs-language-list");
-          languageList.innerHTML = `<div style="padding: 1rem; color: var(--accent); text-align: center;">Error al cargar idiomas</div>`;
+          languageList.innerHTML = `<div style="padding: 1rem; color: var(--accent); text-align: center;" data-i18n="errLanguages">${t("errLanguages") || "Error al cargar idiomas"}</div>`;
         }
       })();
 
@@ -1388,6 +1693,7 @@
 
           // Update the trigger label to show the default country
           const label = document.querySelector("#cs-country .cs-label");
+          label.removeAttribute("data-i18n");
           label.textContent = defaultCountry.name;
 
           // Initialize the custom select for countries
@@ -1452,7 +1758,7 @@
           console.error("Failed to load countries:", e);
           // Fallback: show error message in country dropdown
           const countryList = document.getElementById("cs-country-list");
-          countryList.innerHTML = `<div style="padding: 1rem; color: var(--accent); text-align: center;">Error al cargar países</div>`;
+          countryList.innerHTML = `<div style="padding: 1rem; color: var(--accent); text-align: center;" data-i18n="errCountries">${t("errCountries") || "Error al cargar países"}</div>`;
         }
       })();
 
@@ -1485,7 +1791,7 @@
       }
 
       async function loadPackages(country, preSelected = null) {
-        pkgGrid.innerHTML = `<div style="grid-column: 1/-1; text-align: center; padding: 2rem; color: var(--secondary); font-size: 0.8rem;">Iniciando sistema...</div>`;
+        pkgGrid.innerHTML = `<div style="grid-column: 1/-1; text-align: center; padding: 2rem; color: var(--secondary); font-size: 0.8rem;" data-i18n="loadingSystem">${t("loadingSystem") || "Iniciando sistema..."}</div>`;
         try {
           const res = await fetch(
             `/api/packages?country=${encodeURIComponent(country)}`,
@@ -1493,7 +1799,7 @@
           const pkgs = await res.json();
           renderPackages(sortPackages(pkgs), preSelected);
         } catch (e) {
-          pkgGrid.innerHTML = `<div style="color: var(--accent)">Error de conexión</div>`;
+          pkgGrid.innerHTML = `<div style="color: var(--accent)" data-i18n="errConnection">${t("errConnection") || "Error de conexión"}</div>`;
         }
       }
 
@@ -1528,7 +1834,8 @@
             )
             .join("");
           if (count < pkgs.length) {
-            loadMoreSlot.innerHTML = `<button class="btn-show-more">Cargar proveedores restantes (${pkgs.length - count})</button>`;
+            const remaining = pkgs.length - count;
+            loadMoreSlot.innerHTML = `<button class="btn-show-more" data-i18n="loadMore" data-i18n-count="${remaining}">${t("loadMore", { n: remaining })}</button>`;
             loadMoreSlot.firstChild.onclick = () => draw(pkgs.length);
           } else {
             loadMoreSlot.innerHTML = "";
@@ -1635,8 +1942,8 @@
 
       btnCopy.onclick = () => {
         navigator.clipboard.writeText(urlOut.value);
-        btnCopy.textContent = "LISTO";
-        setTimeout(() => (btnCopy.textContent = "COPIAR"), 2000);
+        btnCopy.textContent = t("copied");
+        setTimeout(() => (btnCopy.textContent = t("copy")), 2000);
       };
     </script>
   </body>

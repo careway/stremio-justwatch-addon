@@ -70,6 +70,9 @@ const SORT_LABELS_I18N = {
   },
 };
 
+// The content types a package generates when it isn't restricted to one.
+const BOTH_TYPES = ["movie", "series"];
+
 function getSortLabel(key, language) {
   const lang = (language || "en").toLowerCase().split("-")[0];
   const map = SORT_LABELS_I18N[key] || {};
@@ -86,12 +89,20 @@ function getSortLabel(key, language) {
  *               with no provider filter (see ../data/catalogMeta)
  *
  * Up to 6 catalogs are generated per selected provider/pseudo-package (one
- * per selected sort type × 2 types) — which sorts are included is itself
+ * per selected sort type × content type) — which sorts are included is itself
  * configurable, and *independently so* for real providers (config.sorts,
  * shared by all of them) vs the "global" pseudo-package (config.globalSorts)
  * — a user can e.g. want only Trending on Netflix but Popular+New globally.
  *
- * @param {object}  config          - { country, language, packages: string[], sorts?: string[], globalSorts?: string[] }
+ * Content types narrow in two places. config.packageTypes does it *per
+ * package* — an entry of "movie" or "series" halves that package's catalogs.
+ * config.globalTypes does it *per sort* for the "global" pseudo-package only,
+ * which is the granularity global's UI offers (its Popular/Trending/New chips
+ * each cycle independently), and being the finer-grained of the two it wins
+ * where both apply. Anything with no entry gets both types, which is what
+ * every config from before these selectors existed means.
+ *
+ * @param {object}  config          - { country, language, packages: string[], sorts?: string[], globalSorts?: string[], packageTypes?: Record<string, "movie"|"series">, globalTypes?: Record<string, "movie"|"series"> }
  * @param {string}  encodedConfig   - base64url-encoded config (for URLs)
  * @param {object}  pkgInfoMap      - technicalName → { clearName, iconUrl, ... }
  * @param {string}  addonBaseUrl    - Full origin e.g. https://my-addon.onrender.com
@@ -104,6 +115,8 @@ function buildManifest(config, encodedConfig, pkgInfoMap, addonBaseUrl) {
   const sortKeys = config?.sorts?.length > 0 ? config.sorts : allSortKeys;
   const globalSortKeys =
     config?.globalSorts?.length > 0 ? config.globalSorts : allSortKeys;
+  const packageTypes = config?.packageTypes || {};
+  const globalTypes = config?.globalTypes || {};
 
   const catalogs = [];
 
@@ -124,7 +137,18 @@ function buildManifest(config, encodedConfig, pkgInfoMap, addonBaseUrl) {
 
     for (const sortKey of isGlobal ? globalSortKeys : sortKeys) {
       const sortLabel = getSortLabel(sortKey, language);
-      for (const type of ["movie", "series"]) {
+      // Anything restricted to one content type declares only that catalog;
+      // anything unlisted keeps both. For global the per-sort entry wins over
+      // a package-level one, being the more specific of the two. The value is
+      // checked against BOTH_TYPES rather than trusted — decodeConfig can only
+      // ever produce "movie"/"series", but a bogus one reaching here would
+      // otherwise be emitted verbatim as a catalog type Stremio doesn't know.
+      const restrictedType =
+        (isGlobal ? globalTypes[sortKey] : undefined) ?? packageTypes[shortName];
+      const types = BOTH_TYPES.includes(restrictedType)
+        ? [restrictedType]
+        : BOTH_TYPES;
+      for (const type of types) {
         catalogs.push({
           type,
           id: `jw_${sortKey}_${shortName}`,

@@ -10,11 +10,12 @@ Human-readable, **not** base64 (an older note claimed otherwise), one URL path
 segment:
 
 ```
-/{COUNTRY}_{language}[_poster-…][_sorts-…][_gsorts-…]_{pkg1}_{pkg2}…/manifest.json
-e.g.  ES_es_poster-rpdb-t8-abc123_sorts-tnd-new_gsorts-pop_nfx_dnp_global
+/{COUNTRY}_{language}[_poster-…][_sorts-…][_gsorts-…][_m-…][_s-…][_gm-…][_gs-…]_{pkg1}_{pkg2}…/manifest.json
+e.g.  ES_es_poster-rpdb-t8-abc123_sorts-tnd-new_gsorts-pop-new_m-nfx_s-prv_gs-new_nfx_dnp_prv_global
 ```
 
-Decodes to `{ country, language, packages, posterProvider, posterApiKey, sorts, globalSorts }`.
+Decodes to `{ country, language, packages, posterProvider, posterApiKey, sorts,
+globalSorts, packageTypes, globalTypes }`.
 
 Because the whole thing is one path segment split on `_`, every part is limited
 to `[A-Za-z0-9-]`. The router's own match is `[A-Za-z0-9_-]+`.
@@ -29,6 +30,10 @@ to `[A-Za-z0-9-]`. The router's own match is `[A-Za-z0-9_-]+`.
 | `rpdb-{key}`            | **legacy** pre-adapter shape, still decoded — don't remove                |
 | `sorts-{k1}-{k2}…`      | which sort types real provider packages generate                         |
 | `gsorts-{k1}-{k2}…`     | same, but **only** for the `global` pseudo-package — fully independent    |
+| `m-{p1}-{p2}…`          | packages restricted to **movie** catalogs only (2026-08-31)                |
+| `s-{p1}-{p2}…`          | packages restricted to **series** catalogs only (2026-08-31)               |
+| `gm-{k1}-{k2}…`         | **global sorts** restricted to movies only (2026-08-31)                    |
+| `gs-{k1}-{k2}…`         | **global sorts** restricted to series only (2026-08-31)                    |
 | everything else         | package `shortName`s, matched by `/^[a-z0-9-]{1,30}$/`, capped at 200     |
 
 ## Invariants — break these and you break installed URLs
@@ -45,7 +50,66 @@ to `[A-Za-z0-9-]`. The router's own match is `[A-Za-z0-9_-]+`.
 3. **New non-package segments must be excluded from the packages filter** —
    in `decodeConfig` *and* in `configure.html`'s independent client-side
    parser. Otherwise the new prefix gets swallowed as a package name. The
-   filter currently excludes `rpdb-`, `poster-`, `sorts-`, `gsorts-`.
+   filter is now driven by the shared `RESERVED_PREFIXES` list (built from the
+   two prefix tables plus `rpdb-`/`poster-`/`sorts-`/`gsorts-`) precisely so a
+   new prefix can't be added to one encoder and forgotten in the filter.
+   `configure.html` mirrors that list.
+
+   **The short markers are prefix-of-each-other hazards.** `s-` vs `sorts-` and
+   `gs-` vs `gsorts-` only stay distinct because the marker includes its `-`:
+   `"sorts-tnd".startsWith("s-")` is false (`"so"` ≠ `"s-"`), and likewise for
+   `gs-`. Tests pin both cases on both sides. Never write a marker check that
+   drops the dash.
+
+## Content types (`m-`/`s-` per package, `gm-`/`gs-` per global sort, 2026-08-31)
+
+Two maps, both holding **only** what was narrowed away from the default:
+
+- `config.packageTypes` — `{ shortName: "movie" | "series" }`, per package.
+- `config.globalTypes` — `{ sortKey: "movie" | "series" }`, per *sort*, and
+  only for the `global` pseudo-package.
+
+Global gets the finer granularity because that's what its UI offers: its three
+Popular/Trending/New chips each cycle independently, so "global Popular = only
+movies, global New = only series" is a real combination. `buildManifest` lets
+the per-sort entry **win** over a package-level one, being the more specific.
+
+A package or sort absent from these maps generates both types — which is what
+everything in every URL predating this feature means, so an untouched config
+still encodes byte-identically (invariant 2). `decodeConfig` always returns
+both keys, `{}` when nothing is narrowed.
+
+*List* segments rather than a per-member pair (`nfx.movie`) because the whole
+config is one `_`-split path segment: only `[A-Za-z0-9-]` survives, so `-` is
+the sole in-segment separator. That makes the list form ambiguous if a member
+could contain a `-`, and neither can: **all 467 JustWatch shortNames across
+ES/US/GB/DE/JP/IN/BR are exactly 3 letters, no dashes** (measured 2026-08-31),
+and sort keys are the three in `SORT_MAP`. `sorts-`/`gsorts-` already rest on
+the same assumption. If shortNames ever gain dashes, every list segment breaks
+together.
+
+The markers are one/two letters (`m-`, `s-`, `gm-`, `gs-`) rather than
+`mov-`/`ser-` at the user's request, to keep the URL short. The collision
+condition is unchanged — a shortName would have to literally start with `m-`
+— but see the prefix-of-each-other hazard in invariant 3.
+
+Decode is defensive in three ways, each covered by a test:
+
+- a restriction naming something not selected is dropped — a package missing
+  from `packages`, or a global sort missing from `globalSorts`;
+- a member named under **both** markers means both types, so it is left out
+  rather than letting whichever segment parsed last win. `decodeTypeSegments`
+  gathers the types per member into a `Set` first, which also makes a member
+  repeated inside one segment (`gm-pop-pop`) a no-op instead of a spurious
+  "both";
+- `buildManifest` checks the value against `BOTH_TYPES` instead of trusting it
+  — a bogus value would otherwise be emitted verbatim as a Stremio catalog
+  `type`. (`decodeConfig` can't produce one, but the builder is also called
+  with configs assembled elsewhere; a test caught this.)
+
+`m-global`/`s-global` still decode (global rides `packages` like any other), and
+act as a package-level default for any global sort that `gm-`/`gs-` doesn't
+name. The UI only ever writes the per-sort form.
 
 ## Poster-key codec
 
@@ -68,6 +132,11 @@ scheme ever changes, keep it as one predicate per side — never two separate
 `if` conditions that can drift.**
 
 ## Client/server mirror
+
+`configure.html` also carries an independent browser copy of all four markers —
+`encodeTypeSegments` / `parseTypeSegments`, which take the prefix table as an
+argument exactly like the server's, kept honest the same way (see
+[testing.md](testing.md)).
 
 `configure.html` carries an **independent** browser implementation of the same
 codec (`SAFE_POSTER_KEY_RE`, `looksLikePosterKeyMarker`, `encodePosterKey`,

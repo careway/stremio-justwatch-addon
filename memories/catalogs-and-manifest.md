@@ -42,7 +42,34 @@ They were split the same day the feature shipped, per explicit user request
 proveedores") — so "Netflix on New only, global on Popular + Trending" is a
 real, intended combination. URL encoding in [config-codec.md](config-codec.md).
 
-Catalogs generated = (selected sorts) × (movie, series) per package, up to 6.
+Catalogs generated = (selected sorts) × (that package's content types), up to 6.
+
+## Content types (2026-08-31)
+
+Two maps narrow which of movie/series a catalog row is generated for:
+
+- `config.packageTypes[shortName]` — per package.
+- `config.globalTypes[sortKey]` — per *sort*, `global` only.
+
+The inner `for (const type of …)` loop runs over `BOTH_TYPES` unless something
+narrowed it. **For `global` the per-sort entry wins over a package-level one**
+(`globalTypes[sortKey] ?? packageTypes[shortName]`) — the more specific of the
+two. Global has the finer granularity because its three chips each cycle
+independently in the UI.
+
+- The value is validated against `BOTH_TYPES` rather than trusted — an unknown
+  value falls back to both instead of being emitted as a bogus catalog `type`.
+  A test pins this for both maps.
+- The manifest's own top-level `types: ["movie", "series"]` is **unchanged** by
+  this; it declares what the addon can serve, not what this config selected.
+- Catalog **ids are unaffected** (`jw_{sortKey}_{shortName}`) — Stremio keys a
+  catalog by type+id, so a restricted package simply declares one of the two
+  rows it used to.
+- `domain/catalog.js` needed **no change**: Stremio only requests catalogs the
+  manifest declares, so the type never reaches the handler in the first place.
+
+URL encoding (`m-`/`s-`/`gm-`/`gs-`), the defensive decode rules, and why they
+are list segments: [config-codec.md](config-codec.md).
 
 ## Manifest shape
 

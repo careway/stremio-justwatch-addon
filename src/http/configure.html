@@ -379,14 +379,22 @@
         word-break: break-word;
       }
 
+      /* Badge in the card's top-right corner. It doubles as the content-type
+         indicator: it holds a film glyph and a TV glyph, and the item's
+         data-types state hides whichever one this package doesn't generate,
+         so "both" shows two glyphs and a restricted package shows one.
+         min-width + a pill radius let it shrink and grow with that. */
       .pkg-check {
         position: absolute;
         top: 8px;
         right: 8px;
-        width: 16px;
-        height: 16px;
+        min-width: 18px;
+        height: 18px;
+        padding: 0 4px;
+        gap: 3px;
         background: var(--accent);
-        border-radius: 50%;
+        color: #000;
+        border-radius: 999px;
         display: none;
         align-items: center;
         justify-content: center;
@@ -394,6 +402,43 @@
       }
       .pkg-item input:checked ~ .pkg-label .pkg-check {
         display: flex;
+      }
+      .pkg-check svg {
+        display: block;
+        flex-shrink: 0;
+      }
+      /* State visuals stay in these class/attribute rules on purpose — an
+         inline style on the badge would outrank them no matter the
+         specificity, exactly the bug the old global toggle hit. */
+      .pkg-item[data-types="movie"] .type-glyph-series,
+      .pkg-item[data-types="series"] .type-glyph-movie {
+        display: none;
+      }
+
+      /* The same badge rendered inline in the hint below, so the legend shows
+         the actual chip rather than a recolored approximation of it. The film
+         glyph's sprockets are punched out in var(--accent) and only read as
+         holes on top of the accent pill, which is why this keeps the pill
+         instead of just dropping the two glyphs into the text. */
+      .pkg-check-inline {
+        position: static;
+        display: inline-flex;
+      }
+
+      /* Explains the 4-state click cycle, since a card no longer just toggles */
+      .pkg-cycle-hint {
+        color: var(--muted);
+        font-size: 0.6rem;
+        line-height: 1.5;
+        margin-bottom: 0.6rem;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        flex-wrap: wrap;
+      }
+      .pkg-cycle-hint span[data-i18n] {
+        flex: 1;
+        min-width: 180px;
       }
 
       .toggle-card {
@@ -420,15 +465,55 @@
         width: 16px;
         height: 16px;
         min-width: 16px;
-        border-radius: 50%;
+        /* A pill radius, not 50% — the dot stretches into a rounded rectangle
+           when it has to hold both glyphs, and only *looks* like a circle at
+           its 16px square default. */
+        border-radius: 999px;
         background: transparent;
         border: 1px solid var(--muted);
         transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 3px;
+        color: #000;
       }
       .toggle-item input:checked + .toggle-card .toggle-dot {
         background: var(--accent);
         border-color: var(--accent);
         box-shadow: 0 0 8px var(--accent-glow);
+      }
+
+      /* Only the chips that carry data-types cycle content types (the global
+         ones) — the provider sort chips keep the plain filled circle, so their
+         dots stay empty and these rules never fire for them. */
+      .toggle-dot svg {
+        display: none;
+        width: 9px;
+        height: 9px;
+        flex-shrink: 0;
+      }
+      .toggle-item[data-types] input:checked + .toggle-card .toggle-dot {
+        width: auto;
+        padding: 0 4px;
+      }
+      .toggle-item[data-types] input:checked + .toggle-card .toggle-dot svg {
+        display: block;
+      }
+      /* Must out-specify the rule right above, which is why this repeats the
+         whole input:checked + .toggle-card chain instead of the short form:
+         (0,6,1) beats (0,5,2). Source order alone would not be enough. */
+      .toggle-item[data-types="movie"]
+        input:checked
+        + .toggle-card
+        .toggle-dot
+        .type-glyph-series,
+      .toggle-item[data-types="series"]
+        input:checked
+        + .toggle-card
+        .toggle-dot
+        .type-glyph-movie {
+        display: none;
       }
 
       /* URL ESTILO TERMINAL */
@@ -873,6 +958,7 @@
           ></label
         >
         <div
+          id="global-sort-row"
           style="
             display: flex;
             gap: 0.5rem;
@@ -880,7 +966,7 @@
             flex-shrink: 0;
           "
         >
-          <div class="toggle-item" style="flex: 1">
+          <div class="toggle-item" data-types="all" style="flex: 1">
             <input
               type="checkbox"
               id="global-sort-pop-toggle"
@@ -899,7 +985,7 @@
               >
             </label>
           </div>
-          <div class="toggle-item" style="flex: 1">
+          <div class="toggle-item" data-types="all" style="flex: 1">
             <input
               type="checkbox"
               id="global-sort-tnd-toggle"
@@ -918,7 +1004,7 @@
               >
             </label>
           </div>
-          <div class="toggle-item" style="flex: 1">
+          <div class="toggle-item" data-types="all" style="flex: 1">
             <input
               type="checkbox"
               id="global-sort-new-toggle"
@@ -1039,6 +1125,14 @@
               >
             </label>
           </div>
+        </div>
+
+        <div class="pkg-cycle-hint">
+          <span class="pkg-check pkg-check-inline" id="pkg-hint-glyphs"></span>
+          <span data-i18n="typeCycleHint"
+            >Pulsa una plataforma para elegir qué importa: películas y series →
+            solo películas → solo series → ninguna.</span
+          >
         </div>
 
         <div class="grid-container">
@@ -1747,11 +1841,7 @@
             // Exclude the poster-provider and sort-types segments — handled
             // separately below, not treated as packages.
             const pkgs = rest.filter(
-              (p) =>
-                !p.startsWith("poster-") &&
-                !p.startsWith("rpdb-") &&
-                !p.startsWith("sorts-") &&
-                !p.startsWith("gsorts-"),
+              (p) => !RESERVED_PREFIXES.some((prefix) => p.startsWith(prefix)),
             );
             if (country) countrySel.value = country;
             if (lang) {
@@ -1781,15 +1871,30 @@
               const enabledGlobalSorts = gsortsSegment
                 ? gsortsSegment.slice("gsorts-".length).split("-")
                 : ["pop", "tnd", "new"];
-              document.getElementById("global-sort-pop-toggle").checked =
-                enabledGlobalSorts.includes("pop");
-              document.getElementById("global-sort-tnd-toggle").checked =
-                enabledGlobalSorts.includes("tnd");
-              document.getElementById("global-sort-new-toggle").checked =
-                enabledGlobalSorts.includes("new");
+              // gm-/gs- restore each chip's cycle position; a chip in neither
+              // renders at "all", which is what every link from before this
+              // selector existed means.
+              const globalTypes = parseTypeSegments(
+                rest,
+                enabledGlobalSorts,
+                GLOBAL_TYPE_PREFIX,
+              );
+              for (const key of ["pop", "tnd", "new"]) {
+                const input = document.getElementById(
+                  `global-sort-${key}-toggle`,
+                );
+                input.checked = enabledGlobalSorts.includes(key);
+                input.closest(".toggle-item").dataset.types =
+                  globalTypes[key] || "all";
+              }
             }
 
-            loadPackages(country || countrySel.value, pkgs);
+            // Per-package content types. Anything absent here renders at the
+            // "all" default — which is every package in a link generated
+            // before this selector existed.
+            const preTypes = parseTypeSegments(rest, pkgs, PKG_TYPE_PREFIX);
+
+            loadPackages(country || countrySel.value, pkgs, preTypes);
             return;
           }
           loadPackages(defaultCode);
@@ -1829,39 +1934,101 @@
         return [...pinned, ...rest];
       }
 
-      async function loadPackages(country, preSelected = null) {
+      async function loadPackages(
+        country,
+        preSelected = null,
+        preTypes = null,
+      ) {
         pkgGrid.innerHTML = `<div style="grid-column: 1/-1; text-align: center; padding: 2rem; color: var(--secondary); font-size: 0.8rem;" data-i18n="loadingSystem">${t("loadingSystem") || "Iniciando sistema..."}</div>`;
         try {
           const res = await fetch(
             `/api/packages?country=${encodeURIComponent(country)}`,
           );
           const pkgs = await res.json();
-          renderPackages(sortPackages(pkgs), preSelected);
+          renderPackages(sortPackages(pkgs), preSelected, preTypes);
         } catch (e) {
           pkgGrid.innerHTML = `<div style="color: var(--accent)" data-i18n="errConnection">${t("errConnection") || "Error de conexión"}</div>`;
         }
       }
 
-      function renderPackageItem(pkg, isChecked) {
+      // The two content-type glyphs the corner badge is built from. Filled
+      // with currentColor so they take the badge's black-on-accent, and the
+      // film sprockets are punched out in var(--accent) so they read as holes
+      // against the badge rather than as extra ink.
+      const MOVIE_GLYPH = `<svg class="type-glyph-movie" width="11" height="11" viewBox="0 0 16 16" aria-hidden="true"><path fill="currentColor" d="M2 3h12a1.2 1.2 0 0 1 1.2 1.2v7.6A1.2 1.2 0 0 1 14 13H2a1.2 1.2 0 0 1-1.2-1.2V4.2A1.2 1.2 0 0 1 2 3Z"/><g fill="var(--accent)"><rect x="2" y="4.3" width="2" height="1.7" rx=".4"/><rect x="2" y="7.15" width="2" height="1.7" rx=".4"/><rect x="2" y="10" width="2" height="1.7" rx=".4"/><rect x="12" y="4.3" width="2" height="1.7" rx=".4"/><rect x="12" y="7.15" width="2" height="1.7" rx=".4"/><rect x="12" y="10" width="2" height="1.7" rx=".4"/></g></svg>`;
+      const SERIES_GLYPH = `<svg class="type-glyph-series" width="11" height="11" viewBox="0 0 16 16" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" d="m4.8 1.9 3.2 3 3.2-3"/><path fill="currentColor" d="M2.6 5.6h10.8a1.4 1.4 0 0 1 1.4 1.4v5.6a1.4 1.4 0 0 1-1.4 1.4H2.6a1.4 1.4 0 0 1-1.4-1.4V7a1.4 1.4 0 0 1 1.4-1.4Z"/></svg>`;
+
+      document.getElementById("pkg-hint-glyphs").innerHTML =
+        MOVIE_GLYPH + SERIES_GLYPH;
+
+      // Clicking a provider card — or a global sort chip — walks these states
+      // in order and then falls off the end back to unselected, so one control
+      // covers both "is this on" and "which content types does it import".
+      const PKG_TYPE_CYCLE = ["all", "movie", "series"];
+
+      // Reflected onto the item as data-types; the CSS above turns that into
+      // which glyphs its badge shows. Nothing here writes an inline style.
+      function setPkgTypes(item, types) {
+        item.dataset.types = types;
+      }
+
+      // One step of the cycle, shared by the provider grid and the global sort
+      // chips so the two can't drift into behaving differently.
+      function advanceTypeCycle(item) {
+        const input = item.querySelector('input[type="checkbox"]');
+        if (!input.checked) {
+          input.checked = true;
+          setPkgTypes(item, PKG_TYPE_CYCLE[0]);
+          return;
+        }
+        const next =
+          PKG_TYPE_CYCLE[PKG_TYPE_CYCLE.indexOf(item.dataset.types) + 1];
+        if (next) {
+          setPkgTypes(item, next);
+        } else {
+          // Past the last state: deselect, and rewind to the first state so
+          // the next click starts at "both" rather than resuming mid-cycle.
+          input.checked = false;
+          setPkgTypes(item, PKG_TYPE_CYCLE[0]);
+        }
+      }
+
+      // The global chips' dots hold the same two glyphs the provider badge
+      // does; which of them shows is driven by data-types in CSS.
+      const globalSortRow = document.getElementById("global-sort-row");
+      for (const dot of globalSortRow.querySelectorAll(".toggle-dot")) {
+        dot.innerHTML = MOVIE_GLYPH + SERIES_GLYPH;
+      }
+
+      // Same preventDefault reasoning as the provider grid below: without it
+      // the <label for=…> runs its own checked/unchecked toggle underneath and
+      // fights the cycle. No change event fires, so this re-runs generateUrl.
+      globalSortRow.addEventListener("click", (e) => {
+        const label = e.target.closest(".toggle-card");
+        if (!label) return;
+        e.preventDefault();
+        advanceTypeCycle(label.closest(".toggle-item"));
+        if (resultEl.classList.contains("visible")) generateUrl();
+      });
+
+      function renderPackageItem(pkg, isChecked, types) {
         const icon = pkg.iconUrl
           ? `<img class="pkg-icon" src="${pkg.iconUrl}" loading="lazy" onerror="this.style.opacity=0">`
           : `<div class="pkg-icon" style="opacity:0"></div>`;
         return `
-          <div class="pkg-item">
+          <div class="pkg-item" data-types="${types || "all"}">
             <input type="checkbox" id="pkg-${pkg.shortName}" value="${pkg.shortName}" ${isChecked ? "checked" : ""} style="display:none">
             <label class="pkg-label" for="pkg-${pkg.shortName}" title="${pkg.clearName}">
               ${icon}
               <span class="pkg-name notranslate" translate="no">${pkg.clearName}</span>
-              <div class="pkg-check">
-                <svg width="8" height="8" viewBox="0 0 10 8" fill="none" stroke="#000" stroke-width="3"><polyline points="1,4 3.5,6.5 9,1"/></svg>
-              </div>
+              <div class="pkg-check">${MOVIE_GLYPH}${SERIES_GLYPH}</div>
             </label>
           </div>`;
       }
 
       const loadMoreSlot = document.getElementById("load-more-slot");
 
-      function renderPackages(pkgs, preSelected) {
+      function renderPackages(pkgs, preSelected, preTypes) {
         const draw = (count) => {
           pkgGrid.innerHTML = pkgs
             .slice(0, count)
@@ -1869,6 +2036,7 @@
               renderPackageItem(
                 p,
                 preSelected && preSelected.includes(p.shortName),
+                (preTypes && preTypes[p.shortName]) || "all",
               ),
             )
             .join("");
@@ -1885,10 +2053,78 @@
 
       const ALL_SORT_KEYS = ["pop", "tnd", "new"];
 
+      // ── Content-type segment codec ────────────────────────────────────────
+      // An independent browser mirror of the "m-"/"s-"/"gm-"/"gs-" handling in
+      // ../domain/userConfig.js, in the same spirit as the poster-key codec
+      // above: two implementations of one scheme, kept honest by
+      // test/packageTypes.test.js, which slices this file's own source text
+      // from the prefix-table declaration below down to the URL builder that
+      // follows, runs it in a vm, and pushes the same vectors through both
+      // sides. Renaming either of those two anchor identifiers, or moving
+      // this block, breaks that extraction — deliberately, since it is the
+      // only thing stopping the two copies from drifting apart.
+      const PKG_TYPE_PREFIX = { movie: "m-", series: "s-" };
+      const GLOBAL_TYPE_PREFIX = { movie: "gm-", series: "gs-" };
+
+      // Every marker that must not be mistaken for a package shortName, built
+      // from the tables above so adding a prefix can't be forgotten here.
+      const RESERVED_PREFIXES = [
+        "rpdb-",
+        "poster-",
+        "sorts-",
+        "gsorts-",
+        ...Object.values(PKG_TYPE_PREFIX),
+        ...Object.values(GLOBAL_TYPE_PREFIX),
+      ];
+
+      // `types` holds only the members narrowed away from the "all" default,
+      // so an untouched selection yields "" and the URL is exactly what it was
+      // before this feature existed. Members are packages for PKG_TYPE_PREFIX
+      // and sort keys for GLOBAL_TYPE_PREFIX.
+      function encodeTypeSegments(members, types, prefixes) {
+        return Object.entries(prefixes)
+          .map(([type, prefix]) => {
+            const narrowed = members.filter((m) => types[m] === type);
+            return narrowed.length ? `${prefix}${narrowed.join("-")}_` : "";
+          })
+          .join("");
+      }
+
+      // Inverse. Restrictions naming something not in `allowed` are dropped,
+      // and a member named under both types wants both — which is "all", the
+      // same thing as not being named at all.
+      function parseTypeSegments(parts, allowed, prefixes) {
+        const found = new Map();
+        for (const [type, prefix] of Object.entries(prefixes)) {
+          const segment = parts.find((p) => p.startsWith(prefix));
+          if (!segment) continue;
+          for (const member of segment.slice(prefix.length).split("-")) {
+            if (!allowed.includes(member)) continue;
+            if (!found.has(member)) found.set(member, new Set());
+            found.get(member).add(type);
+          }
+        }
+        const types = {};
+        for (const [member, memberTypes] of found) {
+          types[member] = memberTypes.size === 1 ? [...memberTypes][0] : "all";
+        }
+        return types;
+      }
+
       function generateUrl() {
         const providerPkgs = [
           ...pkgGrid.querySelectorAll('input[type="checkbox"]:checked'),
         ].map((i) => i.value);
+
+        // Only the packages narrowed away from the "all" default land here;
+        // everything else is left out so it encodes as nothing.
+        const pkgTypes = {};
+        for (const item of pkgGrid.querySelectorAll(".pkg-item")) {
+          const input = item.querySelector('input[type="checkbox"]');
+          if (input.checked && item.dataset.types !== "all") {
+            pkgTypes[input.value] = item.dataset.types;
+          }
+        }
 
         const enabledSorts = ALL_SORT_KEYS.filter(
           (key) => document.getElementById(`sort-${key}-toggle`).checked,
@@ -1901,6 +2137,16 @@
         const enabledGlobalSorts = ALL_SORT_KEYS.filter(
           (key) => document.getElementById(`global-sort-${key}-toggle`).checked,
         );
+
+        // Global narrows content types per *sort*, not per package — each chip
+        // cycles on its own. Only chips narrowed away from "all" land here.
+        const globalTypes = {};
+        for (const key of enabledGlobalSorts) {
+          const item = document
+            .getElementById(`global-sort-${key}-toggle`)
+            .closest(".toggle-item");
+          if (item.dataset.types !== "all") globalTypes[key] = item.dataset.types;
+        }
 
         const selected = [...providerPkgs];
         if (enabledGlobalSorts.length) selected.push("global");
@@ -1931,7 +2177,17 @@
           enabledGlobalSorts.length < ALL_SORT_KEYS.length
             ? `gsorts-${enabledGlobalSorts.join("-")}_`
             : "";
-        const config = `${countrySel.value}_${languageSel.value}_${posterPart}${sortsPart}${gsortsPart}${selected.join("_")}`;
+        // Emitted in the same position and order the server encodes them:
+        // package types first, then global's per-sort ones.
+        const typesPart = encodeTypeSegments(selected, pkgTypes, PKG_TYPE_PREFIX);
+        const gtypesPart = enabledGlobalSorts.length
+          ? encodeTypeSegments(
+              enabledGlobalSorts,
+              globalTypes,
+              GLOBAL_TYPE_PREFIX,
+            )
+          : "";
+        const config = `${countrySel.value}_${languageSel.value}_${posterPart}${sortsPart}${gsortsPart}${typesPart}${gtypesPart}${selected.join("_")}`;
         const manifest = `${window.location.origin}/${config}/manifest.json`;
         urlOut.value = manifest;
         resultEl.classList.add("visible");
@@ -1940,28 +2196,30 @@
 
       // btnAll removed
       btnNone.onclick = () => {
-        pkgGrid
-          .querySelectorAll('input[type="checkbox"]')
-          .forEach((c) => (c.checked = false));
+        for (const item of pkgGrid.querySelectorAll(".pkg-item")) {
+          item.querySelector('input[type="checkbox"]').checked = false;
+          setPkgTypes(item, PKG_TYPE_CYCLE[0]);
+        }
         if (resultEl.classList.contains("visible")) generateUrl();
       };
 
-      pkgGrid.addEventListener("change", (e) => {
-        if (
-          e.target.type === "checkbox" &&
-          resultEl.classList.contains("visible")
-        )
-          generateUrl();
+      // A provider card is no longer a plain on/off checkbox — each click
+      // advances it through PKG_TYPE_CYCLE and then off the end. preventDefault
+      // is what stops the <label for=…> from running its own checked/unchecked
+      // toggle underneath this, which would fight the cycle.
+      pkgGrid.addEventListener("click", (e) => {
+        const label = e.target.closest(".pkg-label");
+        if (!label) return;
+        e.preventDefault();
+        advanceTypeCycle(label.closest(".pkg-item"));
+        if (resultEl.classList.contains("visible")) generateUrl();
       });
 
+      // Provider sort chips are still plain checkboxes — only the global ones
+      // cycle content types, and those are driven by the click handler above.
       for (const key of ALL_SORT_KEYS) {
         document
           .getElementById(`sort-${key}-toggle`)
-          .addEventListener("change", () => {
-            if (resultEl.classList.contains("visible")) generateUrl();
-          });
-        document
-          .getElementById(`global-sort-${key}-toggle`)
           .addEventListener("change", () => {
             if (resultEl.classList.contains("visible")) generateUrl();
           });

@@ -21,6 +21,8 @@ const UI_STRINGS = {
     globalCatalogs: "Catálogos globales",
     globalCatalogsHint: "(opcional — todo el país, sin filtrar por plataforma)",
     providerCatalogs: "Catálogos de proveedores",
+    typeCycleHint:
+      "Pulsa una plataforma para elegir qué importa: películas y series → solo películas → solo series → ninguna.",
     clear: "LIMPIAR",
     sortPop: "Popular",
     sortTnd: "Tendencias",
@@ -63,6 +65,8 @@ const UI_STRINGS = {
     globalCatalogs: "Global catalogs",
     globalCatalogsHint: "(optional — whole country, no platform filter)",
     providerCatalogs: "Provider catalogs",
+    typeCycleHint:
+      "Click a platform to choose what it imports: movies and series → movies only → series only → none.",
     clear: "CLEAR",
     sortPop: "Popular",
     sortTnd: "Trending",
@@ -105,6 +109,8 @@ const UI_STRINGS = {
     globalCatalogs: "Globale Kataloge",
     globalCatalogsHint: "(optional — ganzes Land, ohne Plattformfilter)",
     providerCatalogs: "Anbieter-Kataloge",
+    typeCycleHint:
+      "Klicke auf eine Plattform, um zu wählen, was importiert wird: Filme und Serien → nur Filme → nur Serien → nichts.",
     clear: "LEEREN",
     sortPop: "Beliebt",
     sortTnd: "Im Trend",
@@ -147,6 +153,8 @@ const UI_STRINGS = {
     globalCatalogs: "Catalogues globaux",
     globalCatalogsHint: "(optionnel — tout le pays, sans filtre de plateforme)",
     providerCatalogs: "Catalogues des fournisseurs",
+    typeCycleHint:
+      "Cliquez sur une plateforme pour choisir ce qu'elle importe : films et séries → films seulement → séries seulement → aucun.",
     clear: "EFFACER",
     sortPop: "Populaire",
     sortTnd: "Tendances",
@@ -190,6 +198,8 @@ const UI_STRINGS = {
     globalCatalogsHint:
       "(opzionale — tutto il paese, senza filtro piattaforma)",
     providerCatalogs: "Cataloghi dei provider",
+    typeCycleHint:
+      "Clicca su una piattaforma per scegliere cosa importa: film e serie → solo film → solo serie → nessuno.",
     clear: "PULISCI",
     sortPop: "Popolari",
     sortTnd: "Tendenze",
@@ -232,6 +242,8 @@ const UI_STRINGS = {
     globalCatalogs: "Catálogos globais",
     globalCatalogsHint: "(opcional — todo o país, sem filtrar por plataforma)",
     providerCatalogs: "Catálogos dos fornecedores",
+    typeCycleHint:
+      "Clica numa plataforma para escolher o que importa: filmes e séries → só filmes → só séries → nenhum.",
     clear: "LIMPAR",
     sortPop: "Popular",
     sortTnd: "Tendências",
@@ -274,6 +286,8 @@ const UI_STRINGS = {
     globalCatalogs: "Globale catalogi",
     globalCatalogsHint: "(optioneel — het hele land, zonder platformfilter)",
     providerCatalogs: "Catalogi van aanbieders",
+    typeCycleHint:
+      "Klik op een platform om te kiezen wat het importeert: films en series → alleen films → alleen series → geen.",
     clear: "WISSEN",
     sortPop: "Populair",
     sortTnd: "Trending",
@@ -316,6 +330,8 @@ const UI_STRINGS = {
     globalCatalogs: "Globala kataloger",
     globalCatalogsHint: "(valfritt — hela landet, utan plattformsfilter)",
     providerCatalogs: "Leverantörernas kataloger",
+    typeCycleHint:
+      "Klicka på en plattform för att välja vad den importerar: filmer och serier → bara filmer → bara serier → inget.",
     clear: "RENSA",
     sortPop: "Populärt",
     sortTnd: "Trendar",
@@ -358,6 +374,8 @@ const UI_STRINGS = {
     globalCatalogs: "Globale kataloger",
     globalCatalogsHint: "(valgfritt — hele landet, uten plattformfilter)",
     providerCatalogs: "Leverandørkataloger",
+    typeCycleHint:
+      "Klikk på en plattform for å velge hva den importerer: filmer og serier → bare filmer → bare serier → ingen.",
     clear: "TØM",
     sortPop: "Populært",
     sortTnd: "Trender",
@@ -400,6 +418,8 @@ const UI_STRINGS = {
     globalCatalogs: "Globale kataloger",
     globalCatalogsHint: "(valgfrit — hele landet, uden platformsfilter)",
     providerCatalogs: "Udbyderkataloger",
+    typeCycleHint:
+      "Klik på en platform for at vælge, hvad den importerer: film og serier → kun film → kun serier → ingen.",
     clear: "RYD",
     sortPop: "Populært",
     sortTnd: "Trends",
@@ -442,6 +462,8 @@ const UI_STRINGS = {
     globalCatalogs: "Yleiset luettelot",
     globalCatalogsHint: "(valinnainen — koko maa, ilman alustasuodatusta)",
     providerCatalogs: "Palveluntarjoajien luettelot",
+    typeCycleHint:
+      "Napsauta palvelua valitaksesi mitä se tuo: elokuvat ja sarjat → vain elokuvat → vain sarjat → ei mitään.",
     clear: "TYHJENNÄ",
     sortPop: "Suositut",
     sortTnd: "Nousussa",
@@ -485,6 +507,8 @@ const UI_STRINGS = {
     globalCatalogsHint:
       "(opcjonalnie — cały kraj, bez filtrowania po platformie)",
     providerCatalogs: "Katalogi dostawców",
+    typeCycleHint:
+      "Kliknij platformę, aby wybrać, co importuje: filmy i seriale → tylko filmy → tylko seriale → nic.",
     clear: "WYCZYŚĆ",
     sortPop: "Popularne",
     sortTnd: "Na czasie",
@@ -527,6 +551,8 @@ const UI_STRINGS = {
     globalCatalogs: "グローバルカタログ",
     globalCatalogsHint: "（任意 — 国全体、プラットフォームで絞り込まない）",
     providerCatalogs: "プロバイダーのカタログ",
+    typeCycleHint:
+      "プラットフォームをクリックして取り込む内容を選択：映画とシリーズ → 映画のみ → シリーズのみ → なし。",
     clear: "クリア",
     sortPop: "人気",
     sortTnd: "トレンド",
@@ -569,6 +595,8 @@ const UI_STRINGS = {
     globalCatalogs: "글로벌 카탈로그",
     globalCatalogsHint: "(선택 사항 — 국가 전체, 플랫폼 필터 없음)",
     providerCatalogs: "제공자 카탈로그",
+    typeCycleHint:
+      "플랫폼을 클릭해 가져올 항목을 선택하세요: 영화와 시리즈 → 영화만 → 시리즈만 → 없음.",
     clear: "지우기",
     sortPop: "인기",
     sortTnd: "트렌드",
@@ -611,6 +639,8 @@ const UI_STRINGS = {
     globalCatalogs: "القوائم العامة",
     globalCatalogsHint: "(اختياري — البلد بأكمله، دون تصفية حسب المنصة)",
     providerCatalogs: "قوائم المزوّدين",
+    typeCycleHint:
+      "انقر على منصة لاختيار ما تستورده: الأفلام والمسلسلات ← الأفلام فقط ← المسلسلات فقط ← لا شيء.",
     clear: "مسح",
     sortPop: "رائج",
     sortTnd: "الأكثر تداولًا",
@@ -653,6 +683,8 @@ const UI_STRINGS = {
     globalCatalogs: "वैश्विक कैटलॉग",
     globalCatalogsHint: "(वैकल्पिक — पूरा देश, प्लेटफ़ॉर्म फ़िल्टर के बिना)",
     providerCatalogs: "प्रदाताओं के कैटलॉग",
+    typeCycleHint:
+      "कोई प्लेटफ़ॉर्म चुनने के लिए क्लिक करें कि वह क्या आयात करे: फ़िल्में और सीरीज़ → केवल फ़िल्में → केवल सीरीज़ → कुछ नहीं।",
     clear: "साफ़ करें",
     sortPop: "लोकप्रिय",
     sortTnd: "ट्रेंडिंग",
@@ -695,6 +727,8 @@ const UI_STRINGS = {
     globalCatalogs: "గ్లోబల్ కేటలాగ్‌లు",
     globalCatalogsHint: "(ఐచ్ఛికం — మొత్తం దేశం, ప్లాట్‌ఫారమ్ ఫిల్టర్ లేకుండా)",
     providerCatalogs: "ప్రొవైడర్ల కేటలాగ్‌లు",
+    typeCycleHint:
+      "ఏమి దిగుమతి చేయాలో ఎంచుకోవడానికి ప్లాట్‌ఫారమ్‌పై క్లిక్ చేయండి: సినిమాలు మరియు సిరీస్‌లు → సినిమాలు మాత్రమే → సిరీస్‌లు మాత్రమే → ఏదీ లేదు.",
     clear: "తొలగించు",
     sortPop: "ప్రసిద్ధం",
     sortTnd: "ట్రెండింగ్",
@@ -738,6 +772,8 @@ const UI_STRINGS = {
     globalCatalogsHint:
       "(ഐച്ഛികം — രാജ്യം മുഴുവൻ, പ്ലാറ്റ്ഫോം ഫിൽട്ടർ ഇല്ലാതെ)",
     providerCatalogs: "ദാതാക്കളുടെ കാറ്റലോഗുകൾ",
+    typeCycleHint:
+      "എന്ത് ഇറക്കുമതി ചെയ്യണമെന്ന് തിരഞ്ഞെടുക്കാൻ ഒരു പ്ലാറ്റ്‌ഫോമിൽ ക്ലിക്ക് ചെയ്യുക: സിനിമകളും സീരീസുകളും → സിനിമകൾ മാത്രം → സീരീസുകൾ മാത്രം → ഒന്നുമില്ല.",
     clear: "മായ്ക്കുക",
     sortPop: "ജനപ്രിയം",
     sortTnd: "ട്രെൻഡിംഗ്",
@@ -780,6 +816,8 @@ const UI_STRINGS = {
     globalCatalogs: "ಜಾಗತಿಕ ಕ್ಯಾಟಲಾಗ್‌ಗಳು",
     globalCatalogsHint: "(ಐಚ್ಛಿಕ — ಇಡೀ ದೇಶ, ಪ್ಲಾಟ್‌ಫಾರ್ಮ್ ಫಿಲ್ಟರ್ ಇಲ್ಲದೆ)",
     providerCatalogs: "ಪೂರೈಕೆದಾರರ ಕ್ಯಾಟಲಾಗ್‌ಗಳು",
+    typeCycleHint:
+      "ಏನನ್ನು ಆಮದು ಮಾಡಬೇಕೆಂದು ಆಯ್ಕೆ ಮಾಡಲು ವೇದಿಕೆಯ ಮೇಲೆ ಕ್ಲಿಕ್ ಮಾಡಿ: ಚಲನಚಿತ್ರಗಳು ಮತ್ತು ಸರಣಿಗಳು → ಚಲನಚಿತ್ರಗಳು ಮಾತ್ರ → ಸರಣಿಗಳು ಮಾತ್ರ → ಯಾವುದೂ ಇಲ್ಲ.",
     clear: "ತೆರವುಗೊಳಿಸಿ",
     sortPop: "ಜನಪ್ರಿಯ",
     sortTnd: "ಟ್ರೆಂಡಿಂಗ್",

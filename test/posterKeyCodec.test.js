@@ -148,6 +148,9 @@ describe("encodeConfig / decodeConfig — poster provider segment", () => {
       posterApiKey: "t8-xxxx",
       sorts: ["pop", "tnd", "new"],
       globalSorts: ["pop", "tnd", "new"],
+      // No m-/s- or gm-/gs- segment: everything generates both content types.
+      packageTypes: {},
+      globalTypes: {},
     });
   });
 

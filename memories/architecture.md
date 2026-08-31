@@ -28,7 +28,8 @@ src/
     catalogMeta.js  GENRES, COUNTRIES, LANGUAGE_NAMES, SORT_MAP, GLOBAL_PACKAGE_ID
     uiStrings.js    /configure translations (19 languages)
 api/index.js        Vercel entry — one line, re-exports src/index
-test/               node:test suites
+test/               node:test suites (two of them extract source text out of
+                    src/http/configure.html — see testing.md)
 contrib/aiostreams/ upstream AIOStreams preset (see aiostreams-preset.md)
 ```
 

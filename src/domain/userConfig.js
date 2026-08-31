@@ -8,6 +8,79 @@ const { SORT_MAP, GLOBAL_PACKAGE_ID } = require("../data/catalogMeta");
 // as before: all three.
 const ALL_SORT_KEYS = Object.keys(SORT_MAP);
 
+// ─── Content types ────────────────────────────────────────────────────────────
+// Every catalog is generated for both movies and series by default — that is
+// what every URL from before this selector existed means, so "both" must stay
+// the encoded-as-nothing case (see the omit-at-default invariant below).
+// Anything narrowed to one type is instead listed inside a short marker
+// segment: "m-…" for movies only, "s-…" for series only.
+//
+// Two *list* segments rather than one "thing.type" pair each, because the
+// whole config is a single "_"-split path segment: only [A-Za-z0-9-] survives,
+// so "-" is the only separator available inside a segment. That makes the list
+// form ambiguous if a member could contain a "-", and neither can: JustWatch
+// shortNames are three letters (all 467 across ES/US/GB/DE/JP/IN/BR, measured
+// 2026-08-31) and sort keys are the three in SORT_MAP. "sorts-"/"gsorts-"
+// already rest on the same assumption.
+//
+// PKG_TYPE_PREFIX narrows a whole package; GLOBAL_TYPE_PREFIX narrows a single
+// sort of the "global" pseudo-package, which is the finer-grained of the two
+// and therefore wins where both apply (see buildManifest).
+const PKG_TYPE_PREFIX = { movie: "m-", series: "s-" };
+const GLOBAL_TYPE_PREFIX = { movie: "gm-", series: "gs-" };
+
+// Every marker that must never be mistaken for a package shortName. Kept as
+// one list so decodeConfig's packages filter can't drift from the encoders —
+// forgetting one here is the "new prefix gets swallowed as a package" bug.
+const RESERVED_PREFIXES = [
+  "rpdb-",
+  "poster-",
+  "sorts-",
+  "gsorts-",
+  ...Object.values(PKG_TYPE_PREFIX),
+  ...Object.values(GLOBAL_TYPE_PREFIX),
+];
+
+// Reads one "{prefix}{a}-{b}…" list segment out of the config parts.
+function readListSegment(parts, prefix) {
+  const segment = parts.find((p) => p.startsWith(prefix));
+  return segment ? segment.slice(prefix.length).split("-") : null;
+}
+
+// Builds the "m-…"/"s-…" style segments for a set of members, given a
+// {member: type} map holding only the ones narrowed away from the default.
+function encodeTypeSegments(members, types, prefixes) {
+  const parts = [];
+  for (const [type, prefix] of Object.entries(prefixes)) {
+    const narrowed = members.filter((m) => types[m] === type);
+    if (narrowed.length) parts.push(`${prefix}${narrowed.join("-")}`);
+  }
+  return parts;
+}
+
+// Inverse. Members not in `allowed` are dropped, and a member named under
+// *both* types wants both — which is the default, so it is left out entirely
+// rather than letting whichever segment parsed last win. Gathering the types
+// per member first (instead of assigning as we go) also makes a member
+// repeated inside one segment a no-op rather than a spurious "both".
+function decodeTypeSegments(parts, allowed, prefixes) {
+  const found = new Map();
+  for (const [type, prefix] of Object.entries(prefixes)) {
+    const members = readListSegment(parts, prefix);
+    if (!members) continue;
+    for (const member of members) {
+      if (!allowed.includes(member)) continue;
+      if (!found.has(member)) found.set(member, new Set());
+      found.get(member).add(type);
+    }
+  }
+  const types = {};
+  for (const [member, memberTypes] of found) {
+    if (memberTypes.size === 1) types[member] = [...memberTypes][0];
+  }
+  return types;
+}
+
 // ─── Poster key encoding ──────────────────────────────────────────────────────
 // The whole config string is one URL path segment, so it (and every part of
 // it, once "_"-split) is restricted to [A-Za-z0-9_-]. Most provider keys are
@@ -71,6 +144,12 @@ function decodePosterKey(encoded) {
  * can show a different subset of sorts than real providers. Only emitted
  * when "global" is actually selected; omitted (defaulting to every sort)
  * when global is selected with all three types.
+ *
+ * "m-{pkg1}-{pkg2}…" and "s-{pkg1}-{pkg2}…" list the packages restricted to
+ * movie-only / series-only catalogs. "gm-{sortKey}…" and "gs-{sortKey}…" do
+ * the same one sort at a time for the "global" pseudo-package, which is the
+ * granularity its UI offers. Anything named in none of them gets both types,
+ * so all four are omitted for an untouched config.
  */
 function encodeConfig(config) {
   const parts = [config.country, config.language || "en"];
@@ -90,6 +169,26 @@ function encodeConfig(config) {
     if (globalSorts.length < ALL_SORT_KEYS.length) {
       parts.push(`gsorts-${globalSorts.join("-")}`);
     }
+  }
+  // Content-type narrowing, per package and (for global) per sort. All four
+  // segments are omitted when nothing is narrowed, so a config that never
+  // touched the type selectors encodes byte-identically to how it did before
+  // any of this existed.
+  parts.push(
+    ...encodeTypeSegments(
+      config.packages,
+      config.packageTypes || {},
+      PKG_TYPE_PREFIX,
+    ),
+  );
+  if (config.packages.includes(GLOBAL_PACKAGE_ID)) {
+    parts.push(
+      ...encodeTypeSegments(
+        config.globalSorts || ALL_SORT_KEYS,
+        config.globalTypes || {},
+        GLOBAL_TYPE_PREFIX,
+      ),
+    );
   }
   parts.push(...config.packages);
   return parts.join("_");
@@ -159,10 +258,7 @@ function decodeConfig(encoded) {
       .filter(
         (p) =>
           /^[a-z0-9-]{1,30}$/.test(p) &&
-          !p.startsWith("rpdb-") &&
-          !p.startsWith("poster-") &&
-          !p.startsWith("sorts-") &&
-          !p.startsWith("gsorts-"),
+          !RESERVED_PREFIXES.some((prefix) => p.startsWith(prefix)),
       )
       .slice(0, 200);
 
@@ -185,6 +281,21 @@ function decodeConfig(encoded) {
       }
     }
 
+    // Per-package content type: "m-{pkg1}-{pkg2}…" restricts those packages to
+    // movie catalogs, "s-…" to series. Anything absent keeps the default of
+    // both types — which is every package in every URL generated before this
+    // selector existed.
+    const rest = parts.slice(2);
+    const packageTypes = decodeTypeSegments(rest, packages, PKG_TYPE_PREFIX);
+
+    // Same idea for the "global" pseudo-package, but keyed by *sort* rather
+    // than by package: global's UI narrows each of its Popular/Trending/New
+    // chips separately, so "gm-pop_gs-new" means a movies-only Popular and a
+    // series-only New. Only meaningful when global is actually selected.
+    const globalTypes = packages.includes(GLOBAL_PACKAGE_ID)
+      ? decodeTypeSegments(rest, globalSorts, GLOBAL_TYPE_PREFIX)
+      : {};
+
     if (!country) return null;
 
     return {
@@ -195,6 +306,8 @@ function decodeConfig(encoded) {
       posterApiKey,
       sorts,
       globalSorts,
+      packageTypes,
+      globalTypes,
     };
   } catch {
     return null;

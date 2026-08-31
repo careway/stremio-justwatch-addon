@@ -190,7 +190,17 @@ function encodeConfig(config) {
       ),
     );
   }
-  parts.push(...config.packages);
+  // A package narrowed to a single type is already named in its "m-"/"s-"
+  // marker above, and that is enough to know it is selected — so it is left
+  // out of the trailing list rather than written a second time. Pre-existing
+  // URLs that still carry both forms decode identically (the marker member
+  // and the list entry dedupe to one).
+  const markedPkgs = new Set(
+    config.packages.filter((p) =>
+      ["movie", "series"].includes((config.packageTypes || {})[p]),
+    ),
+  );
+  parts.push(...config.packages.filter((p) => !markedPkgs.has(p)));
   return parts.join("_");
 }
 
@@ -253,14 +263,24 @@ function decodeConfig(encoded) {
       if (requested.length) sorts = requested;
     }
 
-    const packages = parts
+    // The trailing list, plus any package that only appears inside an
+    // "m-"/"s-" marker — encodeConfig drops a single-type package from the
+    // list once its marker already names it, so the marker is the sole
+    // record that it is selected. Legacy URLs carrying both forms dedupe here.
+    const trailingPkgs = parts
       .slice(2)
       .filter(
         (p) =>
           /^[a-z0-9-]{1,30}$/.test(p) &&
           !RESERVED_PREFIXES.some((prefix) => p.startsWith(prefix)),
-      )
-      .slice(0, 200);
+      );
+    const markerPkgs = [PKG_TYPE_PREFIX.movie, PKG_TYPE_PREFIX.series]
+      .flatMap((prefix) => readListSegment(parts.slice(2), prefix) || [])
+      .filter((p) => /^[a-z0-9-]{1,30}$/.test(p));
+    const packages = [...new Set([...trailingPkgs, ...markerPkgs])].slice(
+      0,
+      200,
+    );
 
     // Global sort-types segment: "gsorts-{key1}-{key2}…" — independent of
     // `sorts` above, applies only to the "global" pseudo-package. Only

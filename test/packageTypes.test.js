@@ -46,9 +46,11 @@ describe("encodeConfig / decodeConfig — per-package content types", () => {
       packageTypes: { nfx: "movie", prv: "series" },
     };
     const encoded = encodeConfig(cfg);
-    assert.equal(encoded, "ES_es_m-nfx_s-prv_nfx_dnp_prv");
+    // nfx and prv are single-type, so they ride only in their m-/s- markers
+    // and drop out of the trailing list; dnp (both types) stays there.
+    assert.equal(encoded, "ES_es_m-nfx_s-prv_dnp");
     const decoded = decodeConfig(encoded);
-    assert.deepEqual(decoded.packages, ["nfx", "dnp", "prv"]);
+    assert.deepEqual(decoded.packages, ["dnp", "nfx", "prv"]);
     assert.deepEqual(decoded.packageTypes, { nfx: "movie", prv: "series" });
   });
 
@@ -59,12 +61,13 @@ describe("encodeConfig / decodeConfig — per-package content types", () => {
       packages: ["nfx", "dnp", "prv"],
       packageTypes: { nfx: "movie", dnp: "movie", prv: "movie" },
     });
-    assert.equal(encoded, "US_en_m-nfx-dnp-prv_nfx_dnp_prv");
+    assert.equal(encoded, "US_en_m-nfx-dnp-prv");
     assert.deepEqual(decodeConfig(encoded).packageTypes, {
       nfx: "movie",
       dnp: "movie",
       prv: "movie",
     });
+    assert.deepEqual(decodeConfig(encoded).packages, ["nfx", "dnp", "prv"]);
   });
 
   test("the whole config stays one valid URL path segment", () => {
@@ -81,7 +84,7 @@ describe("encodeConfig / decodeConfig — per-package content types", () => {
     assert.match(encoded, /^[A-Za-z0-9_-]+$/);
     assert.equal(
       encoded,
-      "ES_es_poster-rpdb-t8-xxxx_sorts-tnd_gsorts-pop_s-nfx_global_nfx",
+      "ES_es_poster-rpdb-t8-xxxx_sorts-tnd_gsorts-pop_s-nfx_global",
     );
     const decoded = decodeConfig(encoded);
     assert.deepEqual(decoded.packages, ["global", "nfx"]);
@@ -101,8 +104,10 @@ describe("encodeConfig / decodeConfig — per-package content types", () => {
     assert.deepEqual(decoded.packageTypes, {});
   });
 
-  test("a restriction for an unselected package is ignored", () => {
-    assert.deepEqual(decodeConfig("ES_es_m-xyz_nfx").packageTypes, {});
+  test("a package named only in an m-/s- marker is selected and narrowed", () => {
+    const decoded = decodeConfig("ES_es_m-xyz_nfx");
+    assert.deepEqual(decoded.packages, ["nfx", "xyz"]);
+    assert.deepEqual(decoded.packageTypes, { xyz: "movie" });
   });
 
   test("the global pseudo-package can be restricted like any other", () => {
@@ -112,8 +117,9 @@ describe("encodeConfig / decodeConfig — per-package content types", () => {
       packages: ["global"],
       packageTypes: { global: "movie" },
     });
-    assert.equal(encoded, "ES_es_m-global_global");
+    assert.equal(encoded, "ES_es_m-global");
     assert.deepEqual(decodeConfig(encoded).packageTypes, { global: "movie" });
+    assert.deepEqual(decodeConfig(encoded).packages, ["global"]);
   });
 
   test("pre-feature URLs still decode to both types", () => {
@@ -208,7 +214,7 @@ describe("encodeConfig / decodeConfig — global per-sort content types", () => 
     };
     const encoded = encodeConfig(cfg);
     assert.match(encoded, /^[A-Za-z0-9_-]+$/);
-    assert.equal(encoded, "ES_es_gsorts-pop-new_m-nfx_gs-new_global_nfx");
+    assert.equal(encoded, "ES_es_gsorts-pop-new_m-nfx_gs-new_global");
     const decoded = decodeConfig(encoded);
     assert.deepEqual(decoded.packages, ["global", "nfx"]);
     assert.deepEqual(decoded.packageTypes, { nfx: "movie" });
@@ -462,10 +468,14 @@ describe("configure.html ↔ userConfig.js — type segments agree", () => {
     assert.equal(parseTypeSegments(encoded.split("_"), ["nfx"], PKG_TYPE_PREFIX).nfx, "all");
   });
 
-  test("both sides ignore a restriction for an unselected package", () => {
+  test("both sides pick up a package named only in a marker", () => {
     const encoded = "ES_es_m-xyz_nfx";
-    assert.deepEqual(decodeConfig(encoded).packageTypes, {});
-    assert.deepEqual({ ...parseTypeSegments(encoded.split("_"), ["nfx"], PKG_TYPE_PREFIX) }, {});
+    assert.deepEqual(decodeConfig(encoded).packageTypes, { xyz: "movie" });
+    assert.deepEqual(decodeConfig(encoded).packages, ["nfx", "xyz"]);
+    assert.deepEqual(
+      { ...parseTypeSegments(encoded.split("_"), ["nfx", "xyz"], PKG_TYPE_PREFIX) },
+      { xyz: "movie" },
+    );
   });
 
   const GLOBAL_VECTORS = [

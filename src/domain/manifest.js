@@ -25,6 +25,7 @@ const SORT_LABELS_I18N = {
     te: "జనాదరణ",
     ml: "ജനപ്രിയം",
     kn: "ಜನಪ್ರಿಯ",
+    tr: "Popüler",
   },
   tnd: {
     en: "Trending",
@@ -46,6 +47,7 @@ const SORT_LABELS_I18N = {
     te: "ట్రెండింగ్",
     ml: "ട്രെൻഡിംഗ്",
     kn: "ಟ್ರೆಂಡಿಂಗ್",
+    tr: "Trendler",
   },
   new: {
     en: "New",
@@ -67,6 +69,7 @@ const SORT_LABELS_I18N = {
     te: "కొత్త",
     ml: "പുതിയത്",
     kn: "ಹೊಸದು",
+    tr: "Yeni",
   },
 };
 

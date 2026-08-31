@@ -943,6 +943,13 @@
           >
         </div>
 
+        <div class="pkg-cycle-hint">
+          <span class="pkg-check pkg-check-inline" id="pkg-hint-glyphs"></span>
+          <span data-i18n="typeCycleHint"
+            >Pulsa una plataforma para elegir qué importa: películas y series →
+            solo películas → solo series → ninguna.</span
+          >
+        </div>
         <label
           style="
             color: var(--secondary);
@@ -1125,14 +1132,6 @@
               >
             </label>
           </div>
-        </div>
-
-        <div class="pkg-cycle-hint">
-          <span class="pkg-check pkg-check-inline" id="pkg-hint-glyphs"></span>
-          <span data-i18n="typeCycleHint"
-            >Pulsa una plataforma para elegir qué importa: películas y series →
-            solo películas → solo series → ninguna.</span
-          >
         </div>
 
         <div class="grid-container">
@@ -1843,6 +1842,17 @@
             const pkgs = rest.filter(
               (p) => !RESERVED_PREFIXES.some((prefix) => p.startsWith(prefix)),
             );
+            // A single-type package is only named in its m-/s- segment now,
+            // not in the trailing list, so pull those members back in.
+            for (const prefix of Object.values(PKG_TYPE_PREFIX)) {
+              const seg = rest.find((p) => p.startsWith(prefix));
+              if (!seg) continue;
+              for (const member of seg.slice(prefix.length).split("-")) {
+                if (/^[a-z0-9-]{1,30}$/.test(member) && !pkgs.includes(member)) {
+                  pkgs.push(member);
+                }
+              }
+            }
             if (country) countrySel.value = country;
             if (lang) {
               languageSel.value = lang;
@@ -2132,7 +2142,10 @@
         // Real providers selected but every catalog type for them is off —
         // that combination can never produce anything, so it's the same as
         // not having selected those providers at all.
-        if (providerPkgs.length && !enabledSorts.length) return null;
+        if (providerPkgs.length && !enabledSorts.length) {
+          urlOut.value = "";
+          return null;
+        }
 
         const enabledGlobalSorts = ALL_SORT_KEYS.filter(
           (key) => document.getElementById(`global-sort-${key}-toggle`).checked,
@@ -2150,7 +2163,10 @@
 
         const selected = [...providerPkgs];
         if (enabledGlobalSorts.length) selected.push("global");
-        if (!selected.length) return null;
+        if (!selected.length) {
+          urlOut.value = "";
+          return null;
+        }
 
         const posterProviderId = posterProviderSel
           ? posterProviderSel.value
@@ -2187,7 +2203,15 @@
               GLOBAL_TYPE_PREFIX,
             )
           : "";
-        const config = `${countrySel.value}_${languageSel.value}_${posterPart}${sortsPart}${gsortsPart}${typesPart}${gtypesPart}${selected.join("_")}`;
+        // A package narrowed to one type is already named in its m-/s-
+        // segment; that alone marks it selected, so it is left out of the
+        // trailing list rather than repeated. Mirrors userConfig.js.
+        const trailingList = selected.filter((p) => !(p in pkgTypes));
+        const config =
+          `${countrySel.value}_${languageSel.value}_${posterPart}${sortsPart}${gsortsPart}${typesPart}${gtypesPart}${trailingList.join("_")}`.replace(
+            /_+$/,
+            "",
+          );
         const manifest = `${window.location.origin}/${config}/manifest.json`;
         urlOut.value = manifest;
         resultEl.classList.add("visible");
@@ -2237,8 +2261,19 @@
         window.location.href = manifest.replace(/^https?:\/\//, "stremio://");
       };
 
-      btnCopy.onclick = () => {
-        navigator.clipboard.writeText(urlOut.value);
+      btnCopy.onclick = async () => {
+        const text = urlOut.value;
+        if (!text) return;
+        try {
+          await navigator.clipboard.writeText(text);
+        } catch {
+          // navigator.clipboard is unavailable on non-secure origins
+          // (plain http on a LAN IP), so fall back to a temporary textarea.
+          urlOut.focus();
+          urlOut.select();
+          document.execCommand("copy");
+          window.getSelection().removeAllRanges();
+        }
         btnCopy.textContent = t("copied");
         setTimeout(() => (btnCopy.textContent = t("copy")), 2000);
       };

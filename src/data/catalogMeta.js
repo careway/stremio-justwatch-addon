@@ -26,6 +26,7 @@ const GENRES = [
       te: "యాక్షన్",
       ml: "ആക്ഷൻ",
       kn: "ಆಕ್ಷನ್",
+      tr: "Aksiyon",
     },
   },
   {
@@ -50,6 +51,7 @@ const GENRES = [
       te: "యానిమేషన్",
       ml: "ആനിമേഷൻ",
       kn: "ಅನಿಮೇಷನ್",
+      tr: "Animasyon",
     },
   },
   {
@@ -74,6 +76,7 @@ const GENRES = [
       te: "కామెడీ",
       ml: "കോമഡി",
       kn: "ಹಾಸ್ಯ",
+      tr: "Komedi",
     },
   },
   {
@@ -98,6 +101,7 @@ const GENRES = [
       te: "క్రైమ్",
       ml: "ക്രൈം",
       kn: "ಅಪರಾಧ",
+      tr: "Suç",
     },
   },
   {
@@ -122,6 +126,7 @@ const GENRES = [
       te: "డాక్యుమెంటరీ",
       ml: "ഡോക്യുമെന്ററി",
       kn: "ಸಾಕ್ಷ್ಯಚಿತ್ರ",
+      tr: "Belgesel",
     },
   },
   {
@@ -146,6 +151,7 @@ const GENRES = [
       te: "డ్రామా",
       ml: "ഡ്രാമ",
       kn: "ನಾಟಕ",
+      tr: "Dram",
     },
   },
   {
@@ -170,6 +176,7 @@ const GENRES = [
       te: "ఫ్యామిలీ",
       ml: "കുടുംബം",
       kn: "ಕುಟುಂಬ",
+      tr: "Aile",
     },
   },
   {
@@ -194,6 +201,7 @@ const GENRES = [
       te: "ఫాంటసీ",
       ml: "ഫാന്റസി",
       kn: "ಫ್ಯಾಂಟಸಿ",
+      tr: "Fantastik",
     },
   },
   {
@@ -218,6 +226,7 @@ const GENRES = [
       te: "హర్రర్",
       ml: "ഹൊറർ",
       kn: "ಭಯಾನಕ",
+      tr: "Korku",
     },
   },
   {
@@ -242,6 +251,7 @@ const GENRES = [
       te: "చరిత్ర",
       ml: "ചരിത്രം",
       kn: "ಇತಿಹಾಸ",
+      tr: "Tarih",
     },
   },
   {
@@ -266,6 +276,7 @@ const GENRES = [
       te: "సంగీతం",
       ml: "സംഗീതം",
       kn: "ಸಂಗೀತ",
+      tr: "Müzik",
     },
   },
   {
@@ -290,6 +301,7 @@ const GENRES = [
       te: "రొమాన్స్",
       ml: "റൊമാൻസ്",
       kn: "ಪ್ರಣಯ",
+      tr: "Romantik",
     },
   },
   {
@@ -314,6 +326,7 @@ const GENRES = [
       te: "సైన్స్ ఫిక్షన్",
       ml: "സയൻസ് ഫിക്ഷൻ",
       kn: "ಸೈನ್ಸ್ ಫಿಕ್ಷನ್",
+      tr: "Bilim Kurgu",
     },
   },
   {
@@ -338,6 +351,7 @@ const GENRES = [
       te: "క్రీడలు",
       ml: "കായികം",
       kn: "ಕ್ರೀಡೆ",
+      tr: "Spor",
     },
   },
   {
@@ -362,6 +376,7 @@ const GENRES = [
       te: "థ్రిల్లర్",
       ml: "ത്രില്ലർ",
       kn: "ಥ್ರಿಲ್ಲರ್",
+      tr: "Gerilim",
     },
   },
   {
@@ -386,6 +401,7 @@ const GENRES = [
       te: "వెస్ట్రన్",
       ml: "വെസ്റ്റേൺ",
       kn: "ವೆಸ್ಟರ್ನ್",
+      tr: "Western",
     },
   },
   {
@@ -410,6 +426,7 @@ const GENRES = [
       te: "యుద్ధం",
       ml: "യുദ്ധം",
       kn: "ಯುದ್ಧ",
+      tr: "Savaş",
     },
   },
 ];
@@ -471,6 +488,7 @@ const LANGUAGE_NAMES = {
   te: "తెలుగు",
   ml: "മലയാളം",
   kn: "ಕನ್ನಡ",
+  tr: "Türkçe",
 };
 
 // Languages where this addon's own genre names and catalog-sort labels

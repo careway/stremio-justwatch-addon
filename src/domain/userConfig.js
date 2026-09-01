@@ -41,6 +41,11 @@ const RESERVED_PREFIXES = [
   ...Object.values(GLOBAL_TYPE_PREFIX),
 ];
 
+// Bare (valueless) flag segment: catalogs served in a daily-seeded shuffled
+// order. Excluded from the package list on decode the same way the prefixed
+// markers are.
+const RANDOMIZE_SEGMENT = "rnd";
+
 // Reads one "{prefix}{a}-{b}…" list segment out of the config parts.
 function readListSegment(parts, prefix) {
   const segment = parts.find((p) => p.startsWith(prefix));
@@ -160,6 +165,9 @@ function encodeConfig(config) {
         : `poster-${config.posterProvider}`,
     );
   }
+  // A bare flag: present means every catalog is served in a daily-seeded
+  // shuffled order instead of straight ranking (see domain/random.js).
+  if (config.randomize) parts.push(RANDOMIZE_SEGMENT);
   const sorts = config.sorts || ALL_SORT_KEYS;
   if (sorts.length < ALL_SORT_KEYS.length) {
     parts.push(`sorts-${sorts.join("-")}`);
@@ -272,6 +280,7 @@ function decodeConfig(encoded) {
       .filter(
         (p) =>
           /^[a-z0-9-]{1,30}$/.test(p) &&
+          p !== RANDOMIZE_SEGMENT &&
           !RESERVED_PREFIXES.some((prefix) => p.startsWith(prefix)),
       );
     const markerPkgs = [PKG_TYPE_PREFIX.movie, PKG_TYPE_PREFIX.series]
@@ -318,6 +327,8 @@ function decodeConfig(encoded) {
 
     if (!country) return null;
 
+    const randomize = parts.slice(2).includes(RANDOMIZE_SEGMENT);
+
     return {
       country,
       language,
@@ -328,6 +339,7 @@ function decodeConfig(encoded) {
       globalSorts,
       packageTypes,
       globalTypes,
+      randomize,
     };
   } catch {
     return null;

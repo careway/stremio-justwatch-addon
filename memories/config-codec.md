@@ -10,12 +10,18 @@ Human-readable, **not** base64 (an older note claimed otherwise), one URL path
 segment:
 
 ```
-/{COUNTRY}_{language}[_poster-…][_sorts-…][_gsorts-…][_m-…][_s-…][_gm-…][_gs-…]_{pkg1}_{pkg2}…/manifest.json
-e.g.  ES_es_poster-rpdb-t8-abc123_sorts-tnd-new_gsorts-pop-new_m-nfx_s-prv_gs-new_nfx_dnp_prv_global
+/{COUNTRY}_{language}[_poster-…][_rnd][_sorts-…][_gsorts-…][_m-…][_s-…][_gm-…][_gs-…]_{pkg1}_{pkg2}…/manifest.json
+e.g.  ES_es_poster-rpdb-t8-abc123_rnd_sorts-tnd-new_gsorts-pop-new_m-nfx_s-prv_gs-new_dnp_prv_global
 ```
 
 Decodes to `{ country, language, packages, posterProvider, posterApiKey, sorts,
-globalSorts, packageTypes, globalTypes }`.
+globalSorts, packageTypes, globalTypes, randomize }`.
+
+**A package narrowed to one type no longer appears in the trailing list** (2026-08-31):
+`m-nfx` alone means nfx is selected *and* movie-only — it is not also written as
+a bare `nfx`. `decodeConfig` unions the `m-`/`s-` members back into `packages`.
+Legacy URLs that carry both forms (`m-nfx_…_nfx`) still decode identically
+(the marker member and the list entry dedupe).
 
 Because the whole thing is one path segment split on `_`, every part is limited
 to `[A-Za-z0-9-]`. The router's own match is `[A-Za-z0-9_-]+`.
@@ -28,6 +34,7 @@ to `[A-Za-z0-9-]`. The router's own match is `[A-Za-z0-9_-]+`.
 | `{language}`            | position 1, lowercased, max 5, defaults to `en`                          |
 | `poster-{id}[-{key}]`   | poster provider, key optional for keyless providers                      |
 | `rpdb-{key}`            | **legacy** pre-adapter shape, still decoded — don't remove                |
+| `rnd`                   | bare flag (2026-09-01): every catalog served daily-seeded shuffled — id prefix `r_` in the manifest, see [catalogs-and-manifest.md](catalogs-and-manifest.md) |
 | `sorts-{k1}-{k2}…`      | which sort types real provider packages generate                         |
 | `gsorts-{k1}-{k2}…`     | same, but **only** for the `global` pseudo-package — fully independent    |
 | `m-{p1}-{p2}…`          | packages restricted to **movie** catalogs only (2026-08-31)                |
@@ -54,6 +61,11 @@ to `[A-Za-z0-9-]`. The router's own match is `[A-Za-z0-9_-]+`.
    two prefix tables plus `rpdb-`/`poster-`/`sorts-`/`gsorts-`) precisely so a
    new prefix can't be added to one encoder and forgotten in the filter.
    `configure.html` mirrors that list.
+
+   `rnd` is a **bare token**, not a `-`-terminated prefix, so it can't go in
+   `RESERVED_PREFIXES` (a real 3-letter shortName could start with "rnd").
+   It's excluded by an explicit `p !== "rnd"` / `p !== RANDOMIZE_SEGMENT`
+   check in both parsers instead.
 
    **The short markers are prefix-of-each-other hazards.** `s-` vs `sorts-` and
    `gs-` vs `gsorts-` only stay distinct because the marker includes its `-`:

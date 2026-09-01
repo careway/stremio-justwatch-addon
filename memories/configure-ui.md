@@ -8,7 +8,9 @@ JS inline). Served by `http/router.js`, always `no-store` — see
 
 1. **País e idioma** — two searchable custom dropdowns (`#cs-country`, `#cs-language`)
    plus `#language-warning` for partial-translation languages.
-2. **Elige tus plataformas** — two **independent** groups, each with its own
+2. **Elige tus plataformas** — opens with the full-width `#randomize-toggle`
+   card (`rnd` config segment, applies to **both** catalog groups — global and
+   provider), then two **independent** groups, each with its own
    Popular/Tendencias/Nuevos chips (`.toggle-item` / `.toggle-card` / `.toggle-dot`,
    with a client-side `ALL_SORT_KEYS` mirroring the server's `SORT_MAP`):
    - **Catálogos globales** — `#global-sort-{pop,tnd,new}-toggle` inside
@@ -30,7 +32,7 @@ Plus a sticky language FAB, a sidebar bio, and Discord / Ko-fi links.
 ## `generateUrl()`
 
 Builds
-`{country}_{language}_{posterPart}{sortsPart}{gsortsPart}{typesPart}{packages…}`
+`{country}_{language}_{posterPart}{rndPart}{sortsPart}{gsortsPart}{typesPart}{packages…}`
 and
 renders `${window.location.origin}/${config}/manifest.json`. The install button
 rewrites `https?://` → `stremio://`.
@@ -182,6 +184,19 @@ the negative margin makes it overlap the header instead of pushing it down.
   inline. Every chip added since reuses those classes, so none hit it again.
   This mirrors how `.pkg-item`/`.pkg-label`/`.pkg-check` already did it right —
   class-based, CSS-only `input:checked + label`.
+- **The three top-level `async` IIFEs race, and the `?config=` init block used
+  to crash on it (fixed 2026-09-01).** Poster-providers, languages, and
+  countries each load in their own IIFE. `countrySel` / `languageSel` start
+  `null` and are only set once their IIFE finishes. The country IIFE also does
+  the `?config=` pre-fill after `await loadCountries()` (**one** request), while
+  the language dropdown needs 2–3 — so `languageSel` was reliably still `null`
+  when the init block hit `languageSel.value = lang`, throwing, which the init
+  `catch` swallowed as "Failed to load countries" and **`loadPackages()` never
+  ran → empty provider grid on every reconfigure link**. Fix: the init block
+  guards both assignments (`if (languageSel) …`) and only `updateLanguageWarning`
+  runs unconditionally; the language IIFE applies `cfgParts[1]` itself once its
+  dropdown exists (the authoritative place). Any new init code that touches a
+  cross-IIFE `let` must assume it can be `null`.
 - **Re-labelling, not rebuilding, on a language switch.** `loadCountries()`
   renames and re-sorts the *existing* `.cs-option` nodes when the list is already
   initialized, because `initCustomSelect`'s listeners are bound to those exact

@@ -13,6 +13,7 @@ library — plain `node:test` + `node:assert`.
 | `posterKeyCodec.test.js`  | client (`configure.html`) vs server (`userConfig.js`) codec agreement, plus `encodeConfig`/`decodeConfig` poster-segment round-trips including the legacy `rpdb-` shape |
 | `security.test.js`        | path traversal (raw and URL-encoded), long config segments, country-param validation, config-segment injection |
 | `packageTypes.test.js`    | the `m-`/`s-` per-package and `gm-`/`gs-` per-global-sort content-type codec, `buildManifest`'s use of both (including per-sort beating package-level), that `s-`/`gs-` are never confused with `sorts-`/`gsorts-`, backward compatibility of pre-feature URLs, **and** a second client-vs-server extraction test (see below) |
+| `randomize.test.js`       | `seededShuffle` determinism / permutation / no-mutation, `currentDaySeed` day rollover, the `rnd` config segment round-trip (not swallowed as a package, coexists with other segments), and `buildManifest` applying the `r_` id prefix |
 
 ## The cross-implementation tests are unusual — don't break them
 

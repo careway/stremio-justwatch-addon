@@ -943,6 +943,28 @@
           >
         </div>
 
+        <div class="toggle-item" style="margin-bottom: 1rem; flex-shrink: 0">
+          <input type="checkbox" id="randomize-toggle" style="display: none" />
+          <label for="randomize-toggle" class="toggle-card">
+            <span class="toggle-dot"></span>
+            <span style="font-size: 0.72rem; color: var(--text)">
+              <span data-i18n="randomize">Aleatorizar catálogos</span>
+              <span
+                data-i18n="randomizeHint"
+                style="
+                  display: block;
+                  color: var(--muted);
+                  font-size: 0.62rem;
+                  line-height: 1.35;
+                  margin-top: 0.15rem;
+                "
+                >Baraja el orden de todos los catálogos (globales y de
+                proveedores), con una mezcla nueva cada día.</span
+              >
+            </span>
+          </label>
+        </div>
+
         <div class="pkg-cycle-hint">
           <span class="pkg-check pkg-check-inline" id="pkg-hint-glyphs"></span>
           <span data-i18n="typeCycleHint"
@@ -1762,6 +1784,16 @@
             if (resultEl.classList.contains("visible")) generateUrl();
           });
           updateLanguageWarning(defaultLanguage.code);
+
+          // A reconfigure link (?config=…) carries the chosen language. The
+          // country/init IIFE runs concurrently and may reach its own
+          // languageSel assignment before this dropdown exists, so this is the
+          // authoritative place to apply it.
+          const cfgLang = cfgParts && cfgParts[1];
+          if (cfgLang) {
+            languageSel.value = cfgLang;
+            updateLanguageWarning(cfgLang);
+          }
         } catch (e) {
           console.error("Failed to load languages:", e);
           // Fallback: show error message in language dropdown
@@ -1840,7 +1872,9 @@
             // Exclude the poster-provider and sort-types segments — handled
             // separately below, not treated as packages.
             const pkgs = rest.filter(
-              (p) => !RESERVED_PREFIXES.some((prefix) => p.startsWith(prefix)),
+              (p) =>
+                p !== "rnd" &&
+                !RESERVED_PREFIXES.some((prefix) => p.startsWith(prefix)),
             );
             // A single-type package is only named in its m-/s- segment now,
             // not in the trailing list, so pull those members back in.
@@ -1853,11 +1887,20 @@
                 }
               }
             }
-            if (country) countrySel.value = country;
+            // countrySel / languageSel are set by concurrent IIFEs. This
+            // block is reached after loadCountries() resolves (1 request), but
+            // the language dropdown needs 2–3, so languageSel can still be
+            // null here — the language IIFE applies the ?config= language
+            // itself once its dropdown exists. Guard so the race can't throw
+            // and abort init before loadPackages() runs.
+            if (country && countrySel) countrySel.value = country;
             if (lang) {
-              languageSel.value = lang;
+              if (languageSel) languageSel.value = lang;
               updateLanguageWarning(lang);
             }
+
+            document.getElementById("randomize-toggle").checked =
+              rest.includes("rnd");
 
             const sortsSegment = rest.find((p) => p.startsWith("sorts-"));
             if (sortsSegment) {
@@ -2184,6 +2227,9 @@
         } else if (posterProviderId && !posterNeedsKey) {
           posterPart = `poster-${posterProviderId}_`;
         }
+        const rndPart = document.getElementById("randomize-toggle").checked
+          ? "rnd_"
+          : "";
         const sortsPart =
           providerPkgs.length && enabledSorts.length < ALL_SORT_KEYS.length
             ? `sorts-${enabledSorts.join("-")}_`
@@ -2208,7 +2254,7 @@
         // trailing list rather than repeated. Mirrors userConfig.js.
         const trailingList = selected.filter((p) => !(p in pkgTypes));
         const config =
-          `${countrySel.value}_${languageSel.value}_${posterPart}${sortsPart}${gsortsPart}${typesPart}${gtypesPart}${trailingList.join("_")}`.replace(
+          `${countrySel.value}_${languageSel.value}_${posterPart}${rndPart}${sortsPart}${gsortsPart}${typesPart}${gtypesPart}${trailingList.join("_")}`.replace(
             /_+$/,
             "",
           );
@@ -2248,6 +2294,12 @@
             if (resultEl.classList.contains("visible")) generateUrl();
           });
       }
+
+      document
+        .getElementById("randomize-toggle")
+        .addEventListener("change", () => {
+          if (resultEl.classList.contains("visible")) generateUrl();
+        });
 
       document
         .getElementById("poster-api-key")

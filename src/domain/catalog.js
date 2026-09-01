@@ -8,9 +8,17 @@ const {
   GLOBAL_PACKAGE_ID,
 } = require("../data/catalogMeta");
 const { resolvePosterUrl } = require("../infra/posterProviders");
+const { seedFromString, seededShuffle, currentDaySeed } = require("./random");
 
 const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 const TYPE_TO_JW = { movie: "MOVIE", series: "SHOW" };
+
+// A randomized catalog (id "r_jw_…") shuffles the first RANDOM_POOL_PAGES
+// pages of its real sort with a daily-rotating seed, then serves slices of
+// that shuffled pool. Past the pool it falls back to the plain ranked order.
+const PAGE_SIZE = 50;
+const RANDOM_POOL_PAGES = 3;
+const RANDOM_POOL_SIZE = PAGE_SIZE * RANDOM_POOL_PAGES;
 
 /**
  * JustWatch's catalog includes announced/upcoming titles (e.g. sequels with
@@ -75,7 +83,11 @@ async function handleCatalog({ type, id, extra }, config) {
   // Improved batching: fetch both the batch containing skip and the next batch, then merge and deduplicate
   let offset = Math.max(0, parseInt(skip, 10) || 0);
   const jwType = TYPE_TO_JW[type];
-  const parts = id.split("_");
+  // An "r_" prefix (set by buildManifest for a randomized config) means this
+  // catalog is served shuffled — strip it before parsing sort key / package.
+  const randomize = id.startsWith("r_");
+  const coreId = randomize ? id.slice(2) : id;
+  const parts = coreId.split("_");
   const sortKey = parts[1] || "pop";
   const pkgName = parts.slice(2).join("_");
   // "global" catalogs aggregate across every provider — no packages filter.
@@ -84,7 +96,54 @@ async function handleCatalog({ type, id, extra }, config) {
   const sortBy = SORT_MAP[sortKey] || "POPULAR";
   const genreCode = genre ? getGenreCode(genre, config.language) : null;
 
+  const fetchPage = (pageOffset) =>
+    searchTitles({
+      query: "",
+      objectTypes: jwType ? [jwType] : [],
+      packages: packageFilter,
+      genres: genreCode ? [genreCode] : [],
+      sortBy,
+      country: config.country,
+      language: config.language,
+      first: 50,
+      offset: pageOffset,
+    });
+
+  const buildMetas = (nodes) => {
+    const seen = new Set();
+    return nodes
+      .filter((n) => !jwType || n.objectType === jwType)
+      .filter((n) => !isUnreleased(n))
+      .map((n) => nodeToMeta(n, config.language, config))
+      .filter((meta) => {
+        if (!meta || !meta.id || seen.has(meta.id)) return false;
+        seen.add(meta.id);
+        return true;
+      });
+  };
+
   try {
+    // A randomized catalog shuffles the first RANDOM_POOL_PAGES pages of the
+    // real sort with a daily-rotating, catalog-specific seed and serves a
+    // slice of that. The seed is stable within a UTC day, so paging through
+    // the pool is consistent; past the pool it drops to the plain path below.
+    if (randomize && offset < RANDOM_POOL_SIZE) {
+      const pages = await Promise.all(
+        Array.from({ length: RANDOM_POOL_PAGES }, (_, i) =>
+          delay(i * 10).then(() => fetchPage(i * PAGE_SIZE)),
+        ),
+      );
+      const seed = seedFromString(
+        `${coreId}|${type}|${genreCode || ""}|${currentDaySeed()}`,
+      );
+      const metas = seededShuffle(buildMetas(pages.flat()), seed).slice(
+        offset,
+        offset + PAGE_SIZE,
+      );
+      if (metas.length) return { ok: true, metas };
+      // Empty pool → fall through to the plain path's placeholder handling.
+    }
+
     // Calculate batch boundaries
     const batchSize = 50;
     const batchStart1 = Math.floor(offset / batchSize) * batchSize;
@@ -94,56 +153,18 @@ async function handleCatalog({ type, id, extra }, config) {
     const needsSecondBatch = offset % batchSize !== 0;
 
     // Set up the first request
-    const requests = [
-      searchTitles({
-        query: "",
-        objectTypes: jwType ? [jwType] : [],
-        packages: packageFilter,
-        genres: genreCode ? [genreCode] : [],
-        sortBy,
-        country: config.country,
-        language: config.language,
-        first: batchSize,
-        offset: batchStart1,
-      }),
-    ];
+    const requests = [fetchPage(batchStart1)];
 
     // Conditionally add the second request ONLY if needed
     if (needsSecondBatch) {
-      const batchStart2 = batchStart1 + batchSize;
-      requests.push(
-        delay(10).then(() =>
-          searchTitles({
-            query: "",
-            objectTypes: jwType ? [jwType] : [],
-            packages: packageFilter,
-            genres: genreCode ? [genreCode] : [],
-            sortBy,
-            country: config.country,
-            language: config.language,
-            first: batchSize,
-            offset: batchStart2,
-          }),
-        ),
-      );
+      requests.push(delay(10).then(() => fetchPage(batchStart1 + batchSize)));
     }
 
     // Execute the requests
     // If there's only 1 request, titles2 will safely default to an empty array []
     const [titles1, titles2 = []] = await Promise.all(requests);
 
-    // Merge and deduplicate by imdbId
-    const seen = new Set();
-    const metas = [...titles1, ...titles2]
-      .filter((n) => !jwType || n.objectType === jwType)
-      .filter((n) => !isUnreleased(n))
-      .map((n) => nodeToMeta(n, config.language, config))
-      .filter((meta) => {
-        if (!meta || !meta.id) return false;
-        if (seen.has(meta.id)) return false;
-        seen.add(meta.id);
-        return true;
-      });
+    const metas = buildMetas([...titles1, ...titles2]);
     if (metas.length == 0) {
       return {
         ok: true,

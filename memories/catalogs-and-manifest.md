@@ -8,6 +8,10 @@
 - **Catalog id**: `jw_{sortKey}_{shortName}` — e.g. `jw_pop_nfx`, `jw_new_global`.
   `catalog.js` parses it as `parts[1]` = sortKey, `parts.slice(2).join("_")` =
   package name (shortNames can in principle contain `_`).
+- **`r_` prefix** (2026-09-01): `r_jw_pop_nfx` is the *randomized* form of the
+  same catalog. `buildManifest` adds it to every id when `config.randomize`;
+  `handleCatalog` strips it and sets a `randomize` flag. The prefix keeps
+  Stremio's per-id cache separate from the un-shuffled version.
 - **Package filter key is `shortName`** (`nfx`, `dnp`, `prv`) — *not*
   `technicalName`. Some JSDoc in the files still says technicalName; the code
   passes shortName.
@@ -102,6 +106,15 @@ Also present and easy to clobber by accident:
 - `description` comes from `content.shortDescription` (in the query since
   `0a1a2c0`, 2026-04-11).
 - Posters go through `resolvePosterUrl()` — see [poster-providers.md](poster-providers.md).
+- **Randomized catalogs (`r_` id, 2026-09-01).** For `offset < 150` the first
+  3 pages of the real sort are fetched, deduped, and shuffled with a
+  deterministic seed = `FNV(coreId|type|genreCode|UTC-day-number)` (see
+  `src/domain/random.js` — FNV-1a hash + mulberry32 + Fisher–Yates), then
+  sliced `[offset, offset+50]`. Same day + same catalog ⇒ same order, so
+  paging through the pool never repeats or gaps; the shuffle refreshes at
+  UTC midnight. Past offset 150 it falls back to the plain ranked path.
+  First page of a randomized catalog costs 3 JW calls (the pool), then
+  cached — pages 2–3 are cache hits.
 
 ## Unreleased-title filtering
 

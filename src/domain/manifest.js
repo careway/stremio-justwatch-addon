@@ -120,6 +120,10 @@ function buildManifest(config, encodedConfig, pkgInfoMap, addonBaseUrl) {
     config?.globalSorts?.length > 0 ? config.globalSorts : allSortKeys;
   const packageTypes = config?.packageTypes || {};
   const globalTypes = config?.globalTypes || {};
+  // A randomized config serves every catalog shuffled; the "r_" id prefix
+  // both tells domain/catalog.js to shuffle and keeps Stremio's per-id cache
+  // separate from the un-shuffled version of the same catalog.
+  const idPrefix = config?.randomize ? "r_" : "";
 
   const catalogs = [];
 
@@ -154,7 +158,7 @@ function buildManifest(config, encodedConfig, pkgInfoMap, addonBaseUrl) {
       for (const type of types) {
         catalogs.push({
           type,
-          id: `jw_${sortKey}_${shortName}`,
+          id: `${idPrefix}jw_${sortKey}_${shortName}`,
           // Global catalogs drop the provider-name segment entirely — just
           // the sort type and country, e.g. "Popular · ES" — instead of
           // naming it after the pseudo-package.

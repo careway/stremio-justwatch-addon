@@ -98,9 +98,10 @@ and the old plan is not a guide to the code.
 window `now` falls in — the length is a *parameter*, because the right value is
 a property of how long the data lives, not of shuffling). All pure.
 
-`domain/catalog.js` shuffles in 3-page **blocks**, each independently seeded,
+`domain/catalog.js` shuffles in **one-page blocks**, each independently seeded,
 with no depth ceiling, and the seed window derived from `TTL_S` rather than a
-fixed day. Full rationale (why blocks rather than a growing pool, and the
+fixed day. It was briefly 3 pages per block, which saturated JustWatch — see
+[benchmarks-and-incidents.md](benchmarks-and-incidents.md). Full rationale (why blocks rather than a growing pool, and the
 cadence-vs-phase caveat) lives in
 [catalogs-and-manifest.md](catalogs-and-manifest.md) — don't duplicate it here.
 

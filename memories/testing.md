@@ -14,7 +14,7 @@ library — plain `node:test` + `node:assert`.
 | `security.test.js`        | path traversal (raw and URL-encoded), long config segments, country-param validation, config-segment injection |
 | `packageTypes.test.js`    | the `m-`/`s-` per-package and `gm-`/`gs-` per-global-sort content-type codec, `buildManifest`'s use of both (including per-sort beating package-level), that `s-`/`gs-` are never confused with `sorts-`/`gsorts-`, backward compatibility of pre-feature URLs, **and** a second client-vs-server extraction test (see below) |
 | `randomize.test.js`       | `seededShuffle` determinism / permutation / no-mutation, `seedWindow` behavior, that the seed window is *derived from `TTL_S`* rather than hardcoded, the `rnd` config segment round-trip (not swallowed as a package, coexists with other segments), and `buildManifest` applying the `r_` id prefix |
-| `randomBlocks.test.js`    | the block shuffler through `handleCatalog` itself: pages stay inside their block, no depth ceiling, a block's 3 pages partition it exactly, **earlier pages don't move when a later block is reached**, one block costs exactly 3 upstream calls, and `r_` is stripped before the id is parsed |
+| `randomBlocks.test.js`    | the block shuffler through `handleCatalog` itself: **a randomized page costs exactly one upstream call** (the regression guard for the 2026-09-01 JustWatch saturation) and the same as a plain page, a page holds exactly the titles it would have held unshuffled, no depth ceiling, **earlier pages don't move when a later one is reached**, and `r_` is stripped before the id is parsed |
 
 ## The cross-implementation tests are unusual — don't break them
 

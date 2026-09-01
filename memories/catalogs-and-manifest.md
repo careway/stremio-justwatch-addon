@@ -106,39 +106,50 @@ Also present and easy to clobber by accident:
 - `description` comes from `content.shortDescription` (in the query since
   `0a1a2c0`, 2026-04-11).
 - Posters go through `resolvePosterUrl()` — see [poster-providers.md](poster-providers.md).
-- **Randomized catalogs (`r_` id, 2026-09-01; reworked 2026-09-01).** Shuffled
-  in **blocks** of `RANDOM_BLOCK_PAGES = 3` pages (150 titles), each block
-  seeded on its own:
+- **Randomized catalogs (`r_` id, 2026-09-01; reworked twice the same day).**
+  Shuffled in **blocks**, each seeded on its own index:
   `FNV(coreId|type|genreCode|blockIndex|seedWindow)` (see `src/domain/random.js`
   — FNV-1a + mulberry32 + Fisher–Yates). A request at `offset` fetches only its
-  own block (`blockStart + 0/50/100`), shuffles it, and slices at
-  `offset - blockStart`.
+  own block and slices at `offset - blockStart`.
 
-  **There is no depth ceiling** — the first version capped the shuffle at the
-  first 150 titles and fell back to plain ranking past that. Cost stays 3 JW
-  calls per *block*: the first page of a block pays, pages 2–3 are cache hits.
+  **`RANDOM_BLOCK_PAGES = 1`** — one page per block, so a randomized catalog
+  costs *exactly* what a plain one costs, at any depth. It was briefly 3 (150
+  titles per block) and that saturated JustWatch into erroring; see the incident
+  in [benchmarks-and-incidents.md](benchmarks-and-incidents.md). This is the one
+  number to change if the trade is revisited, and raising it to N multiplies the
+  manifest-load burst by N. Don't reintroduce a "first block is smaller" special
+  case — that was tried and it's strictly worse than a uniform 1, because deep
+  pages still cost N.
 
-  **Why per block and not one growing pool.** Growing a single pool and
-  re-shuffling it reorders pages already served — reaching page 4 rearranges
-  page 1, so the user sees titles twice and misses others. Per-block seeds
-  leave earlier blocks frozen forever. The deliberate cost: a title ranked
-  200th can move anywhere inside pages 4–6 but can never reach page 1. Stable
-  pagination and an ever-widening pool are mutually exclusive; pagination wins
-  because it's the one users notice. `test/randomBlocks.test.js` pins both
-  halves (block containment *and* earlier-page stability).
+  Consequences of a one-page block, accepted knowingly: the shuffle permutes
+  **within** a page only. A title never moves between pages, so page 1 always
+  holds the same top 50 by rank, reordered. What the user perceives is that the
+  order changes each seed window, not that the selection does.
+
+  **There is no depth ceiling.** The first version capped the shuffle at 150
+  titles and fell back to plain ranking past that; now every page is its own
+  block, so paging stays shuffled forever.
+
+  **Why per-block seeds and not one growing pool.** Growing a pool and
+  re-shuffling it reorders pages already served — reaching a later page
+  rearranges an earlier one, so the user sees titles twice and misses others.
+  Per-block seeds freeze earlier blocks forever. Stable pagination and an
+  ever-widening pool are mutually exclusive; pagination wins because it's the
+  one users notice. `test/randomBlocks.test.js` pins both halves, plus the
+  one-call-per-page budget.
 
   **The seed window is `TTL_S`, not a day** (`RANDOM_SEED_WINDOW_MS = TTL_S *
-  1000`). A fixed UTC day outlived the data by 6×: the pool is cached for
+  1000`). A fixed UTC day outlived the data by 6×: the page is cached for
   `TTL_S` (4 h), so it was refetched and changed underneath a frozen seed, and
-  anyone paging at that moment got duplicates and gaps. Deriving the window
-  from `TTL_S` keeps shuffle and data on one cadence, and keeps following if
-  that TTL ever changes — including if it ever becomes per-sort.
+  anyone paging at that moment got duplicates and gaps. Deriving the window from
+  `TTL_S` keeps shuffle and data on one cadence, and keeps following if that TTL
+  ever changes — including if it ever becomes per-sort.
 
-  Caveat worth knowing: this aligns **cadence, not phase**. Cache entries
-  expire `TTL_S` after they were *written*, not on a global 4 h grid, so a
-  refresh can still land mid-window. Fully closing that would mean caching the
-  shuffled block itself under its seed window rather than caching the raw
-  pages. Not done — see [cache-layers.md](cache-layers.md).
+  Caveat: this aligns **cadence, not phase**. Cache entries expire `TTL_S` after
+  they were *written*, not on a global 4 h grid, so a refresh can still land
+  mid-window. Closing that fully would mean caching the shuffled page under its
+  seed window instead of the raw one. Not done — see
+  [cache-layers.md](cache-layers.md).
 
   This is also the one place `domain/` imports `src/ttl.js`, which is fine:
   ttl.js sits outside the layers precisely to be shared (see

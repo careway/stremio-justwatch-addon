@@ -1,7 +1,7 @@
 "use strict";
 
 const assert = require("node:assert/strict");
-const { test, describe, before } = require("node:test");
+const { test, describe } = require("node:test");
 
 // handleCatalog destructures searchTitles at require time, so the infra module
 // is replaced in the require cache *before* domain/catalog.js is first loaded.
@@ -44,7 +44,6 @@ const { handleCatalog } = require("../src/domain/catalog");
 
 const CONFIG = { country: "ES", language: "es" };
 const RANDOM_ID = "r_jw_pop_nfx";
-const BLOCK = 150;
 const PAGE = 50;
 
 const rankOf = (meta) => Number(meta.id.slice(2));
@@ -55,64 +54,58 @@ const page = async (id, skip) => {
 };
 
 describe("randomized catalogs — block shuffling", () => {
-  before(() => (calls.length = 0));
+  test("a randomized page costs exactly one upstream call", async () => {
+    // The whole point of the 2026-09-01 rework. Stremio asks for page 1 of
+    // every catalog at once on a manifest load, so anything above 1 here
+    // multiplies that burst — which is what got the addon rate-limited.
+    for (const skip of [0, 50, 200, 900]) {
+      calls.length = 0;
+      await page(RANDOM_ID, skip);
+      assert.deepEqual(calls, [skip], `skip=${skip}`);
+    }
+  });
 
-  test("a page is drawn only from its own block", async () => {
-    for (const [skip, lo, hi] of [
-      [0, 0, BLOCK],
-      [100, 0, BLOCK],
-      [150, BLOCK, 2 * BLOCK],
-      [250, BLOCK, 2 * BLOCK],
-      [900, 6 * BLOCK, 7 * BLOCK],
-    ]) {
+  test("costs the same as the same page of a plain catalog", async () => {
+    calls.length = 0;
+    await page("jw_pop_nfx", 0);
+    const plain = calls.length;
+    calls.length = 0;
+    await page(RANDOM_ID, 0);
+    assert.equal(calls.length, plain);
+  });
+
+  test("a page holds exactly the titles it would have held unshuffled", async () => {
+    // Same 50 titles as the ranked page, reordered — nothing gained or lost.
+    for (const skip of [0, 50, 200, 900]) {
       const ranks = (await page(RANDOM_ID, skip)).map(rankOf);
-      assert.equal(ranks.length, PAGE, `skip=${skip}`);
-      assert.ok(
-        ranks.every((r) => r >= lo && r < hi),
-        `skip=${skip} escaped its block: ${ranks.filter((r) => r < lo || r >= hi)}`,
+      assert.deepEqual(
+        [...ranks].sort((a, b) => a - b),
+        Array.from({ length: PAGE }, (_, i) => skip + i),
+        `skip=${skip}`,
       );
     }
   });
 
-  test("no depth ceiling — deep pages stay shuffled, not plain ranked", async () => {
-    // The old implementation fell back to ranked order past 150.
-    for (const skip of [150, 300, 900]) {
+  test("no depth ceiling — deep pages are still shuffled", async () => {
+    // The first implementation fell back to plain ranking past offset 150.
+    for (const skip of [0, 150, 300, 900]) {
       const ranks = (await page(RANDOM_ID, skip)).map(rankOf);
       const plain = Array.from({ length: PAGE }, (_, i) => skip + i);
       assert.notDeepEqual(ranks, plain, `skip=${skip} came back in ranked order`);
     }
   });
 
-  test("the three pages of a block partition it exactly", async () => {
-    for (const blockIndex of [0, 1, 4]) {
-      const start = blockIndex * BLOCK;
-      const seen = [];
-      for (let p = 0; p < 3; p++) seen.push(...(await page(RANDOM_ID, start + p * PAGE)).map(rankOf));
-      assert.deepEqual(
-        [...seen].sort((a, b) => a - b),
-        Array.from({ length: BLOCK }, (_, i) => start + i),
-        `block ${blockIndex} is not a clean partition`,
-      );
-    }
-  });
-
-  test("reaching a later block does not disturb an earlier page", async () => {
+  test("reaching a later page does not disturb an earlier one", async () => {
     const before = await page(RANDOM_ID, 0);
-    await page(RANDOM_ID, 150);
+    await page(RANDOM_ID, 50);
     await page(RANDOM_ID, 900);
     assert.deepEqual(await page(RANDOM_ID, 0), before);
   });
 
-  test("a block only fetches its own three pages upstream", async () => {
-    calls.length = 0;
-    await page(RANDOM_ID, 175);
-    assert.deepEqual([...calls].sort((a, b) => a - b), [150, 200, 250]);
-  });
-
-  test("different blocks get different orders", async () => {
-    const a = (await page(RANDOM_ID, 0)).map((m) => rankOf(m) - 0);
-    const b = (await page(RANDOM_ID, 150)).map((m) => rankOf(m) - BLOCK);
-    assert.notDeepEqual(a, b, "both blocks shuffled to the same permutation");
+  test("different pages get different orders", async () => {
+    const a = (await page(RANDOM_ID, 0)).map((m) => rankOf(m));
+    const b = (await page(RANDOM_ID, 50)).map((m) => rankOf(m) - 50);
+    assert.notDeepEqual(a, b, "both pages shuffled to the same permutation");
   });
 
   test("a non-randomized catalog is untouched and ranked", async () => {

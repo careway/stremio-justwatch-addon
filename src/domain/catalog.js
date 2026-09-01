@@ -14,24 +14,55 @@ const { TTL_S } = require("../ttl");
 const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 const TYPE_TO_JW = { movie: "MOVIE", series: "SHOW" };
 
-// A randomized catalog (id "r_jw_…") is shuffled in *blocks* of
-// RANDOM_BLOCK_PAGES pages, each seeded independently, rather than in one
-// fixed pool. Paging deeper therefore keeps getting shuffled results instead
-// of dropping back to plain ranking once past the first block.
+// A randomized catalog (id "r_jw_…") is shuffled in *blocks*, each seeded
+// independently, rather than in one growing pool. There is no depth ceiling:
+// paging deeper keeps returning shuffled results instead of dropping back to
+// plain ranking.
 //
-// Per-block seeding is what makes the randomized region growable at all.
-// Growing a single pool and re-shuffling it would reorder the pages already
-// served — reaching page 4 would rearrange page 1, so the user would see
-// titles twice and miss others. Shuffling each block against its own seed
-// leaves earlier blocks untouched forever.
+// Per-block seeding is what makes the randomized region extendable at all.
+// Growing one pool and re-shuffling it would reorder the pages already served
+// — reaching a later page would rearrange an earlier one, so the user would
+// see titles twice and miss others. Seeding each block on its own index
+// leaves earlier blocks frozen forever.
 //
-// The trade-off, deliberately: the shuffle is confined *within* a block. A
-// title ranked 200th can land anywhere in pages 4-6 but can never reach page
-// 1. Stable pagination and an ever-widening pool are mutually exclusive, and
-// stable pagination is the one users notice.
+// Stable pagination and an ever-widening pool are mutually exclusive; stable
+// pagination wins, because it's the one users notice.
 const PAGE_SIZE = 50;
-const RANDOM_BLOCK_PAGES = 3;
-const RANDOM_BLOCK_SIZE = PAGE_SIZE * RANDOM_BLOCK_PAGES;
+
+// Titles fetched per shuffle block, in pages. **One**, deliberately.
+//
+// A randomized catalog has to cost the same upstream as a plain one. When a
+// manifest loads, Stremio asks for page 1 of *every* catalog at once, so any
+// multiplier here multiplies that entire burst. Fetching 3 pages (150 titles)
+// per block is what saturated JustWatch into returning errors (2026-09-01) —
+// and nothing bounds the fan-out today, since the concurrency queue in
+// infra/justwatch.js is disabled (see its DISABLED note).
+//
+// The cost, accepted knowingly: the shuffle only permutes *within* a page, so
+// a title never moves between pages and page 1 always holds the same top 50 by
+// rank, reordered. The randomized region still extends page by page as the
+// user scrolls, because each page is its own block with its own seed.
+//
+// Raising this widens the shuffle and multiplies the manifest-load burst by
+// the same factor. It is the one number to change if that trade is ever
+// revisited — don't reintroduce a separate "first block" special case.
+const RANDOM_BLOCK_PAGES = 1;
+
+// Maps an offset onto its block: where the block starts, how many pages it
+// spans, and its index (which seeds it).
+//
+// Blocks are **fixed domains** — a given offset always lands in the same block
+// with the same span, independent of the request. A block whose size depended
+// on the offset asked for would shuffle two overlapping requests differently
+// and break pagination.
+function randomBlockFor(offset) {
+  const index = Math.floor(offset / PAGE_SIZE / RANDOM_BLOCK_PAGES);
+  return {
+    index,
+    startPage: index * RANDOM_BLOCK_PAGES,
+    pages: RANDOM_BLOCK_PAGES,
+  };
+}
 
 // The seed rotates on the same cadence the data underneath it does. It used to
 // be a fixed UTC day, which outlived the data by 6x: the pool is cached for
@@ -146,13 +177,13 @@ async function handleCatalog({ type, id, extra }, config) {
   try {
     // Fetch only the block this offset falls in, shuffle it against a seed
     // carrying that block's index, and serve the slice. No depth ceiling: the
-    // randomized region extends a block at a time as the user pages, and the
-    // cost stays RANDOM_BLOCK_PAGES upstream calls per block.
+    // randomized region widens a block at a time as the user pages, while the
+    // first page stays at a single upstream call.
     if (randomize) {
-      const blockIndex = Math.floor(offset / RANDOM_BLOCK_SIZE);
-      const blockStart = blockIndex * RANDOM_BLOCK_SIZE;
+      const block = randomBlockFor(offset);
+      const blockStart = block.startPage * PAGE_SIZE;
       const pages = await Promise.all(
-        Array.from({ length: RANDOM_BLOCK_PAGES }, (_, i) =>
+        Array.from({ length: block.pages }, (_, i) =>
           delay(i * 10).then(() => fetchPage(blockStart + i * PAGE_SIZE)),
         ),
       );
@@ -161,7 +192,7 @@ async function handleCatalog({ type, id, extra }, config) {
           coreId,
           type,
           genreCode || "",
-          blockIndex,
+          block.index,
           seedWindow(RANDOM_SEED_WINDOW_MS),
         ].join("|"),
       );

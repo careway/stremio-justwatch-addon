@@ -76,6 +76,37 @@ serialize-to-1 queue, 6 parallel cold requests took 199 ms → 631 ms in a visib
 staircase (server-side `addon.log` timings) while warm/L1-cached requests were
 0–1 ms. **The queue was the bottleneck, not the cache.**
 
+## Incident — JustWatch saturated by randomized catalogs (2026-09-01)
+
+**Symptom**: JustWatch started returning errors under normal use, shortly after
+the randomized-catalog feature shipped.
+
+**Cause**: a randomized catalog fetched 3 pages (150 titles) to build its
+shuffle pool, so it cost **3× a plain catalog on its very first page**. That
+multiplier lands exactly where it hurts most — Stremio requests page 1 of every
+configured catalog near-simultaneously on manifest load (see the cold-load
+section above; 24 catalogs is an ordinary config). A 24-catalog config went
+from 24 outbound calls to 72 in one burst, with **nothing bounding the fan-out**
+because the concurrency queue has been disabled since 2026-08-24.
+
+Note the earlier measurement in this file — "no 429s up to 256 concurrent" —
+did **not** predict this. That was a single burst from one IP in a test
+environment; production IP reputation and sustained rather than one-shot load
+behave differently. Treat that number as an upper bound observed once, not as
+headroom to spend.
+
+**Fix**: `RANDOM_BLOCK_PAGES = 1` — one page per shuffle block, so a randomized
+catalog costs exactly what a plain one costs at any depth, and the shuffle
+happens inside the page that was going to be fetched anyway. Verified live:
+page 1 of a randomized catalog issues one upstream call, and it is the *same*
+query the plain catalog issues (the second request hit L1). Details and the
+trade-off: [catalogs-and-manifest.md](catalogs-and-manifest.md).
+
+**The general lesson**: any per-catalog cost is multiplied by the whole catalog
+count on manifest load. Before adding upstream calls to a catalog path, multiply
+by ~24 and ask whether that burst is acceptable — and remember the queue that
+would have absorbed it is currently off.
+
 ## Production incidents index
 
 Both Cloudflare staleness incidents and the BeamUp Host-header quirk are

@@ -330,6 +330,10 @@
         display: grid;
         grid-template-columns: repeat(auto-fill, minmax(105px, 1fr));
         gap: 0.6rem;
+        /* .pkg-label lifts 4px on hover and .grid-container clips it with
+           overflow-y: auto, so the top row's animation was cut off. This is
+           the clearance for it — not decorative spacing. */
+        padding-top: 5px;
       }
 
       /* SCROLLBAR */
@@ -347,6 +351,13 @@
         align-items: center;
         gap: 0.6rem;
         padding: 1rem 0.5rem;
+        /* Selecting a content type takes up to 4 clicks in a row, and a
+           browser reads consecutive clicks as a double-click: without this the
+           provider name gets highlighted mid-cycle, so the gesture looks like
+           a botched text selection instead of a choice. Prefixed for iOS
+           Safari, where a lot of people configure this. */
+        -webkit-user-select: none;
+        user-select: none;
         border: 1px solid var(--border);
         border-radius: 16px;
         cursor: pointer;
@@ -369,6 +380,10 @@
         height: 44px;
         border-radius: 10px;
         object-fit: contain;
+        /* A click that drifts a pixel would otherwise start dragging the logo
+           and leave a ghost image trailing the cursor. */
+        -webkit-user-drag: none;
+        pointer-events: none;
       }
       .pkg-name {
         font-size: 0.68rem;
@@ -446,6 +461,10 @@
         align-items: center;
         gap: 0.8rem;
         padding: 0.8rem 1rem;
+        /* Same reason as .pkg-label — the global chips cycle on repeat clicks
+           too. Harmless on the provider sort chips, which don't. */
+        -webkit-user-select: none;
+        user-select: none;
         border: 1px solid var(--border);
         border-radius: 16px;
         cursor: pointer;

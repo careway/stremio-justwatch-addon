@@ -197,6 +197,18 @@ the negative margin makes it overlap the header instead of pushing it down.
   runs unconditionally; the language IIFE applies `cfgParts[1]` itself once its
   dropdown exists (the authoritative place). Any new init code that touches a
   cross-IIFE `let` must assume it can be `null`.
+- **`#pkg-grid` needs `padding-top: 5px`.** `.pkg-label:hover` lifts the card
+  `translateY(-4px)` while `.grid-container` clips with `overflow-y: auto`, so
+  without that clearance the top row's hover animation is cut off. It is not
+  decorative spacing — don't fold it into `gap` or delete it as redundant.
+- **The cycling surfaces need `user-select: none`.** Picking a content type
+  takes up to 4 consecutive clicks, which the browser also reads as a
+  double-click: without it the provider name (or chip label) gets highlighted
+  mid-cycle and the gesture reads as a failed text selection. On `.pkg-label`
+  and `.toggle-card`, `-webkit-` prefixed for iOS Safari. `.pkg-icon` also gets
+  `pointer-events: none` + `-webkit-user-drag: none` so a click that drifts a
+  pixel doesn't start dragging the logo — clicks fall through to the label,
+  which is what `closest(".pkg-label")` wants anyway.
 - **Re-labelling, not rebuilding, on a language switch.** `loadCountries()`
   renames and re-sorts the *existing* `.cs-option` nodes when the list is already
   initialized, because `initCustomSelect`'s listeners are bound to those exact

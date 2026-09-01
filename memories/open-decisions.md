@@ -77,57 +77,48 @@ guard. See [http-and-caching.md](http-and-caching.md).
 
 ---
 
-## 3. Daily randomized catalog order (designed 2026-08-26, paused)
+## 3. Daily randomized catalog order — **SHIPPED 2026-09-01** (`64be7b9`)
 
-**Request**: an opt-in shuffle of catalog results — not per request, but varying
-day to day.
+No longer an open decision. It is implemented; the notes below record where the
+shipped design **differs from the paper design**, because they are not the same
+and the old plan is not a guide to the code.
 
-### Design agreed on paper
+| Paper design (2026-08-26)                  | What shipped                                      |
+| ------------------------------------------ | ------------------------------------------------- |
+| `src/domain/shuffle.js`                    | `src/domain/random.js`                             |
+| window rotation **+** in-batch shuffle     | **pool shuffle only** — no rotation                |
+| `rnd-day` prefixed segment                 | bare `rnd` flag segment                            |
+| `config.shuffle === "day"`                 | boolean `config.randomize`                         |
+| `shuffle` / `shuffleHint` UI keys          | `randomize` / `randomizeHint`                      |
 
-Deterministic per day: seed = UTC day number
-(`Math.floor(Date.now() / 86400000)`) mixed with catalog id, country and
-language. Same day → identical output (caches and pagination stay stable); next
-day → different. No extra API calls.
+### How it actually works
 
-Two effects share the seed:
+`domain/random.js` — `seedFromString` (FNV-1a), `mulberry32`, `seededShuffle`
+(Fisher–Yates, non-mutating), `currentDaySeed` (UTC day counter, `now`
+injectable). All pure.
 
-1. **Window rotation** — add a seeded offset (0–450, a multiple of the 50-item
-   batch size) to the `skip` Stremio asks for. The shift is identical for every
-   page, so pagination stays coherent (same list, rotated) and *which* titles
-   appear changes, not just their order. Retry without rotation if the rotated
-   window comes back empty.
-2. **In-batch shuffle** — seeded PRNG (mulberry32/xorshift) + Fisher-Yates over
-   the returned batch.
+`domain/catalog.js` fetches the first `RANDOM_POOL_PAGES = 3` pages (150 items)
+of the real sort, shuffles that pool with
+`seedFromString("{coreId}|{type}|{genre}|{daySeed}")`, and serves a 50-item
+slice. Past the pool it falls back to the plain ranked order. So the shuffle
+reaches ~150 titles deep, not the whole catalog, and costs 3 upstream calls on
+a randomized catalog's first pages.
 
-Known trade-off: catalogs are served with `s-maxage=4h`, so just after UTC
-midnight the CDN can serve yesterday's order for up to 4 hours. Judged
-acceptable; the alternative is a shorter TTL for randomized configs only.
+**`buildManifest` prefixes the catalog id with `r_`** when the config is
+randomized, and `handleCatalog` strips it before parsing sort key/package. A
+consequence worth knowing: toggling randomize **changes every catalog id**, so
+Stremio treats them as different catalogs.
 
-### Planned footprint
+The `rnd` segment is a **bare, valueless** flag — the only one in the format.
+Being unprefixed it is excluded from the packages filter by an exact `!==`
+rather than a `startsWith`. It is a plausible shortName *shape* (three letters),
+so it was checked: `rnd` is unused across 564 JustWatch shortNames from 15
+countries (verified 2026-09-01). If JustWatch ever introduces it, the flag and
+that provider collide.
 
-- `src/domain/shuffle.js` (new): seeded PRNG, `dailySeed()`, `seededShuffle()`,
-  `dailyOffsetShift()`. **Pure — the date is a parameter, never read
-  implicitly**, so it's testable.
-- `domain/userConfig.js`: new `rnd-day` segment (`ES_es_rnd-day_nfx_dnp`).
-  **Must be added to the prefixes excluded from the packages filter**, both
-  server-side and in `configure.html`'s client-side parser, or `rnd-day` gets
-  swallowed as a package name. Absent segment → `shuffle: null`, identical
-  behavior to today. See [config-codec.md](config-codec.md).
-- `domain/catalog.js`: apply rotation + shuffle only when
-  `config.shuffle === "day"`, and **never** to the empty/error placeholder metas
-  (see [catalogs-and-manifest.md](catalogs-and-manifest.md)).
-- `configure.html`: toggle in step 2, read/write the segment in `generateUrl()`
-  and in the `?config=` pre-fill.
-- `data/uiStrings.js`: `shuffle` + `shuffleHint` keys in all 19 languages —
-  `test/uiStrings.test.js` fails if any is missing.
-- Tests: segment round-trip, determinism (same seed → same order), different
-  days → different orders, and that the result is a permutation (nothing lost
-  or duplicated).
+The CDN caveat from the paper design still stands: catalogs are served with
+`s-maxage=4h`, so just after UTC midnight yesterday's order can be served for
+up to 4 hours.
 
-### Questions still unanswered by the user
-
-1. Rotation **plus** shuffle, or shuffle-only within the page (more
-   conservative, but always the same ~50 titles)?
-2. Daily only, or `rnd-day` / `rnd-week` / `rnd-hour` from the start?
-3. One global toggle, or independent toggles for global vs provider catalogs
-   (mirroring how `sorts`/`gsorts` already work)?
+Format details: [config-codec.md](config-codec.md) ·
+catalog behavior: [catalogs-and-manifest.md](catalogs-and-manifest.md).

@@ -8,17 +8,38 @@ const {
   GLOBAL_PACKAGE_ID,
 } = require("../data/catalogMeta");
 const { resolvePosterUrl } = require("../infra/posterProviders");
-const { seedFromString, seededShuffle, currentDaySeed } = require("./random");
+const { seedFromString, seededShuffle, seedWindow } = require("./random");
+const { TTL_S } = require("../ttl");
 
 const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 const TYPE_TO_JW = { movie: "MOVIE", series: "SHOW" };
 
-// A randomized catalog (id "r_jw_…") shuffles the first RANDOM_POOL_PAGES
-// pages of its real sort with a daily-rotating seed, then serves slices of
-// that shuffled pool. Past the pool it falls back to the plain ranked order.
+// A randomized catalog (id "r_jw_…") is shuffled in *blocks* of
+// RANDOM_BLOCK_PAGES pages, each seeded independently, rather than in one
+// fixed pool. Paging deeper therefore keeps getting shuffled results instead
+// of dropping back to plain ranking once past the first block.
+//
+// Per-block seeding is what makes the randomized region growable at all.
+// Growing a single pool and re-shuffling it would reorder the pages already
+// served — reaching page 4 would rearrange page 1, so the user would see
+// titles twice and miss others. Shuffling each block against its own seed
+// leaves earlier blocks untouched forever.
+//
+// The trade-off, deliberately: the shuffle is confined *within* a block. A
+// title ranked 200th can land anywhere in pages 4-6 but can never reach page
+// 1. Stable pagination and an ever-widening pool are mutually exclusive, and
+// stable pagination is the one users notice.
 const PAGE_SIZE = 50;
-const RANDOM_POOL_PAGES = 3;
-const RANDOM_POOL_SIZE = PAGE_SIZE * RANDOM_POOL_PAGES;
+const RANDOM_BLOCK_PAGES = 3;
+const RANDOM_BLOCK_SIZE = PAGE_SIZE * RANDOM_BLOCK_PAGES;
+
+// The seed rotates on the same cadence the data underneath it does. It used to
+// be a fixed UTC day, which outlived the data by 6x: the pool is cached for
+// TTL_S, so it was refetched and changed while the seed stayed frozen, and a
+// user paging through at that moment got duplicates and gaps. Deriving it from
+// TTL_S keeps the two in step — and keeps following if that TTL ever changes,
+// including if it ever becomes per-sort.
+const RANDOM_SEED_WINDOW_MS = TTL_S * 1000;
 
 /**
  * JustWatch's catalog includes announced/upcoming titles (e.g. sequels with
@@ -123,25 +144,34 @@ async function handleCatalog({ type, id, extra }, config) {
   };
 
   try {
-    // A randomized catalog shuffles the first RANDOM_POOL_PAGES pages of the
-    // real sort with a daily-rotating, catalog-specific seed and serves a
-    // slice of that. The seed is stable within a UTC day, so paging through
-    // the pool is consistent; past the pool it drops to the plain path below.
-    if (randomize && offset < RANDOM_POOL_SIZE) {
+    // Fetch only the block this offset falls in, shuffle it against a seed
+    // carrying that block's index, and serve the slice. No depth ceiling: the
+    // randomized region extends a block at a time as the user pages, and the
+    // cost stays RANDOM_BLOCK_PAGES upstream calls per block.
+    if (randomize) {
+      const blockIndex = Math.floor(offset / RANDOM_BLOCK_SIZE);
+      const blockStart = blockIndex * RANDOM_BLOCK_SIZE;
       const pages = await Promise.all(
-        Array.from({ length: RANDOM_POOL_PAGES }, (_, i) =>
-          delay(i * 10).then(() => fetchPage(i * PAGE_SIZE)),
+        Array.from({ length: RANDOM_BLOCK_PAGES }, (_, i) =>
+          delay(i * 10).then(() => fetchPage(blockStart + i * PAGE_SIZE)),
         ),
       );
       const seed = seedFromString(
-        `${coreId}|${type}|${genreCode || ""}|${currentDaySeed()}`,
+        [
+          coreId,
+          type,
+          genreCode || "",
+          blockIndex,
+          seedWindow(RANDOM_SEED_WINDOW_MS),
+        ].join("|"),
       );
+      const offsetInBlock = offset - blockStart;
       const metas = seededShuffle(buildMetas(pages.flat()), seed).slice(
-        offset,
-        offset + PAGE_SIZE,
+        offsetInBlock,
+        offsetInBlock + PAGE_SIZE,
       );
       if (metas.length) return { ok: true, metas };
-      // Empty pool → fall through to the plain path's placeholder handling.
+      // Empty block → fall through to the plain path's placeholder handling.
     }
 
     // Calculate batch boundaries

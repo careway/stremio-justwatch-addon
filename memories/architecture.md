@@ -19,6 +19,7 @@ src/
     catalog.js      handleCatalog — browse/genre/pagination/dedupe/filtering
     manifest.js     buildManifest — dynamic Stremio manifest
     userConfig.js   encodeConfig / decodeConfig + poster-key codec
+    random.js       seeded PRNG + shuffle + seed window (pure; clock injected)
   infra/            outside world
     justwatch.js    GraphQL client + concurrency queue
     cache.js        L1 (Map) + L2 (Upstash Redis)
@@ -39,9 +40,10 @@ contrib/aiostreams/ upstream AIOStreams preset (see aiostreams-preset.md)
   is the only place the two meet.
 - `data/` imports nothing from the rest of the app — it's leaf data + pure helpers.
 - `src/ttl.js` stayed at the root **on purpose**: it's the one cross-cutting
-  constant that both `http/router.js` (HTTP `Cache-Control`) and
-  `infra/justwatch.js` (server-side cache TTL) depend on. Keeping it out of any
-  layer avoids an http↔infra dependency. See [cache-layers.md](cache-layers.md).
+  constant that `http/router.js` (HTTP `Cache-Control`), `infra/justwatch.js`
+  (server-side cache TTL) and — since 2026-09-01 — `domain/catalog.js` (the
+  shuffle's seed window) all depend on. Keeping it out of any layer avoids an
+  http↔infra↔domain dependency. See [cache-layers.md](cache-layers.md).
 - `data/catalogMeta.js` is the home for constants two modules would otherwise
   hardcode independently — that's why `GLOBAL_PACKAGE_ID` lives there rather
   than as a string literal in both `domain/manifest.js` and `domain/catalog.js`.

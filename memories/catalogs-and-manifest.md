@@ -106,15 +106,43 @@ Also present and easy to clobber by accident:
 - `description` comes from `content.shortDescription` (in the query since
   `0a1a2c0`, 2026-04-11).
 - Posters go through `resolvePosterUrl()` — see [poster-providers.md](poster-providers.md).
-- **Randomized catalogs (`r_` id, 2026-09-01).** For `offset < 150` the first
-  3 pages of the real sort are fetched, deduped, and shuffled with a
-  deterministic seed = `FNV(coreId|type|genreCode|UTC-day-number)` (see
-  `src/domain/random.js` — FNV-1a hash + mulberry32 + Fisher–Yates), then
-  sliced `[offset, offset+50]`. Same day + same catalog ⇒ same order, so
-  paging through the pool never repeats or gaps; the shuffle refreshes at
-  UTC midnight. Past offset 150 it falls back to the plain ranked path.
-  First page of a randomized catalog costs 3 JW calls (the pool), then
-  cached — pages 2–3 are cache hits.
+- **Randomized catalogs (`r_` id, 2026-09-01; reworked 2026-09-01).** Shuffled
+  in **blocks** of `RANDOM_BLOCK_PAGES = 3` pages (150 titles), each block
+  seeded on its own:
+  `FNV(coreId|type|genreCode|blockIndex|seedWindow)` (see `src/domain/random.js`
+  — FNV-1a + mulberry32 + Fisher–Yates). A request at `offset` fetches only its
+  own block (`blockStart + 0/50/100`), shuffles it, and slices at
+  `offset - blockStart`.
+
+  **There is no depth ceiling** — the first version capped the shuffle at the
+  first 150 titles and fell back to plain ranking past that. Cost stays 3 JW
+  calls per *block*: the first page of a block pays, pages 2–3 are cache hits.
+
+  **Why per block and not one growing pool.** Growing a single pool and
+  re-shuffling it reorders pages already served — reaching page 4 rearranges
+  page 1, so the user sees titles twice and misses others. Per-block seeds
+  leave earlier blocks frozen forever. The deliberate cost: a title ranked
+  200th can move anywhere inside pages 4–6 but can never reach page 1. Stable
+  pagination and an ever-widening pool are mutually exclusive; pagination wins
+  because it's the one users notice. `test/randomBlocks.test.js` pins both
+  halves (block containment *and* earlier-page stability).
+
+  **The seed window is `TTL_S`, not a day** (`RANDOM_SEED_WINDOW_MS = TTL_S *
+  1000`). A fixed UTC day outlived the data by 6×: the pool is cached for
+  `TTL_S` (4 h), so it was refetched and changed underneath a frozen seed, and
+  anyone paging at that moment got duplicates and gaps. Deriving the window
+  from `TTL_S` keeps shuffle and data on one cadence, and keeps following if
+  that TTL ever changes — including if it ever becomes per-sort.
+
+  Caveat worth knowing: this aligns **cadence, not phase**. Cache entries
+  expire `TTL_S` after they were *written*, not on a global 4 h grid, so a
+  refresh can still land mid-window. Fully closing that would mean caching the
+  shuffled block itself under its seed window rather than caching the raw
+  pages. Not done — see [cache-layers.md](cache-layers.md).
+
+  This is also the one place `domain/` imports `src/ttl.js`, which is fine:
+  ttl.js sits outside the layers precisely to be shared (see
+  [architecture.md](architecture.md)).
 
 ## Unreleased-title filtering
 

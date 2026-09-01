@@ -2,7 +2,7 @@
 
 `npm test` → `node --test test/**/*.test.js`. No test framework, no mocks
 library — plain `node:test` + `node:assert`.
-**111 tests / 16 suites, all passing as of 2026-08-31.**
+**132 tests / 20 suites, all passing as of 2026-09-01.**
 
 ## The suites
 
@@ -13,7 +13,8 @@ library — plain `node:test` + `node:assert`.
 | `posterKeyCodec.test.js`  | client (`configure.html`) vs server (`userConfig.js`) codec agreement, plus `encodeConfig`/`decodeConfig` poster-segment round-trips including the legacy `rpdb-` shape |
 | `security.test.js`        | path traversal (raw and URL-encoded), long config segments, country-param validation, config-segment injection |
 | `packageTypes.test.js`    | the `m-`/`s-` per-package and `gm-`/`gs-` per-global-sort content-type codec, `buildManifest`'s use of both (including per-sort beating package-level), that `s-`/`gs-` are never confused with `sorts-`/`gsorts-`, backward compatibility of pre-feature URLs, **and** a second client-vs-server extraction test (see below) |
-| `randomize.test.js`       | `seededShuffle` determinism / permutation / no-mutation, `currentDaySeed` day rollover, the `rnd` config segment round-trip (not swallowed as a package, coexists with other segments), and `buildManifest` applying the `r_` id prefix |
+| `randomize.test.js`       | `seededShuffle` determinism / permutation / no-mutation, `seedWindow` behavior, that the seed window is *derived from `TTL_S`* rather than hardcoded, the `rnd` config segment round-trip (not swallowed as a package, coexists with other segments), and `buildManifest` applying the `r_` id prefix |
+| `randomBlocks.test.js`    | the block shuffler through `handleCatalog` itself: pages stay inside their block, no depth ceiling, a block's 3 pages partition it exactly, **earlier pages don't move when a later block is reached**, one block costs exactly 3 upstream calls, and `r_` is stripped before the id is parsed |
 
 ## The cross-implementation tests are unusual — don't break them
 
@@ -85,6 +86,23 @@ see [config-codec.md](config-codec.md)).
    suite are counted; a throw in the suite body isn't. So `npm test`'s exit
    code and `# fail` line are *not* sufficient — grep the output for
    `^not ok` too, especially for suites that do work at describe level.
+
+## Stubbing the JustWatch client
+
+`randomBlocks.test.js` tests `handleCatalog` end to end without network by
+replacing `require.cache[require.resolve("../src/infra/justwatch")]` **before**
+`domain/catalog.js` is first required — that module destructures `searchTitles`
+at require time, so patching the export afterwards would be too late. Safe
+because `node --test` runs each test file in its own process, so the stub can't
+leak into another suite.
+
+The stub serves a bottomless ranked catalog where rank N is always the same
+title (`tt{N}`), which makes any reordering unambiguously the handler's own
+doing and lets assertions talk in ranks. It also records the query args, which
+is how "the `r_` prefix never reaches the package filter" is checked directly
+rather than inferred from result ranges — the first draft of that test inferred
+it and was simply wrong (a randomized page draws from 150 ranks, a plain one
+from 50, so they legitimately don't overlap).
 
 ## Verifying the `/configure` UI without a browser
 

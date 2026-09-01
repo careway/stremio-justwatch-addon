@@ -86,7 +86,7 @@ and the old plan is not a guide to the code.
 | Paper design (2026-08-26)                  | What shipped                                      |
 | ------------------------------------------ | ------------------------------------------------- |
 | `src/domain/shuffle.js`                    | `src/domain/random.js`                             |
-| window rotation **+** in-batch shuffle     | **pool shuffle only** — no rotation                |
+| window rotation **+** in-batch shuffle     | **block shuffle** — no rotation, no depth limit    |
 | `rnd-day` prefixed segment                 | bare `rnd` flag segment                            |
 | `config.shuffle === "day"`                 | boolean `config.randomize`                         |
 | `shuffle` / `shuffleHint` UI keys          | `randomize` / `randomizeHint`                      |
@@ -94,15 +94,15 @@ and the old plan is not a guide to the code.
 ### How it actually works
 
 `domain/random.js` — `seedFromString` (FNV-1a), `mulberry32`, `seededShuffle`
-(Fisher–Yates, non-mutating), `currentDaySeed` (UTC day counter, `now`
-injectable). All pure.
+(Fisher–Yates, non-mutating), `seedWindow(windowMs, now)` (which rotation
+window `now` falls in — the length is a *parameter*, because the right value is
+a property of how long the data lives, not of shuffling). All pure.
 
-`domain/catalog.js` fetches the first `RANDOM_POOL_PAGES = 3` pages (150 items)
-of the real sort, shuffles that pool with
-`seedFromString("{coreId}|{type}|{genre}|{daySeed}")`, and serves a 50-item
-slice. Past the pool it falls back to the plain ranked order. So the shuffle
-reaches ~150 titles deep, not the whole catalog, and costs 3 upstream calls on
-a randomized catalog's first pages.
+`domain/catalog.js` shuffles in 3-page **blocks**, each independently seeded,
+with no depth ceiling, and the seed window derived from `TTL_S` rather than a
+fixed day. Full rationale (why blocks rather than a growing pool, and the
+cadence-vs-phase caveat) lives in
+[catalogs-and-manifest.md](catalogs-and-manifest.md) — don't duplicate it here.
 
 **`buildManifest` prefixes the catalog id with `r_`** when the config is
 randomized, and `handleCatalog` strips it before parsing sort key/package. A
@@ -116,9 +116,9 @@ so it was checked: `rnd` is unused across 564 JustWatch shortNames from 15
 countries (verified 2026-09-01). If JustWatch ever introduces it, the flag and
 that provider collide.
 
-The CDN caveat from the paper design still stands: catalogs are served with
-`s-maxage=4h`, so just after UTC midnight yesterday's order can be served for
-up to 4 hours.
+The CDN caveat from the paper design is now moot in its original form: the
+seed window and `s-maxage` are both `TTL_S`, so they rotate together instead of
+the edge serving a stale order for a quarter of the shuffle's life.
 
 Format details: [config-codec.md](config-codec.md) ·
 catalog behavior: [catalogs-and-manifest.md](catalogs-and-manifest.md).

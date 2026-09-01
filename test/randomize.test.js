@@ -2,11 +2,13 @@
 
 const assert = require("node:assert/strict");
 const { test, describe } = require("node:test");
+const fs = require("node:fs");
+const path = require("node:path");
 
 const {
   seedFromString,
   seededShuffle,
-  currentDaySeed,
+  seedWindow,
 } = require("../src/domain/random");
 const { encodeConfig, decodeConfig } = require("../src/domain/userConfig");
 const { buildManifest } = require("../src/domain/manifest");
@@ -34,9 +36,37 @@ describe("domain/random — seededShuffle", () => {
     assert.deepEqual([...out].sort((x, y) => x - y), copy);
   });
 
-  test("currentDaySeed changes once per UTC day", () => {
-    const d1 = currentDaySeed(Date.UTC(2026, 0, 1, 23, 59));
-    const d2 = currentDaySeed(Date.UTC(2026, 0, 2, 0, 1));
+  test("seedWindow is stable inside a window and moves across one", () => {
+    const W = 4 * 3600 * 1000; // the catalog TTL, which is what catalog.js passes
+    const base = Date.UTC(2026, 0, 1, 0, 0);
+    assert.equal(seedWindow(W, base), seedWindow(W, base + W - 1));
+    assert.equal(seedWindow(W, base) + 1, seedWindow(W, base + W));
+  });
+
+  test("seedWindow tracks the window length it is given", () => {
+    const hour = 3600 * 1000;
+    const t = Date.UTC(2026, 0, 1, 7, 0);
+    // A 4h window has already rotated 7 times by 07:00; a 24h one has not.
+    assert.notEqual(seedWindow(4 * hour, t), seedWindow(4 * hour, t - 4 * hour));
+    assert.equal(seedWindow(24 * hour, t), seedWindow(24 * hour, t - 4 * hour));
+  });
+
+  test("the seed window is derived from the catalog TTL, not a hardcoded day", () => {
+    const { TTL_S } = require("../src/ttl");
+    const src = fs.readFileSync(
+      path.join(__dirname, "..", "src", "domain", "catalog.js"),
+      "utf8",
+    );
+    // Pins the intent: if someone reintroduces a fixed period here, the data
+    // and the shuffle drift apart again.
+    assert.match(src, /RANDOM_SEED_WINDOW_MS = TTL_S \* 1000/);
+    assert.doesNotMatch(src, /86400000/);
+    assert.equal(typeof TTL_S, "number");
+  });
+
+  test("a day-long window would outlive the catalog TTL", () => {
+    const d1 = seedWindow(86400000, Date.UTC(2026, 0, 1, 23, 59));
+    const d2 = seedWindow(86400000, Date.UTC(2026, 0, 2, 0, 1));
     assert.equal(d2 - d1, 1);
   });
 });

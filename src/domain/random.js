@@ -40,10 +40,14 @@ function seededShuffle(items, seed) {
   return out;
 }
 
-// Whole-day counter (UTC). The seed rotates at midnight UTC so a randomized
-// catalog reshuffles daily rather than on every request.
-function currentDaySeed(now = Date.now()) {
-  return Math.floor(now / 86400000);
+// Which rotation window `now` falls in, for a window of `windowMs`. The length
+// is a parameter rather than a constant here because the right value is not a
+// property of shuffling — it's a property of how long the shuffled data lives.
+// The caller ties it to the catalog cache TTL; see domain/catalog.js.
+//
+// `now` stays a parameter too, so this is testable without touching the clock.
+function seedWindow(windowMs, now = Date.now()) {
+  return Math.floor(now / windowMs);
 }
 
-module.exports = { seedFromString, mulberry32, seededShuffle, currentDaySeed };
+module.exports = { seedFromString, mulberry32, seededShuffle, seedWindow };

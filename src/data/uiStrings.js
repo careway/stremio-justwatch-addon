@@ -58,6 +58,9 @@ const UI_STRINGS = {
     randomize: "Aleatorizar catálogos",
     randomizeHint:
       "Baraja el orden de todos los catálogos (globales y de proveedores), con una mezcla nueva cada día.",
+    hideCountry: "Ocultar el país en los nombres",
+    hideCountryHint:
+      "«Netflix · Popular» en vez de «Netflix · Popular · ES». Si instalas el addon para varios países, ese código es lo que los distingue en Stremio.",
     loadMore: "Cargar proveedores restantes ({n})",
     collapseList: "Contraer lista",
   },
@@ -113,6 +116,9 @@ const UI_STRINGS = {
     randomize: "Shuffle catalogs",
     randomizeHint:
       "Shuffles the order of all catalogs (global and provider), with a fresh mix each day.",
+    hideCountry: "Hide the country in catalog names",
+    hideCountryHint:
+      "«Netflix · Popular» instead of «Netflix · Popular · ES». If you install the addon for several countries, that code is what tells them apart in Stremio.",
     loadMore: "Load remaining providers ({n})",
     collapseList: "Collapse list",
   },
@@ -168,6 +174,9 @@ const UI_STRINGS = {
     randomize: "Kataloge mischen",
     randomizeHint: "Mischt die Reihenfolge jedes Katalogs – jeden Tag neu.",
     loadMore: "Restliche Anbieter laden ({n})",
+    hideCountry: "Land in den Namen ausblenden",
+    hideCountryHint:
+      "«Netflix · Beliebt» statt «Netflix · Beliebt · DE». Wenn du das Addon für mehrere Länder installierst, unterscheidet genau dieser Code sie in Stremio.",
     collapseList: "Liste einklappen",
   },
 
@@ -222,6 +231,9 @@ const UI_STRINGS = {
     randomize: "Mélanger les catalogues",
     randomizeHint: "Mélange l'ordre de chaque catalogue, avec un nouveau tirage chaque jour.",
     loadMore: "Charger les fournisseurs restants ({n})",
+    hideCountry: "Masquer le pays dans les noms",
+    hideCountryHint:
+      "«Netflix · Populaire» au lieu de «Netflix · Populaire · FR». Si vous installez l’addon pour plusieurs pays, c’est ce code qui les distingue dans Stremio.",
     collapseList: "Réduire la liste",
   },
 
@@ -277,6 +289,9 @@ const UI_STRINGS = {
     randomize: "Mescola i cataloghi",
     randomizeHint: "Mescola l'ordine di ogni catalogo, con un nuovo mix ogni giorno.",
     loadMore: "Carica i provider rimanenti ({n})",
+    hideCountry: "Nascondi il paese nei nomi",
+    hideCountryHint:
+      "«Netflix · Popolare» invece di «Netflix · Popolare · IT». Se installi l’addon per più paesi, è quel codice a distinguerli in Stremio.",
     collapseList: "Comprimi elenco",
   },
 
@@ -331,6 +346,9 @@ const UI_STRINGS = {
     randomize: "Baralhar catálogos",
     randomizeHint: "Baralha a ordem de cada catálogo, com uma mistura nova todos os dias.",
     loadMore: "Carregar os restantes fornecedores ({n})",
+    hideCountry: "Ocultar o país nos nomes",
+    hideCountryHint:
+      "«Netflix · Popular» em vez de «Netflix · Popular · PT». Se instalares o addon para vários países, é esse código que os distingue no Stremio.",
     collapseList: "Recolher lista",
   },
 
@@ -385,6 +403,9 @@ const UI_STRINGS = {
     randomize: "Catalogi schudden",
     randomizeHint: "Schudt de volgorde van elke catalogus, met elke dag een nieuwe mix.",
     loadMore: "Overige aanbieders laden ({n})",
+    hideCountry: "Land verbergen in de namen",
+    hideCountryHint:
+      "«Netflix · Populair» in plaats van «Netflix · Populair · NL». Installeer je de addon voor meerdere landen, dan onderscheidt die code ze in Stremio.",
     collapseList: "Lijst inklappen",
   },
 
@@ -439,6 +460,9 @@ const UI_STRINGS = {
     randomize: "Blanda kataloger",
     randomizeHint: "Blandar ordningen i varje katalog, med en ny blandning varje dag.",
     loadMore: "Ladda återstående leverantörer ({n})",
+    hideCountry: "Dölj landet i namnen",
+    hideCountryHint:
+      "«Netflix · Populärt» istället för «Netflix · Populärt · SE». Installerar du tillägget för flera länder är det koden som skiljer dem åt i Stremio.",
     collapseList: "Fäll ihop listan",
   },
 
@@ -493,6 +517,9 @@ const UI_STRINGS = {
     randomize: "Bland kataloger",
     randomizeHint: "Blander rekkefølgen i hver katalog, med en ny miks hver dag.",
     loadMore: "Last resten av leverandørene ({n})",
+    hideCountry: "Skjul landet i navnene",
+    hideCountryHint:
+      "«Netflix · Populært» i stedet for «Netflix · Populært · NO». Installerer du tillegget for flere land, er det koden som skiller dem i Stremio.",
     collapseList: "Skjul listen",
   },
 
@@ -547,6 +574,9 @@ const UI_STRINGS = {
     randomize: "Bland kataloger",
     randomizeHint: "Blander rækkefølgen i hvert katalog, med en ny blanding hver dag.",
     loadMore: "Indlæs de resterende udbydere ({n})",
+    hideCountry: "Skjul landet i navnene",
+    hideCountryHint:
+      "«Netflix · Populært» i stedet for «Netflix · Populært · DK». Installerer du addonet for flere lande, er det koden, der adskiller dem i Stremio.",
     collapseList: "Skjul listen",
   },
 
@@ -601,6 +631,9 @@ const UI_STRINGS = {
     randomize: "Sekoita luettelot",
     randomizeHint: "Sekoittaa jokaisen luettelon järjestyksen, uusi sekoitus joka päivä.",
     loadMore: "Lataa loput tarjoajat ({n})",
+    hideCountry: "Piilota maa nimistä",
+    hideCountryHint:
+      "«Netflix · Suosittu» eikä «Netflix · Suosittu · FI». Jos asennat lisäosan usealle maalle, juuri tuo koodi erottaa ne Stremiossa.",
     collapseList: "Tiivistä luettelo",
   },
 
@@ -656,6 +689,9 @@ const UI_STRINGS = {
     randomize: "Losuj kolejność katalogów",
     randomizeHint: "Miesza kolejność każdego katalogu, z nowym układem każdego dnia.",
     loadMore: "Wczytaj pozostałych dostawców ({n})",
+    hideCountry: "Ukryj kraj w nazwach",
+    hideCountryHint:
+      "«Netflix · Popularne» zamiast «Netflix · Popularne · PL». Jeśli instalujesz dodatek dla kilku krajów, to właśnie ten kod je rozróżnia w Stremio.",
     collapseList: "Zwiń listę",
   },
 
@@ -710,6 +746,9 @@ const UI_STRINGS = {
     randomize: "カタログをシャッフル",
     randomizeHint: "各カタログの並び順をシャッフルし、毎日新しい組み合わせにします。",
     loadMore: "残りのプロバイダーを読み込む（{n}）",
+    hideCountry: "カタログ名から国コードを隠す",
+    hideCountryHint:
+      "«Netflix · 人気 · JP» ではなく «Netflix · 人気» と表示します。複数の国でアドオンを入れている場合、Stremio で区別しているのはそのコードです。",
     collapseList: "リストを折りたたむ",
   },
 
@@ -764,6 +803,9 @@ const UI_STRINGS = {
     randomize: "카탈로그 섞기",
     randomizeHint: "매일 새롭게 섞어 각 카탈로그의 순서를 무작위로 표시합니다.",
     loadMore: "남은 제공자 불러오기 ({n})",
+    hideCountry: "카탈로그 이름에서 국가 숨기기",
+    hideCountryHint:
+      "«Netflix · 인기 · KR» 대신 «Netflix · 인기»로 표시합니다. 여러 국가로 애드온을 설치했다면 Stremio에서 구분해 주는 것이 그 코드입니다.",
     collapseList: "목록 접기",
   },
 
@@ -818,6 +860,9 @@ const UI_STRINGS = {
     randomize: "خلط الكتالوجات",
     randomizeHint: "يخلط ترتيب كل كتالوج، مع مزيج جديد كل يوم.",
     loadMore: "تحميل بقية المزوّدين ({n})",
+    hideCountry: "إخفاء رمز البلد من الأسماء",
+    hideCountryHint:
+      "«Netflix · الأكثر شهرة» بدلاً من «Netflix · الأكثر شهرة · SA». إذا ثبّت الإضافة لعدة بلدان، فهذا الرمز هو ما يميّزها في Stremio.",
     collapseList: "طي القائمة",
   },
 
@@ -872,6 +917,9 @@ const UI_STRINGS = {
     randomize: "कैटलॉग शफ़ल करें",
     randomizeHint: "हर कैटलॉग का क्रम मिलाता है, हर दिन एक नया मिश्रण।",
     loadMore: "बाकी प्रदाता लोड करें ({n})",
+    hideCountry: "नामों में देश छिपाएँ",
+    hideCountryHint:
+      "«Netflix · लोकप्रिय · IN» के बजाय «Netflix · लोकप्रिय»। अगर आपने कई देशों के लिए ऐडऑन लगाया है, तो Stremio में उन्हें यही कोड अलग करता है।",
     collapseList: "सूची छोटी करें",
   },
 
@@ -926,6 +974,9 @@ const UI_STRINGS = {
     randomize: "కేటలాగ్‌లను షఫుల్ చేయండి",
     randomizeHint: "ప్రతి కేటలాగ్ క్రమాన్ని కలుపుతుంది, ప్రతిరోజూ కొత్త మిశ్రమం.",
     loadMore: "మిగిలిన ప్రొవైడర్లను లోడ్ చేయండి ({n})",
+    hideCountry: "పేర్లలో దేశాన్ని దాచు",
+    hideCountryHint:
+      "«Netflix · జనాదరణ · IN» బదులు «Netflix · జనాదరణ». మీరు అనేక దేశాలకు యాడ్-ఆన్ ఇన్‌స్టాల్ చేస్తే, Stremioలో వాటిని వేరు చేసేది ఆ కోడే.",
     collapseList: "జాబితాను కుదించు",
   },
 
@@ -981,6 +1032,9 @@ const UI_STRINGS = {
     randomize: "കാറ്റലോഗുകൾ ഷഫിൾ ചെയ്യുക",
     randomizeHint: "ഓരോ കാറ്റലോഗിന്റെയും ക്രമം മാറ്റുന്നു, എല്ലാ ദിവസവും പുതിയ മിശ്രിതം.",
     loadMore: "ബാക്കി ദാതാക്കളെ ലോഡ് ചെയ്യുക ({n})",
+    hideCountry: "പേരുകളിൽ രാജ്യം മറയ്ക്കുക",
+    hideCountryHint:
+      "«Netflix · ജനപ്രിയം · IN» എന്നതിനു പകരം «Netflix · ജനപ്രിയം». പല രാജ്യങ്ങൾക്കായി ആഡ്-ഓൺ ഇൻസ്റ്റാൾ ചെയ്താൽ Stremio-യിൽ അവയെ വേർതിരിക്കുന്നത് ആ കോഡാണ്.",
     collapseList: "പട്ടിക ചുരുക്കുക",
   },
 
@@ -1035,6 +1089,9 @@ const UI_STRINGS = {
     randomize: "ಕ್ಯಾಟಲಾಗ್‌ಗಳನ್ನು ಶಫಲ್ ಮಾಡಿ",
     randomizeHint: "ಪ್ರತಿ ಕ್ಯಾಟಲಾಗ್‌ನ ಕ್ರಮವನ್ನು ಬೆರೆಸುತ್ತದೆ, ಪ್ರತಿದಿನ ಹೊಸ ಮಿಶ್ರಣ.",
     loadMore: "ಉಳಿದ ಪೂರೈಕೆದಾರರನ್ನು ಲೋಡ್ ಮಾಡಿ ({n})",
+    hideCountry: "ಹೆಸರುಗಳಲ್ಲಿ ದೇಶವನ್ನು ಮರೆಮಾಡಿ",
+    hideCountryHint:
+      "«Netflix · ಜನಪ್ರಿಯ · IN» ಬದಲಿಗೆ «Netflix · ಜನಪ್ರಿಯ». ಹಲವು ದೇಶಗಳಿಗೆ ಆಡ್-ಆನ್ ಸ್ಥಾಪಿಸಿದರೆ, Stremio ನಲ್ಲಿ ಅವುಗಳನ್ನು ಬೇರ್ಪಡಿಸುವುದು ಆ ಕೋಡ್.",
     collapseList: "ಪಟ್ಟಿಯನ್ನು ಮಡಚಿ",
   },
   tr: {
@@ -1088,6 +1145,9 @@ const UI_STRINGS = {
     randomize: "Katalogları karıştır",
     randomizeHint: "Her kataloğun sırasını karıştırır, her gün yeni bir karışım.",
     loadMore: "Kalan sağlayıcıları yükle ({n})",
+    hideCountry: "Adlarda ülkeyi gizle",
+    hideCountryHint:
+      "«Netflix · Popüler · TR» yerine «Netflix · Popüler». Eklentiyi birden çok ülke için kurduysanız, Stremio’da onları ayıran şey bu koddur.",
     collapseList: "Listeyi daralt",
   },
 };

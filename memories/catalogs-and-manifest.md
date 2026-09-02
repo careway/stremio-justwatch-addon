@@ -75,6 +75,18 @@ independently in the UI.
 URL encoding (`m-`/`s-`/`gm-`/`gs-`), the defensive decode rules, and why they
 are list segments: [config-codec.md](config-codec.md).
 
+## Catalog names and the country suffix
+
+`"{clearName} · {sortLabel} · {COUNTRY}"`, or `"{sortLabel} · {COUNTRY}"` for
+global. **`config.hideCountry`** (the bare `nc` flag) drops that suffix from
+every catalog, provider and global alike — `buildManifest` computes one
+`countrySuffix` and both branches use it, so they can't drift.
+
+Worth knowing before recommending it: that code is what distinguishes two
+installs of different countries in Stremio. The `/configure` hint says so.
+A config with no country at all never had the suffix, so the flag is a no-op
+there.
+
 ## Manifest shape
 
 `resources: ["catalog"]` only — **no stream resource**. `types: ["movie", "series"]`.

@@ -41,7 +41,24 @@ to `[A-Za-z0-9-]`. The router's own match is `[A-Za-z0-9_-]+`.
 | `s-{p1}-{p2}…`          | packages restricted to **series** catalogs only (2026-08-31)               |
 | `gm-{k1}-{k2}…`         | **global sorts** restricted to movies only (2026-08-31)                    |
 | `gs-{k1}-{k2}…`         | **global sorts** restricted to series only (2026-08-31)                    |
+| `rnd`                   | bare flag — daily-seeded shuffled order (see catalogs-and-manifest.md)     |
+| `nc`                    | bare flag — drop the country code from catalog names (2026-09-02)         |
 | everything else         | package `shortName`s, matched by `/^[a-z0-9-]{1,30}$/`, capped at 200     |
+
+## Bare flags need a length no shortName uses
+
+`rnd` and `nc` are whole tokens, not prefixed markers, so `decodeConfig` excludes
+them from the packages list with an exact match (`BARE_FLAGS.includes(p)`) rather
+than a `startsWith`.
+
+That makes their **length** the only thing standing between a flag and a
+provider: every JustWatch shortName is exactly **three characters** (all 801
+seen across 18 countries, measured 2026-09-02). So `nc` is collision-proof by
+construction, while `rnd` is three characters and merely happens to be
+unclaimed today — the day a provider ships with that shortName, the two become
+indistinguishable and that provider silently turns into "randomize on".
+
+**Any bare flag added from here on should be 2 or 4+ characters.**
 
 ## Invariants — break these and you break installed URLs
 

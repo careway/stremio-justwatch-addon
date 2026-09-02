@@ -2,7 +2,7 @@
 
 `npm test` → `node --test test/**/*.test.js`. No test framework, no mocks
 library — plain `node:test` + `node:assert`.
-**161 tests / 23 suites, all passing as of 2026-09-02.**
+**194 tests / 27 suites, all passing as of 2026-09-02.**
 
 ## The suites
 
@@ -11,10 +11,11 @@ library — plain `node:test` + `node:assert`.
 | `translations.test.js`    | `GENRES` integrity: every genre has a code + English name + all 19 languages, no duplicate codes, no empty strings; `getGenreNames`/`getGenreCode` round-trip and BCP-47/null handling |
 | `uiStrings.test.js`       | UI languages == catalog languages **in both directions**; every language has every key non-empty; no language defines keys English lacks; `{n}` preserved in `loadMore`; `getUiStrings` fallbacks |
 | `posterKeyCodec.test.js`  | client (`configure.html`) vs server (`userConfig.js`) codec agreement, plus `encodeConfig`/`decodeConfig` poster-segment round-trips including the legacy `rpdb-` shape |
-| `security.test.js`        | path traversal (raw and URL-encoded), long config segments, country-param validation, config-segment injection |
+| `security.test.js`        | path traversal (raw and URL-encoded), long config segments, country-param validation, config-segment injection, the cache-invalidation route being closed when `INV_KEY` is unset (every trailing-slash shape), and path normalisation (duplicated slashes route correctly, traversal still refused) |
+| `genreEncoding.test.js`   | that Stremio's double-encoded genre still resolves — accents, spaces and non-Latin scripts — plus a sweep over every genre of 15 languages, and that an unresolvable one degrades to unfiltered rather than empty |
 | `packageFilters.test.js`  | the package rule set with no network: exclusions (cinema-only, hasTitles, and that a *missing* hasTitles is not treated as false), every channel the API fails to link (Apple TV, the lowercase "Amazon channel" tail, the real "Amzon" typo, trailing spaces), every provider that merely ends in "Channel", and that a rule-matched channel resolves to the same parent shortName as an API-linked one |
 | `packageTypes.test.js`    | the `m-`/`s-` per-package and `gm-`/`gs-` per-global-sort content-type codec, `buildManifest`'s use of both (including per-sort beating package-level), that `s-`/`gs-` are never confused with `sorts-`/`gsorts-`, backward compatibility of pre-feature URLs, **and** a second client-vs-server extraction test (see below) |
-| `randomize.test.js`       | `seededShuffle` determinism / permutation / no-mutation, `seedWindow` behavior, that the seed window is *derived from `TTL_S`* rather than hardcoded, the `rnd` config segment round-trip (not swallowed as a package, coexists with other segments), and `buildManifest` applying the `r_` id prefix |
+| `randomize.test.js`       | `seededShuffle` determinism / permutation / no-mutation, `seedWindow` behavior, that the seed window is *derived from `TTL_S`* rather than hardcoded, the `rnd` config segment round-trip (not swallowed as a package, coexists with other segments), and `buildManifest` applying the `r_` id prefix; plus the `nc` (hideCountry) flag: round-trip, not swallowed as a package, coexisting with `rnd`, and the country suffix leaving both provider and global names |
 | `randomBlocks.test.js`    | the block shuffler through `handleCatalog` itself: **a randomized page costs exactly one upstream call** (the regression guard for the 2026-09-01 JustWatch saturation) and the same as a plain page, a page holds exactly the titles it would have held unshuffled, no depth ceiling, **earlier pages don't move when a later one is reached**, and `r_` is stripped before the id is parsed |
 
 ## The cross-implementation tests are unusual — don't break them
@@ -26,6 +27,7 @@ extracting this page's real source text.
 | Test                     | Extracts between…                                    |
 | ------------------------ | ----------------------------------------------------- |
 | `posterKeyCodec.test.js` | `const SAFE_POSTER_KEY_RE` → `function parsePosterSegment` |
+| `genreEncoding.test.js`   | that Stremio's double-encoded genre still resolves — accents, spaces and non-Latin scripts — plus a sweep over every genre of 15 languages, and that an unresolvable one degrades to unfiltered rather than empty |
 | `packageFilters.test.js`  | the package rule set with no network: exclusions (cinema-only, hasTitles, and that a *missing* hasTitles is not treated as false), every channel the API fails to link (Apple TV, the lowercase "Amazon channel" tail, the real "Amzon" typo, trailing spaces), every provider that merely ends in "Channel", and that a rule-matched channel resolves to the same parent shortName as an API-linked one |
 | `packageTypes.test.js`   | the `PKG_TYPE_PREFIX` declaration → the `generateUrl` declaration |
 

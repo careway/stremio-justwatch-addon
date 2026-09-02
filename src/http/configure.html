@@ -41,6 +41,12 @@
       min-height: 100vh;
       display: flex;
       justify-content: center;
+      /* Below the wrapper's min-width the card is wider than the viewport, and
+         plain `center` overflows *both* edges — the left half then can't be
+         scrolled to, it's simply unreachable. `safe` falls back to flex-start
+         exactly in that case. Declared second so browsers that don't know it
+         keep the plain `center` above. */
+      justify-content: safe center;
       /* align-items: center; <--- ELIMINA ESTA LÍNEA */
       padding: 1.5rem;
     }
@@ -68,6 +74,13 @@
       gap: 2rem;
       width: 100%;
       max-width: 1150px;
+      /* Hard floor: below this the tab bar, the sort chips and the options
+         grid start colliding. The page scrolls horizontally instead of
+         compressing — see the `safe center` note on body, without which that
+         scroll wouldn't reach the left edge.
+         Horizontal scroll starts below 594px of viewport (570 + the trimmed
+         0.75rem padding either side; 618px before that media query kicks in). */
+      min-width: 570px;
     }
 
     /* BARRA LATERAL ESTÉTICA */
@@ -872,6 +885,35 @@
       margin-top: 0.5rem;
     }
 
+    /* Breathing room between the expander and "Opciones adicionales".
+       `:not(:empty)` matters: the slot is emptied whenever there is no button
+       (a short list, or the channels tab), and a plain margin would leave a
+       gap hanging under nothing. */
+    #load-more-slot:not(:empty) {
+      margin-bottom: 1.25rem;
+    }
+
+    /* "Opciones adicionales": as many per row as fit, never more than two.
+       The 45% floor is what caps it — three tracks would need 135% of the row,
+       so auto-fit can only ever place two. The 220px floor takes over on a
+       narrow card and drops it to a single column. Add a third option and it
+       places itself; nothing here counts them. */
+    .extra-options {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(max(220px, 45%), 1fr));
+      gap: 0.5rem;
+      margin-bottom: 1rem;
+    }
+    /* Grid stretches the cells, so cards with hints of different lengths come
+       out the same height instead of ragged. */
+    .extra-options .toggle-card {
+      height: 100%;
+      align-items: flex-start;
+    }
+    .extra-options .toggle-dot {
+      margin-top: 2px;
+    }
+
     /* Aligns a control's top edge with the *cap height* of the label beside it
        (the top of the letters), not with the label's line box.
        `align-items: flex-start` on the row lines up the two boxes; this nudge
@@ -996,6 +1038,15 @@
     }
 
     /* RESPONSIVE */
+    /* Under the floor the page scrolls sideways no matter what, so stop
+       spending 48px of that scroll on padding. Brings the "no horizontal
+       scroll" threshold from 618px of viewport down to 594px. */
+    @media (max-width: 640px) {
+      body {
+        padding: 1.5rem 0.75rem;
+      }
+    }
+
     @media (max-width: 1000px) {
       .app-wrapper {
         flex-direction: column;
@@ -1298,25 +1349,44 @@
         <span data-i18n="additionalOptions">Opciones Adicionales</span>
       </label>
 
-      <div class="toggle-item" style="margin-bottom: 1rem; flex-shrink: 0">
-        <input type="checkbox" id="randomize-toggle" style="display: none" />
-        <label for="randomize-toggle" class="toggle-card">
-          <span class="toggle-dot"></span>
-          <span style="font-size: 0.72rem; color: var(--text)">
+      <div class="extra-options">
+        <div class="toggle-item">
+          <input type="checkbox" id="randomize-toggle" style="display: none" />
+          <label for="randomize-toggle" class="toggle-card">
+            <span class="toggle-dot"></span>
+            <span style="font-size: 0.72rem; color: var(--text)">
+              <span data-i18n="randomize">Aleatorizar Catálogos</span>
+              <span data-i18n="randomizeHint" style="
+                    display: block;
+                    color: var(--muted);
+                    font-size: 0.62rem;
+                    line-height: 1.35;
+                    margin-top: 0.15rem;
+                  ">Baraja el orden de todos los catálogos (globales y de
+                proveedores), con una mezcla nueva cada día.</span>
+            </span>
+          </label>
+        </div>
 
-            <span data-i18n="randomize">Aleatorizar Catálogos</span>
-            <span data-i18n="randomizeHint" style="
-                  display: block;
-                  color: var(--muted);
-                  font-size: 0.62rem;
-                  line-height: 1.35;
-                  margin-top: 0.15rem;
-                ">Baraja el orden de todos los catálogos (globales y de
-              proveedores), con una mezcla nueva cada día.</span>
-          </span>
-        </label>
+        <div class="toggle-item">
+          <input type="checkbox" id="hide-country-toggle" style="display: none" />
+          <label for="hide-country-toggle" class="toggle-card">
+            <span class="toggle-dot"></span>
+            <span style="font-size: 0.72rem; color: var(--text)">
+              <span data-i18n="hideCountry">Ocultar el país en los nombres</span>
+              <span data-i18n="hideCountryHint" style="
+                    display: block;
+                    color: var(--muted);
+                    font-size: 0.62rem;
+                    line-height: 1.35;
+                    margin-top: 0.15rem;
+                  ">"Netflix · Popular" en vez de "Netflix · Popular · ES". Si
+                instalas el addon para varios países, es lo que los distingue en
+                Stremio.</span>
+            </span>
+          </label>
+        </div>
       </div>
-
 
       <!-- ── Paso 3 ── -->
       <div style="
@@ -1985,6 +2055,8 @@
 
           document.getElementById("randomize-toggle").checked =
             rest.includes("rnd");
+          document.getElementById("hide-country-toggle").checked =
+            rest.includes("nc");
 
           const sortsSegment = rest.find((p) => p.startsWith("sorts-"));
           if (sortsSegment) {
@@ -2536,6 +2608,9 @@
       const rndPart = document.getElementById("randomize-toggle").checked
         ? "rnd_"
         : "";
+      const ncPart = document.getElementById("hide-country-toggle").checked
+        ? "nc_"
+        : "";
       const sortsPart =
         providerPkgs.length && enabledSorts.length < ALL_SORT_KEYS.length
           ? `sorts-${enabledSorts.join("-")}_`
@@ -2560,7 +2635,7 @@
       // trailing list rather than repeated. Mirrors userConfig.js.
       const trailingList = selected.filter((p) => !(p in pkgTypes));
       const config =
-        `${countrySel.value}_${languageSel.value}_${posterPart}${rndPart}${sortsPart}${gsortsPart}${typesPart}${gtypesPart}${trailingList.join("_")}`.replace(
+        `${countrySel.value}_${languageSel.value}_${posterPart}${rndPart}${ncPart}${sortsPart}${gsortsPart}${typesPart}${gtypesPart}${trailingList.join("_")}`.replace(
           /_+$/,
           "",
         );
@@ -2603,11 +2678,11 @@
         });
     }
 
-    document
-      .getElementById("randomize-toggle")
-      .addEventListener("change", () => {
+    for (const id of ["randomize-toggle", "hide-country-toggle"]) {
+      document.getElementById(id).addEventListener("change", () => {
         if (resultEl.classList.contains("visible")) generateUrl();
       });
+    }
 
     document
       .getElementById("poster-api-key")

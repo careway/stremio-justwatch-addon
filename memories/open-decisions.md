@@ -67,13 +67,26 @@ option 4 until there's guaranteed persistent storage.
 
 ---
 
-## 2. `INV_KEY` guard (small, unfixed)
+## 2. `INV_KEY` guard — **FIXED 2026-09-02, and the old note here was wrong**
 
-`http/router.js` builds the invalidation route as
-`/api/inv/${process.env.INV_KEY || ""}`. With `INV_KEY` unset the target is
-`/api/inv/`, which can never match because `rawPath` strips the trailing slash —
-**safe by accident, not by design**. It should get an explicit `if (!inv_key)`
-guard. See [http-and-caching.md](http-and-caching.md).
+This section used to say the route was "safe by accident" because `/api/inv/`
+could never match once `rawPath` stripped the trailing slash. **That was false.**
+`rawPath` does `.replace(/\/$/, "")`, which strips exactly **one** slash, so
+`/api/inv//?key=…` normalises onto `/api/inv/` and matched. With `INV_KEY`
+unset the purge endpoint was **open to anyone**, verified by request against
+the real router.
+
+Why it mattered: repeated invalidation forces refetches from JustWatch — the
+same upstream pressure that rate-limited the addon on 2026-09-01, but on demand.
+
+Fixed with `if (inv_key && rawPath === …)`. `test/security.test.js` now pins
+every shape (`/api/inv/`, `/api/inv`, `//`, `///`, `/undefined`) closed when the
+variable is unset, and pins the route still working on the exact path when it
+is set.
+
+**The lesson worth keeping**: "unreachable because of how the path normalises"
+is a claim to *test*, not to reason about. One `.replace()` that strips one
+occurrence instead of all is the whole difference.
 
 ---
 

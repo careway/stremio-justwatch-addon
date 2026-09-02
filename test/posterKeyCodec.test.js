@@ -151,6 +151,9 @@ describe("encodeConfig / decodeConfig — poster provider segment", () => {
       // No m-/s- or gm-/gs- segment: everything generates both content types.
       packageTypes: {},
       globalTypes: {},
+      // Bare flags, both off.
+      randomize: false,
+      hideCountry: false,
       randomize: false,
     });
   });

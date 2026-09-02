@@ -143,3 +143,95 @@ describe("buildManifest — randomized catalog ids", () => {
     assert.ok(ids.every((id) => id.startsWith("r_jw_")));
   });
 });
+
+// ─── The "nc" flag: country code out of catalog names ────────────────────────
+describe("hideCountry flag", () => {
+  const PKG = { nfx: { clearName: "Netflix" } };
+  const names = (config) =>
+    buildManifest(config, "x", PKG, "http://x")
+      .catalogs.filter((c) => c.type === "movie")
+      .map((c) => c.name);
+
+  test("absent by default, no segment emitted", () => {
+    const encoded = encodeConfig({
+      country: "ES",
+      language: "es",
+      packages: ["nfx"],
+    });
+    assert.equal(encoded, "ES_es_nfx");
+    assert.equal(decodeConfig(encoded).hideCountry, false);
+  });
+
+  test("round-trips as a bare 'nc' segment", () => {
+    const encoded = encodeConfig({
+      country: "ES",
+      language: "es",
+      packages: ["nfx"],
+      hideCountry: true,
+    });
+    assert.equal(encoded, "ES_es_nc_nfx");
+    assert.equal(decodeConfig(encoded).hideCountry, true);
+  });
+
+  test("'nc' is not mistaken for a package name", () => {
+    assert.deepEqual(decodeConfig("ES_es_nc_nfx").packages, ["nfx"]);
+  });
+
+  test("coexists with the other bare flag", () => {
+    const encoded = encodeConfig({
+      country: "ES",
+      language: "es",
+      packages: ["nfx"],
+      randomize: true,
+      hideCountry: true,
+    });
+    assert.equal(encoded, "ES_es_rnd_nc_nfx");
+    const decoded = decodeConfig(encoded);
+    assert.equal(decoded.randomize, true);
+    assert.equal(decoded.hideCountry, true);
+    assert.deepEqual(decoded.packages, ["nfx"]);
+  });
+
+  test("no flag keeps the country suffix on every catalog", () => {
+    assert.deepEqual(
+      names({
+        country: "ES",
+        language: "es",
+        packages: ["global", "nfx"],
+        sorts: ["pop"],
+        globalSorts: ["pop"],
+      }),
+      ["Popular · ES", "Netflix · Popular · ES"],
+    );
+  });
+
+  test("the flag drops it from provider and global names alike", () => {
+    assert.deepEqual(
+      names({
+        country: "ES",
+        language: "es",
+        packages: ["global", "nfx"],
+        sorts: ["pop"],
+        globalSorts: ["pop"],
+        hideCountry: true,
+      }),
+      ["Popular", "Netflix · Popular"],
+    );
+  });
+
+  test("a config with no country at all is unaffected either way", () => {
+    for (const hideCountry of [false, true]) {
+      assert.deepEqual(
+        names({ language: "es", packages: ["nfx"], sorts: ["pop"], hideCountry }),
+        ["Netflix · Popular"],
+      );
+    }
+  });
+
+  test("the flag is 2 chars, a length no JustWatch shortName uses", () => {
+    // All 801 shortNames seen across 18 countries are exactly 3 characters,
+    // so a 2-char flag cannot collide with one. "rnd" is only free by luck.
+    assert.equal("nc".length, 2);
+    assert.deepEqual(decodeConfig("ES_es_nc").packages, []);
+  });
+});

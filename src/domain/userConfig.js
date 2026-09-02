@@ -41,10 +41,18 @@ const RESERVED_PREFIXES = [
   ...Object.values(GLOBAL_TYPE_PREFIX),
 ];
 
-// Bare (valueless) flag segment: catalogs served in a daily-seeded shuffled
-// order. Excluded from the package list on decode the same way the prefixed
-// markers are.
+// Bare (valueless) flag segments. Unlike the prefixed markers these are whole
+// tokens, so each has to be excluded from the package list by an exact `!==`.
+//
+// A bare flag can only be safely spelled at a length no JustWatch shortName
+// uses: all 801 of them across 18 countries are **exactly three characters**
+// (measured 2026-09-02). "nc" is therefore collision-proof by construction;
+// "rnd" is three characters and merely happens to be unclaimed today — if a
+// provider ever ships with that shortName the two become indistinguishable.
+// Prefer 2 or 4+ characters for any flag added from here on.
 const RANDOMIZE_SEGMENT = "rnd";
+const HIDE_COUNTRY_SEGMENT = "nc";
+const BARE_FLAGS = [RANDOMIZE_SEGMENT, HIDE_COUNTRY_SEGMENT];
 
 // Reads one "{prefix}{a}-{b}…" list segment out of the config parts.
 function readListSegment(parts, prefix) {
@@ -168,6 +176,9 @@ function encodeConfig(config) {
   // A bare flag: present means every catalog is served in a daily-seeded
   // shuffled order instead of straight ranking (see domain/random.js).
   if (config.randomize) parts.push(RANDOMIZE_SEGMENT);
+  // Drops the " · {COUNTRY}" suffix from every catalog name (see
+  // domain/manifest.js). Omitted when off, so untouched configs are unchanged.
+  if (config.hideCountry) parts.push(HIDE_COUNTRY_SEGMENT);
   const sorts = config.sorts || ALL_SORT_KEYS;
   if (sorts.length < ALL_SORT_KEYS.length) {
     parts.push(`sorts-${sorts.join("-")}`);
@@ -280,7 +291,7 @@ function decodeConfig(encoded) {
       .filter(
         (p) =>
           /^[a-z0-9-]{1,30}$/.test(p) &&
-          p !== RANDOMIZE_SEGMENT &&
+          !BARE_FLAGS.includes(p) &&
           !RESERVED_PREFIXES.some((prefix) => p.startsWith(prefix)),
       );
     const markerPkgs = [PKG_TYPE_PREFIX.movie, PKG_TYPE_PREFIX.series]
@@ -327,7 +338,9 @@ function decodeConfig(encoded) {
 
     if (!country) return null;
 
-    const randomize = parts.slice(2).includes(RANDOMIZE_SEGMENT);
+    const flags = parts.slice(2);
+    const randomize = flags.includes(RANDOMIZE_SEGMENT);
+    const hideCountry = flags.includes(HIDE_COUNTRY_SEGMENT);
 
     return {
       country,
@@ -340,6 +353,7 @@ function decodeConfig(encoded) {
       packageTypes,
       globalTypes,
       randomize,
+      hideCountry,
     };
   } catch {
     return null;

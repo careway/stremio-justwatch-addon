@@ -57,7 +57,21 @@ async function router(req, res) {
     return;
   }
 
-  const rawPath = req.url.replace(/\?.*$/, "").replace(/\/$/, "");
+  // Normalised before any route matching. Two things, both of which were
+  // silently 404-ing real requests:
+  //   - runs of slashes collapse to one, so "//{config}/manifest.json" and
+  //     "/{config}//catalog/…" route the same as the single-slash form. The
+  //     config route matches `^/([A-Za-z0-9_-]+)/`, and a second slash simply
+  //     isn't in that character class, so the whole request fell through to
+  //     the 404.
+  //   - **all** trailing slashes go, not just one. That single `/$` was also
+  //     what left the invalidation route reachable at "/api/inv//" (below).
+  // Collapsing does not weaken the /static/ guard: that checks for ".." in the
+  // filename *and* resolves the result back against staticDir.
+  const rawPath = req.url
+    .replace(/\?.*$/, "")
+    .replace(/\/{2,}/g, "/")
+    .replace(/\/+$/, "");
   const qs = req.url.includes("?")
     ? new URLSearchParams(req.url.split("?")[1])
     : new URLSearchParams();
@@ -205,8 +219,16 @@ async function router(req, res) {
   }
 
   // ── /api/inv/$env:{key}?key=xxxxxx ───────────────────────INVALIDATE CACHE ─────────────────────
+  // The `inv_key &&` guard is load-bearing, not defensive noise. Without it an
+  // unset INV_KEY makes the route `/api/inv/`, and rawPath's
+  // `.replace(/\/$/, "")` strips only ONE trailing slash — so `/api/inv//`
+  // normalises straight onto it and the endpoint is open to anyone. It was
+  // long assumed unreachable ("safe by accident"); it wasn't, verified
+  // 2026-09-02. An open purge endpoint is an amplification vector: repeated
+  // invalidation forces refetches from JustWatch, which is exactly what got
+  // the addon rate-limited before.
   const inv_key = process.env.INV_KEY || "";
-  if (rawPath == `/api/inv/${inv_key}`) {
+  if (inv_key && rawPath === `/api/inv/${inv_key}`) {
     const key = qs.get("key");
     if (key) {
       console.log(`[INV_KEY] Key : ${key}`);

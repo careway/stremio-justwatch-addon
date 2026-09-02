@@ -87,6 +87,37 @@ function isUnreleased(node) {
   return releaseDate > today;
 }
 
+/**
+ * Map a genre name from Stremio's request onto its JustWatch code.
+ *
+ * **Stremio percent-encodes the genre twice.** `parseExtra` decodes once, as it
+ * should, so the value arriving here is still encoded: "%D8%AF…" rather than
+ * the word. The second decode below is the fallback for that.
+ *
+ * It went unnoticed because double-encoding is a no-op for plain ASCII —
+ * `encodeURIComponent("Drama") === "Drama"` — so it only bites when a genre
+ * name contains anything else. That is not the exotic case it sounds like:
+ * an accent or even a **space** is enough. Measured across the 20 languages,
+ * 140 of 340 name/language pairs are affected (41%), including English
+ * ("Science Fiction" → "%2520"), Spanish ("Acción"), Portuguese (8 of 17) and
+ * every genre in ar/hi/te/kn/ml/ja/ko.
+ *
+ * The second decode only runs when the first lookup failed and only when it
+ * actually changes the string, so a genuine name is never mangled.
+ */
+function resolveGenre(genre, language) {
+  if (!genre) return null;
+  const direct = getGenreCode(genre, language);
+  if (direct) return direct;
+  try {
+    const decoded = decodeURIComponent(genre);
+    if (decoded !== genre) return getGenreCode(decoded, language);
+  } catch {
+    // Malformed escape sequence — leave it unresolved and let the caller warn.
+  }
+  return null;
+}
+
 function nodeToMeta(node, language, config) {
   const imdbId = node?.content?.externalIds?.imdbId;
   if (!imdbId) return null;
@@ -146,7 +177,18 @@ async function handleCatalog({ type, id, extra }, config) {
   const packageFilter =
     pkgName && pkgName !== GLOBAL_PACKAGE_ID ? [pkgName] : [];
   const sortBy = SORT_MAP[sortKey] || "POPULAR";
-  const genreCode = genre ? getGenreCode(genre, config.language) : null;
+  const genreCode = resolveGenre(genre, config.language);
+  // Still unresolved after the double-decode fallback. Deliberately lenient —
+  // it drops the filter and serves the full catalog rather than an empty one,
+  // because the realistic remaining cause is a manifest Stremio cached in
+  // another language, and "everything" beats "nothing" there. What it must not
+  // be is invisible: the caller asked for a genre and silently got all of them.
+  if (genre && !genreCode) {
+    console.warn(
+      `[catalog] Unrecognised genre ${JSON.stringify(genre)} for language ` +
+        `"${config.language}" — serving unfiltered.`,
+    );
+  }
 
   const fetchPage = (pageOffset) =>
     searchTitles({

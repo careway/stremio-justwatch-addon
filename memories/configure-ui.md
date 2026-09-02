@@ -27,10 +27,43 @@ JS inline). Served by `http/router.js`, always `no-store` — see
      govern both panes (a channel is a package like any other), which is why
      they sit on the bar and not inside a pane. Then the `.pkg-cycle-hint`
      legend, the grid and a LIMPIAR button.
+Between steps 2 and 3, **"Opciones adicionales"** — `.extra-options`, a
+`grid-template-columns: repeat(auto-fit, minmax(max(220px, 45%), 1fr))`.
+
+The **45% floor is what caps it at two per row**: three tracks would need 135%
+of the row, so `auto-fit` can never place a third. The 220px floor takes over on
+a narrow card and drops it to one column (measured: 1 column below ~460px, 2
+above). Adding a third option needs no change — nothing counts them. Cells are
+stretched (`height: 100%` on the card, `align-items: flex-start`) so options
+with hints of different lengths come out level instead of ragged.
+
+Holds `#randomize-toggle` and `#hide-country-toggle` (the bare `rnd` / `nc`
+flags — see [config-codec.md](config-codec.md)). Both are plain checkboxes, not
+cycles, and share one change listener.
+
 3. **Ratings en las portadas** — poster provider dropdown
    (`#cs-poster-provider`) + `#poster-api-key`.
 
 Plus a sticky language FAB, a sidebar bio, and Discord / Ko-fi links.
+
+## The page has a hard 570px floor (2026-09-02)
+
+`.app-wrapper` carries `min-width: 570px`, so the layout never compresses to the
+point where the tab bar, the sort chips and the options grid collide. Below it
+the page scrolls sideways instead.
+
+**That floor is only usable because of `justify-content: safe center` on
+`body`.** With plain `center`, an item wider than the flex container overflows
+*both* edges and the left half becomes literally unreachable — no scrolling gets
+you there. `safe` falls back to flex-start exactly in that case. The plain
+`center` is declared **first** and `safe center` second, so browsers that don't
+know the keyword keep the working desktop centring. Don't collapse the two into
+one declaration.
+
+A `@media (max-width: 640px)` trims body padding from 1.5rem to 0.75rem, which
+moves the "no horizontal scroll" threshold from 618px of viewport to 594px.
+Phones (360–414px) still scroll sideways by ~180–235px; that's the accepted cost
+of the floor, not a bug.
 
 ## `generateUrl()`
 

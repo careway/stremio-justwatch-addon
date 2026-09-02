@@ -39,6 +39,19 @@ Log file `addon.log` (top-level, gitignored) — writing is skipped entirely whe
 | `INV_KEY`                                            | enables `GET /api/inv/<INV_KEY>?key=<cache-key>`              |
 | `ADDON_PUBLIC_URL`                                   | **BeamUp only** — see the Host-header quirk below              |
 
+### What actually has to be set on BeamUp
+
+| Variable | Needed? | If missing |
+| --- | --- | --- |
+| `PORT` | set by BeamUp | — |
+| `ADDON_PUBLIC_URL` | **yes** | manifest `logo`/`background` come out with no domain and are unreachable |
+| `NODE_ENV=production` | recommended | file logging stays on against an ephemeral FS |
+| `INV_KEY` | optional | route is closed (since 2026-09-02 it really is — see open-decisions.md) |
+| `UPSTASH_REDIS_REST_*` | optional | L2 off, L1-only; every restart starts cold |
+
+No secret is *required* for the addon to boot — but without `ADDON_PUBLIC_URL`
+the manifest ships broken image URLs, which is a silent, user-visible failure.
+
 ## Deploy targets
 
 - `origin` → `git@github.com:careway/stremio-justwatch-addon.git` — canonical repo.

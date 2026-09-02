@@ -119,6 +119,9 @@ function buildManifest(config, encodedConfig, pkgInfoMap, addonBaseUrl) {
   const globalSortKeys =
     config?.globalSorts?.length > 0 ? config.globalSorts : allSortKeys;
   const packageTypes = config?.packageTypes || {};
+  // Opt-in: leave the country code out of every catalog name. Worth knowing
+  // that it's what tells two installs of different countries apart in Stremio.
+  const countrySuffix = config?.hideCountry || !country ? "" : ` · ${country}`;
   const globalTypes = config?.globalTypes || {};
   // A randomized config serves every catalog shuffled; the "r_" id prefix
   // both tells domain/catalog.js to shuffle and keeps Stremio's per-id cache
@@ -163,8 +166,8 @@ function buildManifest(config, encodedConfig, pkgInfoMap, addonBaseUrl) {
           // the sort type and country, e.g. "Popular · ES" — instead of
           // naming it after the pseudo-package.
           name: isGlobal
-            ? `${sortLabel}${country ? ` · ${country}` : ""}`
-            : `${clearName} · ${sortLabel}${country ? ` · ${country}` : ""}`,
+            ? `${sortLabel}${countrySuffix}`
+            : `${clearName} · ${sortLabel}${countrySuffix}`,
           extra: [
             {
               name: "genre",

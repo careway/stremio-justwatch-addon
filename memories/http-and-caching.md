@@ -106,3 +106,66 @@ With `INV_KEY` unset the target is `/api/inv/`, which can never match because
 `rawPath` strips the trailing slash — **safe by accident, not by design**.
 It should get an explicit `if (!inv_key) ` guard. Tracked in
 [open-decisions.md](open-decisions.md).
+
+## Path normalisation (2026-09-02)
+
+`rawPath` in `http/router.js` now collapses runs of slashes and strips **all**
+trailing ones:
+
+```js
+req.url.replace(/\?.*$/, "").replace(/\/{2,}/g, "/").replace(/\/+$/, "")
+```
+
+Before that, **any** duplicated slash 404'd — `//{config}/manifest.json`,
+`/{config}//catalog/…`, reported from a real Stremio URL. The config route
+matches `^/([A-Za-z0-9_-]+)/` and a second slash isn't in that character class,
+so the whole request fell through to the 404 at the bottom.
+
+The old single `\/$` was also what left the invalidation route reachable at
+`/api/inv//` when `INV_KEY` was unset — same one-character root cause, two
+different symptoms. See [open-decisions.md](open-decisions.md).
+
+Collapsing does **not** weaken the `/static/` guard: it rejects any filename
+containing `..` *and* resolves the result back against `staticDir`.
+`test/security.test.js` pins both halves — the slashed forms routing, and
+`/static//../package.json` and friends still refused.
+
+## Stremio double-encodes the genre — `resolveGenre()` compensates
+
+`parseExtra` decodes once, which is correct. **Stremio encodes twice**, so the
+value reaching `handleCatalog` still carries one layer: `Acci%C3%B3n`, not
+`Acción`. Confirmed by the user against real Stremio requests (2026-09-02).
+
+It hid for so long because double-encoding is a **no-op for plain ASCII** —
+`encodeURIComponent("Drama") === "Drama"`. It only bites when a genre name
+contains anything else, and that is not the exotic case it sounds like: an
+accent or even a **space** is enough.
+
+Measured across the 20 languages, **140 of 340 name/language pairs were
+broken (41%)**:
+
+| Language | Broken |
+| --- | --- |
+| ar, hi, te, kn, ml | 17/17 (all) |
+| ja, ko | 16/17 |
+| pt | 8/17 |
+| es | 5/17 (`Acción`, `Animación`, `Fantasía`…) |
+| tr | 4/17 · sv 2/17 · de, fr, pl, **en** 1/17 (`Science Fiction`, from the space) |
+| it, nl, no, da, fi | 0/17 |
+
+`resolveGenre()` in `domain/catalog.js` tries `getGenreCode` directly, then
+decodes **once more** and retries — only on failure, and only when the second
+decode actually changes the string, so a genuine name is never mangled. A
+malformed escape is caught and left unresolved.
+
+An unresolvable genre stays **deliberately lenient**: the filter is dropped and
+the full catalog served rather than an empty one, since the remaining realistic
+cause is a manifest Stremio cached in another language. But it now logs a
+warning — silently answering the wrong question was the worse half of the bug.
+
+`test/genreEncoding.test.js` pins it with a stubbed API client, including a
+sweep asserting every genre of 15 languages survives the round trip.
+
+Side observation while verifying: JustWatch sometimes returns genre shortNames
+absent from `GENRES` (saw `eur`), which then appear raw in a meta's genre list.
+Unfixed, cosmetic.

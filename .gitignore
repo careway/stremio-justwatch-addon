@@ -6,3 +6,5 @@ addon.log
 cache.json
 .vercel
 beamup.json
+contrib/promo/*.webm
+contrib/promo/*.mp4

@@ -54,10 +54,12 @@ const UI_STRINGS = {
     errConnection: "Error de conexión",
     errCountries: "Error al cargar países",
     errLanguages: "Error al cargar idiomas",
+    additionalOptions: "Opciones Adicionales",
     randomize: "Aleatorizar catálogos",
     randomizeHint:
       "Baraja el orden de todos los catálogos (globales y de proveedores), con una mezcla nueva cada día.",
     loadMore: "Cargar proveedores restantes ({n})",
+    collapseList: "Contraer lista",
   },
 
   en: {
@@ -107,10 +109,12 @@ const UI_STRINGS = {
     errConnection: "Connection error",
     errCountries: "Failed to load countries",
     errLanguages: "Failed to load languages",
+    additionalOptions: "Additional Options",
     randomize: "Shuffle catalogs",
     randomizeHint:
       "Shuffles the order of all catalogs (global and provider), with a fresh mix each day.",
     loadMore: "Load remaining providers ({n})",
+    collapseList: "Collapse list",
   },
 
   de: {
@@ -160,9 +164,11 @@ const UI_STRINGS = {
     errConnection: "Verbindungsfehler",
     errCountries: "Länder konnten nicht geladen werden",
     errLanguages: "Sprachen konnten nicht geladen werden",
+    additionalOptions: "Zusätzliche Optionen",
     randomize: "Kataloge mischen",
     randomizeHint: "Mischt die Reihenfolge jedes Katalogs – jeden Tag neu.",
     loadMore: "Restliche Anbieter laden ({n})",
+    collapseList: "Liste einklappen",
   },
 
   fr: {
@@ -212,9 +218,11 @@ const UI_STRINGS = {
     errConnection: "Erreur de connexion",
     errCountries: "Échec du chargement des pays",
     errLanguages: "Échec du chargement des langues",
+    additionalOptions: "Options supplémentaires",
     randomize: "Mélanger les catalogues",
     randomizeHint: "Mélange l'ordre de chaque catalogue, avec un nouveau tirage chaque jour.",
     loadMore: "Charger les fournisseurs restants ({n})",
+    collapseList: "Réduire la liste",
   },
 
   it: {
@@ -265,9 +273,11 @@ const UI_STRINGS = {
     errConnection: "Errore di connessione",
     errCountries: "Impossibile caricare i paesi",
     errLanguages: "Impossibile caricare le lingue",
+    additionalOptions: "Opzioni aggiuntive",
     randomize: "Mescola i cataloghi",
     randomizeHint: "Mescola l'ordine di ogni catalogo, con un nuovo mix ogni giorno.",
     loadMore: "Carica i provider rimanenti ({n})",
+    collapseList: "Comprimi elenco",
   },
 
   pt: {
@@ -317,9 +327,11 @@ const UI_STRINGS = {
     errConnection: "Erro de ligação",
     errCountries: "Falha ao carregar os países",
     errLanguages: "Falha ao carregar os idiomas",
+    additionalOptions: "Opções adicionais",
     randomize: "Baralhar catálogos",
     randomizeHint: "Baralha a ordem de cada catálogo, com uma mistura nova todos os dias.",
     loadMore: "Carregar os restantes fornecedores ({n})",
+    collapseList: "Recolher lista",
   },
 
   nl: {
@@ -369,9 +381,11 @@ const UI_STRINGS = {
     errConnection: "Verbindingsfout",
     errCountries: "Landen laden mislukt",
     errLanguages: "Talen laden mislukt",
+    additionalOptions: "Extra opties",
     randomize: "Catalogi schudden",
     randomizeHint: "Schudt de volgorde van elke catalogus, met elke dag een nieuwe mix.",
     loadMore: "Overige aanbieders laden ({n})",
+    collapseList: "Lijst inklappen",
   },
 
   sv: {
@@ -421,9 +435,11 @@ const UI_STRINGS = {
     errConnection: "Anslutningsfel",
     errCountries: "Kunde inte ladda länder",
     errLanguages: "Kunde inte ladda språk",
+    additionalOptions: "Ytterligare alternativ",
     randomize: "Blanda kataloger",
     randomizeHint: "Blandar ordningen i varje katalog, med en ny blandning varje dag.",
     loadMore: "Ladda återstående leverantörer ({n})",
+    collapseList: "Fäll ihop listan",
   },
 
   no: {
@@ -473,9 +489,11 @@ const UI_STRINGS = {
     errConnection: "Tilkoblingsfeil",
     errCountries: "Kunne ikke laste land",
     errLanguages: "Kunne ikke laste språk",
+    additionalOptions: "Flere alternativer",
     randomize: "Bland kataloger",
     randomizeHint: "Blander rekkefølgen i hver katalog, med en ny miks hver dag.",
     loadMore: "Last resten av leverandørene ({n})",
+    collapseList: "Skjul listen",
   },
 
   da: {
@@ -525,9 +543,11 @@ const UI_STRINGS = {
     errConnection: "Forbindelsesfejl",
     errCountries: "Kunne ikke indlæse lande",
     errLanguages: "Kunne ikke indlæse sprog",
+    additionalOptions: "Flere indstillinger",
     randomize: "Bland kataloger",
     randomizeHint: "Blander rækkefølgen i hvert katalog, med en ny blanding hver dag.",
     loadMore: "Indlæs de resterende udbydere ({n})",
+    collapseList: "Skjul listen",
   },
 
   fi: {
@@ -577,9 +597,11 @@ const UI_STRINGS = {
     errConnection: "Yhteysvirhe",
     errCountries: "Maiden lataus epäonnistui",
     errLanguages: "Kielten lataus epäonnistui",
+    additionalOptions: "Lisäasetukset",
     randomize: "Sekoita luettelot",
     randomizeHint: "Sekoittaa jokaisen luettelon järjestyksen, uusi sekoitus joka päivä.",
     loadMore: "Lataa loput tarjoajat ({n})",
+    collapseList: "Tiivistä luettelo",
   },
 
   pl: {
@@ -630,9 +652,11 @@ const UI_STRINGS = {
     errConnection: "Błąd połączenia",
     errCountries: "Nie udało się wczytać krajów",
     errLanguages: "Nie udało się wczytać języków",
+    additionalOptions: "Dodatkowe opcje",
     randomize: "Losuj kolejność katalogów",
     randomizeHint: "Miesza kolejność każdego katalogu, z nowym układem każdego dnia.",
     loadMore: "Wczytaj pozostałych dostawców ({n})",
+    collapseList: "Zwiń listę",
   },
 
   ja: {
@@ -682,9 +706,11 @@ const UI_STRINGS = {
     errConnection: "接続エラー",
     errCountries: "国の読み込みに失敗しました",
     errLanguages: "言語の読み込みに失敗しました",
+    additionalOptions: "追加オプション",
     randomize: "カタログをシャッフル",
     randomizeHint: "各カタログの並び順をシャッフルし、毎日新しい組み合わせにします。",
     loadMore: "残りのプロバイダーを読み込む（{n}）",
+    collapseList: "リストを折りたたむ",
   },
 
   ko: {
@@ -734,9 +760,11 @@ const UI_STRINGS = {
     errConnection: "연결 오류",
     errCountries: "국가를 불러오지 못했습니다",
     errLanguages: "언어를 불러오지 못했습니다",
+    additionalOptions: "추가 옵션",
     randomize: "카탈로그 섞기",
     randomizeHint: "매일 새롭게 섞어 각 카탈로그의 순서를 무작위로 표시합니다.",
     loadMore: "남은 제공자 불러오기 ({n})",
+    collapseList: "목록 접기",
   },
 
   ar: {
@@ -786,9 +814,11 @@ const UI_STRINGS = {
     errConnection: "خطأ في الاتصال",
     errCountries: "تعذّر تحميل البلدان",
     errLanguages: "تعذّر تحميل اللغات",
+    additionalOptions: "خيارات إضافية",
     randomize: "خلط الكتالوجات",
     randomizeHint: "يخلط ترتيب كل كتالوج، مع مزيج جديد كل يوم.",
     loadMore: "تحميل بقية المزوّدين ({n})",
+    collapseList: "طي القائمة",
   },
 
   hi: {
@@ -838,9 +868,11 @@ const UI_STRINGS = {
     errConnection: "कनेक्शन त्रुटि",
     errCountries: "देश लोड नहीं हो सके",
     errLanguages: "भाषाएँ लोड नहीं हो सकीं",
+    additionalOptions: "अतिरिक्त विकल्प",
     randomize: "कैटलॉग शफ़ल करें",
     randomizeHint: "हर कैटलॉग का क्रम मिलाता है, हर दिन एक नया मिश्रण।",
     loadMore: "बाकी प्रदाता लोड करें ({n})",
+    collapseList: "सूची छोटी करें",
   },
 
   te: {
@@ -890,9 +922,11 @@ const UI_STRINGS = {
     errConnection: "కనెక్షన్ లోపం",
     errCountries: "దేశాలను లోడ్ చేయడంలో విఫలమైంది",
     errLanguages: "భాషలను లోడ్ చేయడంలో విఫలమైంది",
+    additionalOptions: "అదనపు ఎంపికలు",
     randomize: "కేటలాగ్‌లను షఫుల్ చేయండి",
     randomizeHint: "ప్రతి కేటలాగ్ క్రమాన్ని కలుపుతుంది, ప్రతిరోజూ కొత్త మిశ్రమం.",
     loadMore: "మిగిలిన ప్రొవైడర్లను లోడ్ చేయండి ({n})",
+    collapseList: "జాబితాను కుదించు",
   },
 
   ml: {
@@ -943,9 +977,11 @@ const UI_STRINGS = {
     errConnection: "കണക്ഷൻ പിശക്",
     errCountries: "രാജ്യങ്ങൾ ലോഡ് ചെയ്യാനായില്ല",
     errLanguages: "ഭാഷകൾ ലോഡ് ചെയ്യാനായില്ല",
+    additionalOptions: "അധിക ഓപ്ഷനുകൾ",
     randomize: "കാറ്റലോഗുകൾ ഷഫിൾ ചെയ്യുക",
     randomizeHint: "ഓരോ കാറ്റലോഗിന്റെയും ക്രമം മാറ്റുന്നു, എല്ലാ ദിവസവും പുതിയ മിശ്രിതം.",
     loadMore: "ബാക്കി ദാതാക്കളെ ലോഡ് ചെയ്യുക ({n})",
+    collapseList: "പട്ടിക ചുരുക്കുക",
   },
 
   kn: {
@@ -995,9 +1031,11 @@ const UI_STRINGS = {
     errConnection: "ಸಂಪರ್ಕ ದೋಷ",
     errCountries: "ದೇಶಗಳನ್ನು ಲೋಡ್ ಮಾಡಲಾಗಲಿಲ್ಲ",
     errLanguages: "ಭಾಷೆಗಳನ್ನು ಲೋಡ್ ಮಾಡಲಾಗಲಿಲ್ಲ",
+    additionalOptions: "ಹೆಚ್ಚುವರಿ ಆಯ್ಕೆಗಳು",
     randomize: "ಕ್ಯಾಟಲಾಗ್‌ಗಳನ್ನು ಶಫಲ್ ಮಾಡಿ",
     randomizeHint: "ಪ್ರತಿ ಕ್ಯಾಟಲಾಗ್‌ನ ಕ್ರಮವನ್ನು ಬೆರೆಸುತ್ತದೆ, ಪ್ರತಿದಿನ ಹೊಸ ಮಿಶ್ರಣ.",
     loadMore: "ಉಳಿದ ಪೂರೈಕೆದಾರರನ್ನು ಲೋಡ್ ಮಾಡಿ ({n})",
+    collapseList: "ಪಟ್ಟಿಯನ್ನು ಮಡಚಿ",
   },
   tr: {
     tagline: "Eklentini 3 adımda yapılandır",
@@ -1046,9 +1084,11 @@ const UI_STRINGS = {
     errConnection: "Bağlantı hatası",
     errCountries: "Ülkeler yüklenemedi",
     errLanguages: "Diller yüklenemedi",
+    additionalOptions: "Ek Seçenekler",
     randomize: "Katalogları karıştır",
     randomizeHint: "Her kataloğun sırasını karıştırır, her gün yeni bir karışım.",
     loadMore: "Kalan sağlayıcıları yükle ({n})",
+    collapseList: "Listeyi daralt",
   },
 };
 

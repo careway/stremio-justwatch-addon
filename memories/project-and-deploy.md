@@ -8,7 +8,7 @@ Node.js raw `http` module — **no Express, no Stremio Addon SDK**.
 - npm package `omnicatalogs`, GitHub repo `stremio-justwatch-addon`,
   manifest id `community.omnicatalogs.stremio.addon`, version from `package.json`
   (1.5.0 as of 2026-08-31).
-- Runtime deps are only `axios`, `@upstash/redis`, `@vercel/analytics`.
+- Runtime deps are only `axios` and `@upstash/redis`.
   Node >= 18.
 - Working copy: `/home/ctierno/Documents/own/stremio-justwatch-addon`
   (older notes say `/workspaces/…` — that was the devcontainer).
@@ -26,7 +26,7 @@ Node.js raw `http` module — **no Express, no Stremio Addon SDK**.
 `http.createServer` under `require.main === module`.
 
 Log file `addon.log` (top-level, gitignored) — writing is skipped entirely when
-`NODE_ENV=production` or `process.env.VERCEL` is set (read-only FS there).
+`NODE_ENV=production` is set (a host's FS may be read-only or ephemeral).
 
 ## Environment variables
 
@@ -35,7 +35,7 @@ Log file `addon.log` (top-level, gitignored) — writing is skipped entirely whe
 | `PORT`                                               | listen port, default 7000                                     |
 | `NODE_ENV=production`                                | caches `configure.html` at startup, disables file logging      |
 | `UPSTASH_REDIS_REST_URL` / `_TOKEN`                  | L2 cache — see [cache-layers.md](cache-layers.md)             |
-| `REDIS_KV_REST_API_URL` / `_TOKEN`                   | same thing under the Vercel↔Upstash integration's names       |
+| `REDIS_KV_REST_API_URL` / `_TOKEN`                   | legacy names, still read so existing deploys keep their L2    |
 | `INV_KEY`                                            | enables `GET /api/inv/<INV_KEY>?key=<cache-key>`              |
 | `ADDON_PUBLIC_URL`                                   | **BeamUp only** — see the Host-header quirk below              |
 
@@ -47,8 +47,11 @@ Log file `addon.log` (top-level, gitignored) — writing is skipped entirely whe
   `beamup.json` is per-machine state and is **deliberately gitignored** — untracking
   it makes `beamup-cli` run first-time setup on a fresh clone instead of skipping
   `ssh.addRemote()`.
-- Vercel — `vercel.json` rewrites everything to `api/index.js`, which is just
-  `module.exports = require('../src/index')`.
+- ~~Vercel~~ — **support removed 2026-09-02.** `vercel.json`, `api/index.js`
+  and the `@vercel/analytics` dependency are gone, along with the eight
+  `Vercel-Cache-Tag` response headers and the `x-vercel-ip-*` geo lookups.
+  **Upstash was deliberately kept** — it is plain managed Redis over REST, not
+  a Vercel thing, and is still the L2 for every host.
 - Render — `render.yaml`, free plan, spins down after 15 min idle.
 
 Current working branch is `beamup`; the "main" branch for PRs is `vercel`.
@@ -59,7 +62,8 @@ Current working branch is `beamup`; the "main" branch for PRs is `vercel`.
    domain, so `req.headers.host` is the internal upstream name. The manifest's
    self-referencing `logo`/`background` URLs come out unreachable. Fix:
    set `ADDON_PUBLIC_URL`, which `getAddonBaseUrl()` (`src/http/request.js`)
-   prefers over any request header. Not needed on Vercel.
+   prefers over any request header. Not needed on hosts that forward a
+   correct Host header.
 2. **BeamUp sits behind Cloudflare** — confirmed 2026-08-25 from response
    headers (`server: cloudflare`, `cf-cache-status: HIT`, `age:`). This is the
    root cause of a recurring class of staleness bug; the rule that came out of

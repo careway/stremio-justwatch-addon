@@ -21,7 +21,7 @@ original queue's code comment, which assumed JustWatch 429s under any
 parallelism.
 
 Caveats: single burst from one IP, not sustained volume; and shared IP ranges
-(Vercel/BeamUp) may have different reputation than the test IP, so real-world
+(BeamUp) may have different reputation than the test IP, so real-world
 429s at lower concurrency remain possible.
 
 Outcome and current state of the queue: [justwatch-api.md](justwatch-api.md).

@@ -1,70 +1,39 @@
 "use strict";
 
-let track = null;
-try {
-  ({ track } = require("@vercel/analytics/node"));
-} catch (e) {
-  // Vercel Analytics not available (local dev)
-  track = () => {};
-}
+// ─── Cache / request instrumentation ──────────────────────────────────────────
+// This was a wrapper around Vercel Web Analytics. Vercel support was removed
+// (2026-09-02) and with it the only backend these events had, so what remains
+// is structured logging: the "[L1 - Hit]" / "[Cache MISS]" lines are what make
+// cache behaviour visible in `addon.log` and are relied on when diagnosing
+// upstream load.
+//
+// It is kept as a module rather than inlined so there stays exactly one seam to
+// wire a real analytics backend into, should one ever be added.
 
 /**
- * Track a cache hit/miss event.
+ * Record a cache hit.
  * @param {string} level - "L1" | "L2"
  * @param {string} key - Cache key
  */
 function trackCacheHit(level, key) {
-  try {
-    console.log("[" + level + " - Hit] " + key);
-    track(`cache_${level.toLowerCase()}_hit`, {
-      level,
-      key_prefix: key.split(":")[0],
-    });
-  } catch (e) {
-    // Silently fail
-  }
+  console.log(`[${level} - Hit] ${key}`);
 }
 
 /**
- * Track a cache hit/miss event.
- * @param {string} cacheLevel - "L1" | "L2"
+ * Record a cache miss.
+ * @param {string} level - "L1" | "L2"
  * @param {string} key - Cache key
  */
-function trackCacheMiss(cacheLevel, key) {
-  try {
-    console.log("[Cache MISS] " + key);
-    track(`cache_miss`, {
-      level: cacheLevel,
-      key_prefix: key.split(":")[0],
-    });
-  } catch (e) {
-    // Silently fail
-  }
+function trackCacheMiss(level, key) {
+  console.log(`[Cache MISS] ${key}`);
 }
 
 /**
- * Track api catalog request.
+ * Record a catalog request. Deliberately does not read geo headers any more —
+ * those were `x-vercel-ip-*`, which no host we target sets.
  */
 function trackCatalogRequest(req) {
-  try {
-    /* Track visitor */
-    const country = req.headers["x-vercel-ip-country"] || "Unknown";
-    const city = req.headers["x-vercel-ip-city"] || "Unknown";
-
-    track("Backend_Route_Hit", {
-      path: "/api/dashboard",
-      method: "GET",
-      country: country, // e.g., "US"
-      city: city, // e.g., "New York"
-    });
-  } catch (e) {
-    // Silently fail
-  }
+  console.log(`[catalog] ${req.method} ${req.url}`);
 }
 
-module.exports = {
-  track,
-  trackCacheHit,
-  trackCacheMiss,
-  trackCatalogRequest,
-};
+module.exports = { trackCacheHit, trackCacheMiss, trackCatalogRequest };

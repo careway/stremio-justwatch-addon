@@ -112,7 +112,6 @@ async function router(req, res) {
 
   // ── /manifest.json  (no-config manifest) ──────────────────────────────────
   if (rawPath === "/manifest.json") {
-    res.setHeader("Vercel-Cache-Tag", `manifest`);
     return respond(
       res,
       buildManifest(null, null, {}, getAddonBaseUrl(req)),
@@ -128,7 +127,6 @@ async function router(req, res) {
         qs.get("lang") || "es",
       );
 
-      res.setHeader("Vercel-Cache-Tag", `countries`);
       // No external call here despite the function name (FALLBACK_COUNTRIES
       // is a hardcoded list, see data/catalogMeta.js) — nothing costly to
       // protect by caching this at the edge. Caching it anyway is what
@@ -148,7 +146,6 @@ async function router(req, res) {
   if (rawPath === "/api/languages") {
     try {
       const languages = getSupportedLanguages();
-      res.setHeader("Vercel-Cache-Tag", `languages`);
       // See the /api/countries comment above — same reasoning, same fix.
       return respond(res, languages, 200, "no-store");
     } catch (err) {
@@ -164,7 +161,6 @@ async function router(req, res) {
       return respond(res, { error: "Invalid language code" }, 400, "no-store");
     }
     const code = lang.split("-")[0];
-    res.setHeader("Vercel-Cache-Tag", `ui-strings`);
     // See the /api/countries comment above — same reasoning, same fix.
     return respond(
       res,
@@ -182,7 +178,6 @@ async function router(req, res) {
   if (rawPath === "/api/poster-providers") {
     try {
       const providers = listPosterProviders();
-      res.setHeader("Vercel-Cache-Tag", `poster-providers`);
       // See the /api/countries comment above — same reasoning, same fix.
       // (This is literally what surfaced the bug: BetterPosters shipped and
       // stayed invisible on production behind a stale Cloudflare-cached
@@ -202,7 +197,6 @@ async function router(req, res) {
     }
     try {
       const pkgs = await getPackages(country);
-      res.setHeader("Vercel-Cache-Tag", `packages-${country}`);
       return respond(res, pkgs, 200, STATIC_CACHE_CONTROL);
     } catch (err) {
       console.error("[api/packages] Error:", err);
@@ -260,7 +254,6 @@ async function router(req, res) {
       packagesOk = false;
     }
 
-    res.setHeader("Vercel-Cache-Tag", `manifest`);
     return respond(
       res,
       buildManifest(config, encodedConfig, pkgInfoMap, getAddonBaseUrl(req)),
@@ -277,10 +270,6 @@ async function router(req, res) {
   if (cm) {
     const [, type, id, extraRaw] = cm;
 
-    res.setHeader(
-      "Vercel-Cache-Tag",
-      `catalog-${config.country}-${type}-${id},catalog,catalog-${config.country}`,
-    );
     trackCatalogRequest(req);
 
     let result;

@@ -24,11 +24,11 @@ src/
     justwatch.js    GraphQL client + concurrency queue
     cache.js        L1 (Map) + L2 (Upstash Redis)
     posterProviders.js  third-party poster adapter registry
-    analytics.js    Vercel Web Analytics wrapper
-  data/             static datasets
+    analytics.js    cache/request logging (was a Vercel Analytics wrapper)
+  data/             static datasets + leaf rule sets
     catalogMeta.js  GENRES, COUNTRIES, LANGUAGE_NAMES, SORT_MAP, GLOBAL_PACKAGE_ID
-    uiStrings.js    /configure translations (19 languages)
-api/index.js        Vercel entry — one line, re-exports src/index
+    uiStrings.js    /configure translations (20 languages)
+    packageFilters.js  which packages are offered + provider/channel split
 test/               node:test suites (two of them extract source text out of
                     src/http/configure.html — see testing.md)
 scripts/jw-query.js standalone JustWatch query runner (no cache, no queue,
@@ -46,6 +46,13 @@ contrib/aiostreams/ upstream AIOStreams preset (see aiostreams-preset.md)
   (server-side cache TTL) and — since 2026-09-01 — `domain/catalog.js` (the
   shuffle's seed window) all depend on. Keeping it out of any layer avoids an
   http↔infra↔domain dependency. See [cache-layers.md](cache-layers.md).
+- `data/packageFilters.js` holds the package **rules** (exclusions, channel
+  classification) rather than `infra/justwatch.js`, which should only know how
+  to talk to the API. `data/` is the right layer precisely because it imports
+  nothing: putting them in `domain/` would make `infra/` depend on `domain/`,
+  the reverse of every other dependency in the app. Both stages are plain
+  arrays so adding or removing a rule is a one-entry edit — see
+  [justwatch-api.md](justwatch-api.md).
 - `data/catalogMeta.js` is the home for constants two modules would otherwise
   hardcode independently — that's why `GLOBAL_PACKAGE_ID` lives there rather
   than as a string literal in both `domain/manifest.js` and `domain/catalog.js`.

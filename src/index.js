@@ -6,7 +6,7 @@ const { log, logError, LOG_FILE, rawConsoleLog } = require("./http/logger");
 const { respond } = require("./http/responses");
 const { PORT } = require("./http/request");
 
-// ─── Handler (exported for Vercel / other serverless runtimes) ──────────────
+// ─── Handler (exported so any Node host can mount it) ──────────────────────
 
 async function handler(req, res) {
   const start = Date.now();

@@ -21,9 +21,12 @@ JS inline). Served by `http/router.js`, always `no-store` — see
      `#global-catalogs-toggle` checkbox, removed 2026-08-25, the same day it
      was added.)
    - **Catálogos de proveedores** — `#sort-{pop,tnd,new}-toggle`, all **checked
-     by default** (matches the pre-existing always-generate-all-3 behavior),
-     then the `.pkg-cycle-hint` legend, the provider grid `#pkg-grid` and a
-     LIMPIAR button.
+     by default** (matches the pre-existing always-generate-all-3 behavior).
+     Since 2026-09-02 these three live **inside `.pkg-tabbar`**, on the same
+     baseline as the Proveedores/Canales tabs and rendered smaller — they
+     govern both panes (a channel is a package like any other), which is why
+     they sit on the bar and not inside a pane. Then the `.pkg-cycle-hint`
+     legend, the grid and a LIMPIAR button.
 3. **Ratings en las portadas** — poster provider dropdown
    (`#cs-poster-provider`) + `#poster-api-key`.
 
@@ -137,9 +140,13 @@ and the legend.
 A **channel** is a service watched through another subscription ("HBO Max
 Amazon Channel" rides on Amazon Prime Video). Its catalogue duplicates the
 direct provider's, so mixing both in one grid buries the entry people actually
-want. They're split into two tabs, classified by `pkg.isAddon`, which comes from
-JustWatch's own `addonParent` — **not** from pattern-matching the name; the two
-disagree (see [justwatch-api.md](justwatch-api.md)).
+want. They're split into two tabs on `pkg.isAddon`.
+
+`isAddon` is **JustWatch's `addonParent` plus a name-suffix supplement**, because
+`addonParent` alone misses ~110 of them in US — every Apple TV channel and a
+long tail of Amazon ones. The rule and its 15-country false-positive audit live
+in [justwatch-api.md](justwatch-api.md); don't loosen it to a bare `/channel/i`,
+which would swallow Channel 4, Criterion Channel and The Roku Channel.
 
 Structure: `.pkg-tabs` (two `.pkg-tab` buttons) → `#pkg-panes`
 (the `.grid-container`) → `#pkg-grid` + `#channel-grid`, plus `#channels-hint`
@@ -154,6 +161,24 @@ appeared to show the same thing. Fixed with an explicit
 `#pkg-grid[hidden], #channel-grid[hidden], .pkg-item[hidden] { display: none }`
 at (1,1,0). Never rely on the bare `hidden` attribute against an id-scoped
 `display` rule.
+
+### The tab bar
+
+`.pkg-tabbar` is `justify-content: space-between` with `align-items: flex-end`:
+`.pkg-tabs` on the left, `.pkg-sorts` (Popular/Tendencias/Nuevos) on the right,
+sharing one baseline. It `flex-wrap`s so a narrow screen gets two rows instead
+of an overflow — the tab seam survives that because the tabs keep their own row.
+
+The compact chips reuse `.toggle-card` / `.toggle-dot` untouched; `.pkg-sorts`
+only overrides **sizing** (padding, gap, radius, font-size, dot dimensions).
+Every checked/unchecked visual stays in the shared classes, so the small and
+full-size chips can't drift apart. The provider chips' old inline
+`font-size`/`padding` were removed for this — the *global* chips still carry
+theirs and are deliberately left at full size.
+
+Note `.toggle-item[data-types]` (the 4-state cycle) is only on the global chips,
+so the provider sort chips keep a plain filled circle and none of the badge
+rules reach them.
 
 ### Browser-style tabs
 
@@ -192,6 +217,26 @@ Channel with 4; GB adds Now TV with 1).
   selection in the hidden tab is invisible and the generated URL looks wrong for
   no apparent reason. `updateTabCounts()` must be called after anything that
   changes a checkbox (the cycle handler, LIMPIAR, a re-render).
+
+### Expand / collapse (2026-09-02)
+
+The expander persists once used and flips to the opposite action —
+`loadMore` ⇄ `collapseList` — instead of disappearing after one click.
+
+- **`applyVisibility(name)` is the single place deciding what a pane shows**,
+  so collapsing and the channels parent filter can't fight over the same items.
+  Both set `hidden`; neither removes nodes, because a removed node takes its
+  checkbox with it and `generateUrl` reads selections out of the DOM.
+- Expanding creates the tail **once** (`growPane`); after that, expand/collapse
+  is pure visibility — instant, and it never re-renders an existing item.
+- **A checked item is never hidden by collapsing** (`i >= INITIAL_ITEMS &&
+  !checked`). Otherwise your own pick would vanish from view while staying in
+  the generated URL. Collapsing a 40-item pane with one selection at index 35
+  therefore shows 11, not 10.
+- **`pane.lazy` gates the control.** Providers are lazy; channels are not (they
+  draw whole so the parent filter can match anything). Without the gate,
+  channels offered "Contraer lista" having never been expanded, which reads as
+  a bug — that is exactly what the DOM-model harness caught.
 
 ### Two bugs this rework fixed — don't reintroduce them
 
@@ -281,6 +326,16 @@ the negative margin makes it overlap the header instead of pushing it down.
   `translateY(-4px)` while `.grid-container` clips with `overflow-y: auto`, so
   without that clearance the top row's hover animation is cut off. It is not
   decorative spacing — don't fold it into `gap` or delete it as redundant.
+- **`.btn-cap-aligned` (LIMPIAR) needed *two* overrides to take effect.** It
+  aligns the button's top edge with the **cap height** of the
+  "Catálogos de proveedores" label — `align-items: flex-start` on the row lines
+  up the boxes, `line-height: 1` on the label makes the gap deterministic, and
+  `margin: 1px 0 0` covers what the line box leaves above the capitals. Two
+  traps, both hit while writing it: the button carried an inline `margin: 0`
+  (inline outranks any rule, so the class did nothing), and the class was
+  declared *before* `.btn-show-more`, whose `margin-top: 0.5rem` has identical
+  specificity and therefore won on source order. It must stay after it, and the
+  button must stay free of an inline `margin`.
 - **The cycling surfaces need `user-select: none`.** Picking a content type
   takes up to 4 consecutive clicks, which the browser also reads as a
   double-click: without it the provider name (or chip label) gets highlighted

@@ -6,9 +6,10 @@ const isProduction = process.env.NODE_ENV === "production";
 
 const LOG_FILE = path.join(__dirname, "..", "..", "addon.log");
 
-// File logging only in local dev (Vercel's filesystem is read-only)
+// File logging only in local dev — a production host's filesystem may be
+// read-only or ephemeral, and the write is best-effort either way.
 let logStream = null;
-if (!isProduction && !process.env.VERCEL) {
+if (!isProduction) {
   try {
     logStream = fs.createWriteStream(LOG_FILE, { flags: "a" });
     logStream.on("error", () => {

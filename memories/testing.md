@@ -2,7 +2,7 @@
 
 `npm test` → `node --test test/**/*.test.js`. No test framework, no mocks
 library — plain `node:test` + `node:assert`.
-**132 tests / 20 suites, all passing as of 2026-09-01.**
+**161 tests / 23 suites, all passing as of 2026-09-02.**
 
 ## The suites
 
@@ -12,6 +12,7 @@ library — plain `node:test` + `node:assert`.
 | `uiStrings.test.js`       | UI languages == catalog languages **in both directions**; every language has every key non-empty; no language defines keys English lacks; `{n}` preserved in `loadMore`; `getUiStrings` fallbacks |
 | `posterKeyCodec.test.js`  | client (`configure.html`) vs server (`userConfig.js`) codec agreement, plus `encodeConfig`/`decodeConfig` poster-segment round-trips including the legacy `rpdb-` shape |
 | `security.test.js`        | path traversal (raw and URL-encoded), long config segments, country-param validation, config-segment injection |
+| `packageFilters.test.js`  | the package rule set with no network: exclusions (cinema-only, hasTitles, and that a *missing* hasTitles is not treated as false), every channel the API fails to link (Apple TV, the lowercase "Amazon channel" tail, the real "Amzon" typo, trailing spaces), every provider that merely ends in "Channel", and that a rule-matched channel resolves to the same parent shortName as an API-linked one |
 | `packageTypes.test.js`    | the `m-`/`s-` per-package and `gm-`/`gs-` per-global-sort content-type codec, `buildManifest`'s use of both (including per-sort beating package-level), that `s-`/`gs-` are never confused with `sorts-`/`gsorts-`, backward compatibility of pre-feature URLs, **and** a second client-vs-server extraction test (see below) |
 | `randomize.test.js`       | `seededShuffle` determinism / permutation / no-mutation, `seedWindow` behavior, that the seed window is *derived from `TTL_S`* rather than hardcoded, the `rnd` config segment round-trip (not swallowed as a package, coexists with other segments), and `buildManifest` applying the `r_` id prefix |
 | `randomBlocks.test.js`    | the block shuffler through `handleCatalog` itself: **a randomized page costs exactly one upstream call** (the regression guard for the 2026-09-01 JustWatch saturation) and the same as a plain page, a page holds exactly the titles it would have held unshuffled, no depth ceiling, **earlier pages don't move when a later one is reached**, and `r_` is stripped before the id is parsed |
@@ -25,6 +26,7 @@ extracting this page's real source text.
 | Test                     | Extracts between…                                    |
 | ------------------------ | ----------------------------------------------------- |
 | `posterKeyCodec.test.js` | `const SAFE_POSTER_KEY_RE` → `function parsePosterSegment` |
+| `packageFilters.test.js`  | the package rule set with no network: exclusions (cinema-only, hasTitles, and that a *missing* hasTitles is not treated as false), every channel the API fails to link (Apple TV, the lowercase "Amazon channel" tail, the real "Amzon" typo, trailing spaces), every provider that merely ends in "Channel", and that a rule-matched channel resolves to the same parent shortName as an API-linked one |
 | `packageTypes.test.js`   | the `PKG_TYPE_PREFIX` declaration → the `generateUrl` declaration |
 
 A third trap, specific to the second test: **a top-level `const` in a vm script
@@ -123,6 +125,14 @@ on `--dump-dom` against the dev server. What works instead:
   port, so no stale-process risk. Assert on what should be **absent** too — it
   is what caught that the old checkmark SVG and the replaced `change` listener
   were really gone.
+- **Anchor the extraction on unindented text.** `panes-check.js` sliced on
+  `"      // Providers and channels…"` and broke silently when the file was
+  reformatted from 6-space to 4-space indentation — `indexOf` returned -1 and
+  the slice produced nonsense. Match the comment text alone and assert both
+  anchors were found.
+- **Reset the pane before each section.** A section that ended on the channels
+  tab left `activePane` there, so the next section's assertions read the wrong
+  pane's button and looked like a code bug for a while.
 - **The pane logic has its own DOM model.** `scratchpad/panes-check.js`
   (throwaway) extracts the real `PANES`/`growPane`/`renderPackages` block and
   runs it against a ~40-line fake grid that keeps parsed items in an array, so

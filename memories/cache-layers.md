@@ -12,13 +12,14 @@ lazily on read when expired. Not shared between instances or processes.
 ## L2 — Upstash Redis over REST/HTTPS
 
 Uses `@upstash/redis` — **REST, not ioredis, not host/port** — which is why it
-works identically on Vercel, BeamUp and Render. The connection is memoized in a
+works identically on BeamUp, Render or any Node host. The connection is memoized in a
 module-level `_redisConnection` so warm invocations don't exhaust connections.
 
 Credentials, either pair:
 
 - `UPSTASH_REDIS_REST_URL` + `UPSTASH_REDIS_REST_TOKEN`
-- `REDIS_KV_REST_API_URL` + `REDIS_KV_REST_API_TOKEN` (Vercel↔Upstash integration names)
+- `REDIS_KV_REST_API_URL` + `REDIS_KV_REST_API_TOKEN` (legacy names from the
+  removed Vercel↔Upstash integration; still read so existing deploys keep L2)
 
 **Falls back silently to L1-only when unset** — every read/write is guarded by
 `if (this._redis)`. Any Redis error is caught and logged, never propagated.
@@ -38,8 +39,8 @@ From `src/ttl.js` — `TTL_S` (4 h) for search/catalog results, `PACKAGES_TTL_S`
 (24 h) for provider lists. The same constants drive the HTTP `Cache-Control`
 headers, see [http-and-caching.md](http-and-caching.md).
 
-There is **no cron/scheduler** in any deployment (Vercel Hobby only guarantees
-daily cron; BeamUp has none), so freshness comes purely from TTL expiry plus
+There is **no cron/scheduler** in any deployment (BeamUp has none), so
+freshness comes purely from TTL expiry plus
 `stale-while-revalidate` — never from an active refresh job.
 
 ## Cache keys

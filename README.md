@@ -43,22 +43,6 @@ This starts the server and opens a public HTTPS tunnel via [localtunnel](https:/
 
 The addon is a plain Node.js `http` server (no framework lock-in), so it deploys to any Node host. The L2 cache (Upstash Redis) talks REST over HTTPS, so it works identically everywhere — no platform-specific cache API involved.
 
-### Vercel
-
-1. Create a free Redis instance at [Upstash](https://console.upstash.com) and copy the REST URL/token.
-2. Deploy:
-   ```bash
-   vercel deploy
-   ```
-3. Set the following environment variables in the Vercel dashboard:
-   | Variable | Value |
-   |---|---|
-   | `NODE_ENV` | `production` |
-   | `UPSTASH_REDIS_REST_URL` | `https://<db>.upstash.io` |
-   | `UPSTASH_REDIS_REST_TOKEN` | `<token>` |
-
-The addon URL will be `https://<your-project>.vercel.app/<config>/manifest.json`.
-
 ### Stremio BeamUp
 
 [BeamUp](https://github.com/Stremio/stremio-beamup) is a Heroku-style host for Stremio addons; it only needs a `package.json` with a `start` script and a server that binds to `process.env.PORT` — both already true here.
@@ -107,7 +91,7 @@ Config is encoded directly in the manifest URL path — no base64, fully human-r
 | `NODE_ENV`                  | `development` | Set to `production` in hosted environments                    |
 | `UPSTASH_REDIS_REST_URL`    | —             | Upstash Redis REST URL (L2 cache; falls back to L1-only if unset) |
 | `UPSTASH_REDIS_REST_TOKEN`  | —             | Upstash Redis REST token                                      |
-| `REDIS_KV_REST_API_URL`     | —             | Alternative to `UPSTASH_REDIS_REST_URL` (Vercel KV integration) |
+| `REDIS_KV_REST_API_URL`     | —             | Legacy alternative to `UPSTASH_REDIS_REST_URL`, still accepted |
 | `REDIS_KV_REST_API_TOKEN`   | —             | Alternative to `UPSTASH_REDIS_REST_TOKEN`                      |
 | `INV_KEY`                   | —             | Secret for the manual cache-invalidation route (`/api/inv/<key>`) |
 
@@ -117,16 +101,30 @@ See [`.env.example`](.env.example) for a template.
 
 ```
 src/
-  index.js        — HTTP server, router, logger
-  config.js       — Genres (18 × 14 languages), countries, encode/decode
-  manifest.js     — Dynamic manifest builder
-  catalog.js      — Catalog handler (browse + search + genre filter)
-  stream.js       — Stream handler (JustWatch offer links)
-  justwatch.js    — JustWatch GraphQL client + two-layer cache
-  configure.html  — Configuration UI
-api/
-  index.js        — Vercel serverless entry point
-vercel.json       — Vercel rewrite rules
+  index.js              — bootstrap: handler() + local dev listener
+  ttl.js                — single source of truth for every cache duration
+  http/
+    router.js           — the whole route table
+    responses.js        — respond / respondHtml / redirect
+    request.js          — parseExtra, getAddonBaseUrl, PORT
+    logger.js           — file + stdout logger
+    configure.html      — the configuration UI
+  domain/               — business logic (no HTTP, no network)
+    catalog.js          — browse, genre, pagination, dedupe, filtering
+    manifest.js         — dynamic manifest builder
+    userConfig.js       — config URL encode/decode
+    random.js           — seeded shuffle for randomized catalogs
+  infra/                — outside world
+    justwatch.js        — JustWatch GraphQL client
+    cache.js            — L1 in-memory → L2 Upstash Redis
+    posterProviders.js  — third-party poster adapters
+    analytics.js        — cache/request logging
+  data/                 — static datasets + leaf rule sets
+    catalogMeta.js      — genres, countries, languages, sort map
+    uiStrings.js        — /configure translations (20 languages)
+    packageFilters.js   — which packages are offered + provider/channel split
+scripts/
+  jw-query.js           — run a JustWatch query by hand (no cache, no deps)
 ```
 
 ## Supported languages

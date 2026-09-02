@@ -1,979 +1,1067 @@
 <!doctype html>
 <html lang="es">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>OmniCatalog · Stremio Addon</title>
-    <link
-      rel="apple-touch-icon"
-      sizes="180x180"
-      href="/static/apple-touch-icon.png"
-    />
-    <link
-      rel="icon"
-      type="image/png"
-      sizes="32x32"
-      href="/static/favicon-32x32.png"
-    />
-    <link
-      rel="icon"
-      type="image/png"
-      sizes="16x16"
-      href="/static/favicon-16x16.png"
-    />
-    <link rel="manifest" href="/static/site.webmanifest" />
-    <link
-      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&family=JetBrains+Mono&display=swap"
-      rel="stylesheet"
-    />
-    <style>
-      *,
-      *::before,
-      *::after {
-        box-sizing: border-box;
-        margin: 0;
-        padding: 0;
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>OmniCatalog · Stremio Addon</title>
+  <link rel="apple-touch-icon" sizes="180x180" href="/static/apple-touch-icon.png" />
+  <link rel="icon" type="image/png" sizes="32x32" href="/static/favicon-32x32.png" />
+  <link rel="icon" type="image/png" sizes="16x16" href="/static/favicon-16x16.png" />
+  <link rel="manifest" href="/static/site.webmanifest" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&family=JetBrains+Mono&display=swap"
+    rel="stylesheet" />
+  <style>
+    *,
+    *::before,
+    *::after {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    :root {
+      --bg-color: #0f0c29;
+      --accent: #ff79c6;
+      --accent-glow: rgba(255, 121, 198, 0.4);
+      --secondary: #bd93f9;
+      --text: #f8f8f2;
+      --muted: #9ca3af;
+      --glass: rgba(22, 29, 47, 0.85);
+      --border: rgba(255, 255, 255, 0.1);
+      --neon-green: #50fa7b;
+    }
+
+    body {
+      background: linear-gradient(-45deg, #210c29, #302b63, #4a135f, #3b3b88);
+      background-size: 400% 400%;
+      animation: gradientBG 15s ease infinite;
+      color: var(--text);
+      font-family: "Inter", sans-serif;
+      min-height: 100vh;
+      display: flex;
+      justify-content: center;
+      /* align-items: center; <--- ELIMINA ESTA LÍNEA */
+      padding: 1.5rem;
+    }
+
+    @keyframes gradientBG {
+      0% {
+        /* Empezamos arriba a la izquierda */
+        background-position: 0% 0%;
       }
 
-      :root {
-        --bg-color: #0f0c29;
-        --accent: #ff79c6;
-        --accent-glow: rgba(255, 121, 198, 0.4);
-        --secondary: #bd93f9;
-        --text: #f8f8f2;
-        --muted: #9ca3af;
-        --glass: rgba(22, 29, 47, 0.85);
-        --border: rgba(255, 255, 255, 0.1);
-        --neon-green: #50fa7b;
+      50% {
+        /* Movemos hasta abajo a la derecha para barrer todos los colores */
+        background-position: 100% 100%;
       }
 
-      body {
-        background: linear-gradient(-45deg, #210c29, #302b63, #4a135f, #3b3b88);
-        background-size: 400% 400%;
-        animation: gradientBG 15s ease infinite;
-        color: var(--text);
-        font-family: "Inter", sans-serif;
-        min-height: 100vh;
-        display: flex;
-        justify-content: center;
-        /* align-items: center; <--- ELIMINA ESTA LÍNEA */
-        padding: 1.5rem;
+      100% {
+        /* Volvemos al inicio */
+        background-position: 0% 0%;
       }
+    }
 
-      @keyframes gradientBG {
-        0% {
-          /* Empezamos arriba a la izquierda */
-          background-position: 0% 0%;
-        }
-        50% {
-          /* Movemos hasta abajo a la derecha para barrer todos los colores */
-          background-position: 100% 100%;
-        }
-        100% {
-          /* Volvemos al inicio */
-          background-position: 0% 0%;
-        }
-      }
+    .app-wrapper {
+      display: flex;
+      flex-direction: row;
+      gap: 2rem;
+      width: 100%;
+      max-width: 1150px;
+    }
 
-      .app-wrapper {
-        display: flex;
-        flex-direction: row;
-        gap: 2rem;
-        width: 100%;
-        max-width: 1150px;
-      }
+    /* BARRA LATERAL ESTÉTICA */
+    /* BARRA LATERAL ESTÉTICA (El contenedor estirado) */
+    .creator-sidebar {
+      flex: 0 0 300px;
+      background: var(--glass);
+      backdrop-filter: blur(20px);
+      border: 1px solid var(--border);
+      border-radius: 30px;
+      box-shadow: 0 10px 40px rgba(0, 0, 0, 0.4);
+      /* Le hemos quitado el padding, flex y sticky para que vuelva a estirarse */
+    }
 
-      /* BARRA LATERAL ESTÉTICA */
-      /* BARRA LATERAL ESTÉTICA (El contenedor estirado) */
-      .creator-sidebar {
-        flex: 0 0 300px;
-        background: var(--glass);
-        backdrop-filter: blur(20px);
-        border: 1px solid var(--border);
-        border-radius: 30px;
-        box-shadow: 0 10px 40px rgba(0, 0, 0, 0.4);
-        /* Le hemos quitado el padding, flex y sticky para que vuelva a estirarse */
-      }
+    /* CAJA INTERIOR (El contenido que te persigue) */
+    .sidebar-content {
+      padding: 2.5rem;
+      /* Hemos movido el padding aquí */
+      position: sticky;
+      top: 1.5rem;
+      /* La distancia con el borde superior al hacer scroll */
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      text-align: center;
+    }
 
-      /* CAJA INTERIOR (El contenido que te persigue) */
-      .sidebar-content {
-        padding: 2.5rem; /* Hemos movido el padding aquí */
-        position: sticky;
-        top: 1.5rem; /* La distancia con el borde superior al hacer scroll */
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        text-align: center;
-      }
+    .creator-avatar {
+      width: 110px;
+      height: 110px;
+      border-radius: 50%;
+      border: 3px solid var(--accent);
+      margin-bottom: 1.2rem;
+      box-shadow: 0 0 25px var(--accent-glow);
+      object-fit: cover;
+    }
 
-      .creator-avatar {
-        width: 110px;
-        height: 110px;
-        border-radius: 50%;
-        border: 3px solid var(--accent);
-        margin-bottom: 1.2rem;
-        box-shadow: 0 0 25px var(--accent-glow);
-        object-fit: cover;
-      }
+    .creator-name {
+      font-weight: 800;
+      font-size: 1.4rem;
+      letter-spacing: -0.5px;
+      margin-bottom: 0.5rem;
+    }
 
-      .creator-name {
-        font-weight: 800;
-        font-size: 1.4rem;
-        letter-spacing: -0.5px;
-        margin-bottom: 0.5rem;
-      }
-      .creator-bio {
-        font-size: 0.85rem;
-        color: var(--muted);
-        line-height: 1.5;
-        margin-bottom: 2rem;
-      }
+    .creator-bio {
+      font-size: 0.85rem;
+      color: var(--muted);
+      line-height: 1.5;
+      margin-bottom: 2rem;
+    }
 
-      /* BOTONES SOCIALES */
-      .creator-links {
-        display: flex;
-        flex-direction: column;
-        gap: 1rem;
-        width: 100%;
-      }
-      .social-btn {
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        gap: 10px;
-        text-decoration: none;
-        font-size: 0.85rem;
-        font-weight: 700;
-        padding: 0.8rem;
-        border-radius: 14px;
-        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-        border: 1px solid transparent;
-      }
-      .link-discord {
-        background: #5865f2;
-        color: white;
-      }
-      .link-discord:hover {
-        background: #4752c4;
-        transform: translateY(-3px);
-        box-shadow: 0 10px 20px rgba(88, 101, 242, 0.3);
-      }
-      .link-kofi {
-        background: #ff5e5b;
-        color: white;
-      }
-      .link-kofi:hover {
-        background: #e04d4a;
-        transform: translateY(-3px);
-        box-shadow: 0 10px 20px rgba(255, 94, 91, 0.3);
-      }
+    /* BOTONES SOCIALES */
+    .creator-links {
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+      width: 100%;
+    }
 
-      /* TARJETA PRINCIPAL */
-      .card {
-        flex: 1;
-        background: var(--glass);
-        backdrop-filter: blur(20px);
-        border: 1px solid var(--border);
-        border-radius: 30px;
-        padding: 1.4rem;
-        box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
-        display: flex;
-        flex-direction: column;
-        /* overflow: hidden; */
-      }
+    .social-btn {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      text-decoration: none;
+      font-size: 0.85rem;
+      font-weight: 700;
+      padding: 0.8rem;
+      border-radius: 14px;
+      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+      border: 1px solid transparent;
+    }
 
-      .header {
-        display: flex;
-        align-items: center;
-        gap: 1rem;
-        margin-bottom: 2rem;
-        flex-shrink: 0;
-      }
-      .header img {
-        width: 45px;
-        height: 45px;
-        border-radius: 12px;
-        box-shadow: 0 0 20px var(--accent-glow);
-      }
-      h1 {
-        font-size: 1.8rem;
-        font-weight: 800;
-        background: linear-gradient(to right, #fff, var(--secondary));
-        -webkit-background-clip: text;
-        -webkit-text-fill-color: transparent;
-      }
+    .link-discord {
+      background: #5865f2;
+      color: white;
+    }
 
-      .row {
-        display: grid;
-        grid-template-columns: 1fr 1fr;
-        gap: 1.5rem;
-        margin-bottom: 1.5rem;
-        flex-shrink: 0;
-      }
-      .field {
-        display: flex;
-        flex-direction: column;
-        gap: 0.6rem;
-      }
-      label {
-        font-size: 0.7rem;
-        font-weight: 700;
-        color: var(--secondary);
-        text-transform: uppercase;
-        letter-spacing: 0.12em;
-      }
+    .link-discord:hover {
+      background: #4752c4;
+      transform: translateY(-3px);
+      box-shadow: 0 10px 20px rgba(88, 101, 242, 0.3);
+    }
 
-      /* CUSTOM DROPDOWN */
-      .custom-select {
-        position: relative;
-        user-select: none;
-      }
-      .cs-trigger {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        background: rgba(0, 0, 0, 0.4);
-        color: var(--text);
-        border: 1px solid var(--border);
-        border-radius: 12px;
-        padding: 0.8rem 1rem;
-        font-size: 0.9rem;
-        cursor: pointer;
-        transition: 0.2s;
-      }
-      .cs-trigger:hover,
-      .custom-select.open .cs-trigger {
-        border-color: var(--accent);
-        box-shadow: 0 0 10px var(--accent-glow);
-      }
-      .cs-arrow {
-        font-size: 0.6rem;
-        transition: transform 0.2s;
-        color: var(--secondary);
-      }
-      .custom-select.open .cs-arrow {
-        transform: rotate(180deg);
-      }
-      .cs-list {
-        display: none;
-        position: absolute;
-        top: calc(100% + 6px);
-        left: 0;
-        right: 0;
-        background: #12152a;
-        border: 1px solid var(--border);
-        border-radius: 12px;
-        max-height: 220px;
-        overflow-y: auto;
-        z-index: 100;
-        box-shadow: 0 10px 40px rgba(0, 0, 0, 0.6);
-      }
-      .custom-select.open .cs-list {
-        display: block;
-      }
-      .cs-list::-webkit-scrollbar {
-        width: 4px;
-      }
-      .cs-list::-webkit-scrollbar-thumb {
-        background: var(--secondary);
-        border-radius: 4px;
-      }
-      .cs-search {
-        position: sticky;
-        top: 0;
-        z-index: 1;
-        display: block;
-        width: 100%;
-        background: #12152a;
-        border: none;
-        border-bottom: 1px solid var(--border);
-        border-radius: 12px 12px 0 0;
-        color: var(--text);
-        padding: 0.65rem 1rem;
-        font-size: 0.85rem;
-        font-family: inherit;
-        outline: none;
-      }
-      .cs-search::placeholder {
-        color: var(--muted);
-      }
-      .cs-search:focus {
-        border-bottom-color: var(--accent);
-      }
-      .cs-option {
-        padding: 0.65rem 1rem;
-        font-size: 0.85rem;
-        cursor: pointer;
-        color: var(--muted);
-        transition: 0.15s;
-        border-radius: 8px;
-        margin: 2px 4px;
-      }
-      .cs-option:hover {
-        background: rgba(255, 255, 255, 0.07);
-        color: var(--text);
-      }
-      .cs-option.selected {
-        color: var(--accent);
-        font-weight: 700;
-      }
+    .link-kofi {
+      background: #ff5e5b;
+      color: white;
+    }
 
-      /* PESTAÑAS PROVEEDORES / CANALES — estilo navegador */
-      /* The active tab is joined to the panel below it: it overlaps the
+    .link-kofi:hover {
+      background: #e04d4a;
+      transform: translateY(-3px);
+      box-shadow: 0 10px 20px rgba(255, 94, 91, 0.3);
+    }
+
+    /* TARJETA PRINCIPAL */
+    .card {
+      flex: 1;
+      background: var(--glass);
+      backdrop-filter: blur(20px);
+      border: 1px solid var(--border);
+      border-radius: 30px;
+      padding: 1.4rem;
+      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+      display: flex;
+      flex-direction: column;
+      /* overflow: hidden; */
+    }
+
+    .header {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+      margin-bottom: 2rem;
+      flex-shrink: 0;
+    }
+
+    .header img {
+      width: 45px;
+      height: 45px;
+      border-radius: 12px;
+      box-shadow: 0 0 20px var(--accent-glow);
+    }
+
+    h1 {
+      font-size: 1.8rem;
+      font-weight: 800;
+      background: linear-gradient(to right, #fff, var(--secondary));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1.5rem;
+      margin-bottom: 1.5rem;
+      flex-shrink: 0;
+    }
+
+    .field {
+      display: flex;
+      flex-direction: column;
+      gap: 0.6rem;
+    }
+
+    label {
+      font-size: 0.7rem;
+      font-weight: 700;
+      color: var(--secondary);
+      text-transform: uppercase;
+      letter-spacing: 0.12em;
+    }
+
+    /* CUSTOM DROPDOWN */
+    .custom-select {
+      position: relative;
+      user-select: none;
+    }
+
+    .cs-trigger {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      background: rgba(0, 0, 0, 0.4);
+      color: var(--text);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 0.8rem 1rem;
+      font-size: 0.9rem;
+      cursor: pointer;
+      transition: 0.2s;
+    }
+
+    .cs-trigger:hover,
+    .custom-select.open .cs-trigger {
+      border-color: var(--accent);
+      box-shadow: 0 0 10px var(--accent-glow);
+    }
+
+    .cs-arrow {
+      font-size: 0.6rem;
+      transition: transform 0.2s;
+      color: var(--secondary);
+    }
+
+    .custom-select.open .cs-arrow {
+      transform: rotate(180deg);
+    }
+
+    .cs-list {
+      display: none;
+      position: absolute;
+      top: calc(100% + 6px);
+      left: 0;
+      right: 0;
+      background: #12152a;
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      max-height: 220px;
+      overflow-y: auto;
+      z-index: 100;
+      box-shadow: 0 10px 40px rgba(0, 0, 0, 0.6);
+    }
+
+    .custom-select.open .cs-list {
+      display: block;
+    }
+
+    .cs-list::-webkit-scrollbar {
+      width: 4px;
+    }
+
+    .cs-list::-webkit-scrollbar-thumb {
+      background: var(--secondary);
+      border-radius: 4px;
+    }
+
+    .cs-search {
+      position: sticky;
+      top: 0;
+      z-index: 1;
+      display: block;
+      width: 100%;
+      background: #12152a;
+      border: none;
+      border-bottom: 1px solid var(--border);
+      border-radius: 12px 12px 0 0;
+      color: var(--text);
+      padding: 0.65rem 1rem;
+      font-size: 0.85rem;
+      font-family: inherit;
+      outline: none;
+    }
+
+    .cs-search::placeholder {
+      color: var(--muted);
+    }
+
+    .cs-search:focus {
+      border-bottom-color: var(--accent);
+    }
+
+    .cs-option {
+      padding: 0.65rem 1rem;
+      font-size: 0.85rem;
+      cursor: pointer;
+      color: var(--muted);
+      transition: 0.15s;
+      border-radius: 8px;
+      margin: 2px 4px;
+    }
+
+    .cs-option:hover {
+      background: rgba(255, 255, 255, 0.07);
+      color: var(--text);
+    }
+
+    .cs-option.selected {
+      color: var(--accent);
+      font-weight: 700;
+    }
+
+    /* PESTAÑAS PROVEEDORES / CANALES — estilo navegador */
+    /* The active tab is joined to the panel below it: it overlaps the
          panel's top border by 1px and paints over that segment with its own
          --glass fill (85% opaque, so the line underneath disappears), while
          its own bottom border stays transparent. That seam is what makes it
          read as a browser tab rather than a button. */
-      .pkg-tabs {
-        display: flex;
-        align-items: flex-end;
-        gap: 2px;
-        padding: 0 4px;
-        flex-shrink: 0;
-      }
-      .pkg-tab {
-        position: relative;
-        bottom: -1px;
-        display: flex;
-        align-items: center;
-        gap: 6px;
-        padding: 0.45rem 0.95rem;
-        font-family: inherit;
-        font-size: 0.68rem;
-        font-weight: 600;
-        color: var(--muted);
-        background: transparent;
-        border: 1px solid transparent;
-        border-radius: 10px 10px 0 0;
-        cursor: pointer;
-        transition:
-          background 0.15s ease,
-          color 0.15s ease;
-        -webkit-user-select: none;
-        user-select: none;
-      }
-      .pkg-tab:hover {
-        color: var(--text);
-        background: rgba(255, 255, 255, 0.05);
-      }
-      .pkg-tab.active {
-        color: var(--text);
-        background: var(--glass);
-        border-color: var(--border);
-        border-bottom-color: transparent;
-      }
-      /* How many are selected in the pane you can't see — without it a
+    /* Tabs on the left, sort-type chips on the right, sharing one baseline.
+       The chips govern both panes (a channel is a package like any other),
+       which is why they live on the bar and not inside a pane. */
+    .pkg-tabbar {
+      display: flex;
+      align-items: flex-end;
+      justify-content: space-between;
+      gap: 0.5rem;
+      /* Degrades to two rows instead of overflowing on a narrow screen; the
+         tab seam still works because the tabs keep their own row. */
+      flex-wrap: wrap;
+      flex-shrink: 0;
+    }
+    .pkg-tabs {
+      display: flex;
+      align-items: flex-end;
+      gap: 2px;
+      padding: 0 4px;
+      flex-shrink: 0;
+    }
+
+    /* Same chips as the global ones, just smaller. Everything here is sizing
+       scoped to .pkg-sorts — the checked/unchecked visuals stay in
+       .toggle-card / .toggle-dot, shared with the full-size version. */
+    .pkg-sorts {
+      display: flex;
+      gap: 3px;
+      align-items: center;
+      padding-bottom: 5px;
+    }
+    .pkg-sorts .toggle-card {
+      gap: 0.35rem;
+      padding: 0.26rem 0.5rem;
+      border-radius: 9px;
+    }
+    .pkg-sorts .toggle-card span:not(.toggle-dot) {
+      font-size: 0.6rem;
+      color: var(--text);
+      white-space: nowrap;
+    }
+    .pkg-sorts .toggle-dot {
+      width: 9px;
+      height: 9px;
+      min-width: 9px;
+    }
+
+    .pkg-tab {
+      position: relative;
+      bottom: -1px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 0.45rem 0.95rem;
+      font-family: inherit;
+      font-size: 0.68rem;
+      font-weight: 600;
+      color: var(--muted);
+      background: transparent;
+      border: 1px solid transparent;
+      border-radius: 10px 10px 0 0;
+      cursor: pointer;
+      transition:
+        background 0.15s ease,
+        color 0.15s ease;
+      -webkit-user-select: none;
+      user-select: none;
+    }
+
+    .pkg-tab:hover {
+      color: var(--text);
+      background: rgba(255, 255, 255, 0.05);
+    }
+
+    .pkg-tab.active {
+      color: var(--text);
+      background: var(--glass);
+      border-color: var(--border);
+      border-bottom-color: transparent;
+    }
+
+    /* How many are selected in the pane you can't see — without it a
          selection in the hidden tab is invisible and the URL looks wrong for
          no apparent reason. */
-      .pkg-tab-count {
-        min-width: 16px;
-        height: 16px;
-        padding: 0 4px;
-        border-radius: 999px;
-        background: var(--accent);
-        color: #000;
-        font-size: 0.6rem;
-        line-height: 16px;
-        text-align: center;
-      }
-      .pkg-tab-hint {
-        color: var(--muted);
-        font-size: 0.6rem;
-        line-height: 1.5;
-        margin: 0.6rem 0;
-      }
+    .pkg-tab-count {
+      min-width: 16px;
+      height: 16px;
+      padding: 0 4px;
+      border-radius: 999px;
+      background: var(--accent);
+      color: #000;
+      font-size: 0.6rem;
+      line-height: 16px;
+      text-align: center;
+    }
 
-      /* FILTRO POR SERVICIO PADRE (solo pestaña Canales) */
-      /* Deliberately styled unlike .pkg-item: dashed outline, pill shape and
+    .pkg-tab-hint {
+      color: var(--muted);
+      font-size: 0.6rem;
+      line-height: 1.5;
+      margin: 0.6rem 0;
+    }
+
+    /* FILTRO POR SERVICIO PADRE (solo pestaña Canales) */
+    /* Deliberately styled unlike .pkg-item: dashed outline, pill shape and
          the secondary purple rather than the pink used for real selection, so
          it can't be mistaken for another thing you're picking. */
-      .chan-filter {
-        margin: 0.6rem 0;
-        flex-shrink: 0;
-      }
-      .chan-filter-label {
-        display: block;
-        color: var(--muted);
-        font-size: 0.56rem;
-        font-weight: 700;
-        letter-spacing: 0.09em;
-        text-transform: uppercase;
-        margin-bottom: 0.35rem;
-      }
-      .chan-filter-row {
-        display: flex;
-        gap: 0.4rem;
-        overflow-x: auto;
-        padding-bottom: 3px;
-      }
-      .chan-filter-row::-webkit-scrollbar {
-        height: 3px;
-      }
-      .chan-filter-row::-webkit-scrollbar-thumb {
-        background: var(--secondary);
-        border-radius: 10px;
-      }
-      .chan-chip {
-        flex: 0 0 auto;
-        display: flex;
-        align-items: center;
-        gap: 5px;
-        padding: 0.3rem 0.7rem;
-        font-family: inherit;
-        font-size: 0.64rem;
-        font-weight: 600;
-        color: var(--muted);
-        background: transparent;
-        border: 1px dashed var(--border);
-        border-radius: 999px;
-        cursor: pointer;
-        transition: all 0.15s ease;
-        -webkit-user-select: none;
-        user-select: none;
-      }
-      .chan-chip:hover {
-        color: var(--text);
-        border-color: var(--secondary);
-      }
-      .chan-chip.active {
-        color: var(--text);
-        border-style: solid;
-        border-color: var(--secondary);
-        background: rgba(189, 147, 249, 0.15);
-      }
-      .chan-chip-n {
-        color: var(--muted);
-        font-weight: 500;
-      }
+    .chan-filter {
+      margin: 0.6rem 0;
+      flex-shrink: 0;
+    }
 
-      /* GRID CON SCROLL */
-      .grid-container {
-        flex: 1;
-        min-height: 280px;
-        overflow-y: auto;
-        margin: 1rem 0;
-        padding-right: 12px;
-      }
-      /* The panel the tabs sit on. Its top border is the tab strip's baseline;
+    .chan-filter-label {
+      display: block;
+      color: var(--muted);
+      font-size: 0.56rem;
+      font-weight: 700;
+      letter-spacing: 0.09em;
+      text-transform: uppercase;
+      margin-bottom: 0.35rem;
+    }
+
+    .chan-filter-row {
+      display: flex;
+      gap: 0.4rem;
+      overflow-x: auto;
+      padding-bottom: 3px;
+    }
+
+    .chan-filter-row::-webkit-scrollbar {
+      height: 3px;
+    }
+
+    .chan-filter-row::-webkit-scrollbar-thumb {
+      background: var(--secondary);
+      border-radius: 10px;
+    }
+
+    .chan-chip {
+      flex: 0 0 auto;
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      padding: 0.3rem 0.7rem;
+      font-family: inherit;
+      font-size: 0.64rem;
+      font-weight: 600;
+      color: var(--muted);
+      background: transparent;
+      border: 1px dashed var(--border);
+      border-radius: 999px;
+      cursor: pointer;
+      transition: all 0.15s ease;
+      -webkit-user-select: none;
+      user-select: none;
+    }
+
+    .chan-chip:hover {
+      color: var(--text);
+      border-color: var(--secondary);
+    }
+
+    .chan-chip.active {
+      color: var(--text);
+      border-style: solid;
+      border-color: var(--secondary);
+      background: rgba(189, 147, 249, 0.15);
+    }
+
+    .chan-chip-n {
+      color: var(--muted);
+      font-weight: 500;
+    }
+
+    /* GRID CON SCROLL */
+    .grid-container {
+      flex: 1;
+      min-height: 280px;
+      overflow-y: auto;
+      margin: 1rem 0;
+      padding-right: 12px;
+    }
+
+    /* The panel the tabs sit on. Its top border is the tab strip's baseline;
          the active tab overlaps and covers its own slice of it. */
-      .grid-container {
-        border-top: 1px solid var(--border);
-      }
+    .grid-container {
+      border-top: 1px solid var(--border);
+    }
 
-      /* `display: grid` below is an ID selector, so it outranks the browser's
+    /* `display: grid` below is an ID selector, so it outranks the browser's
          own `[hidden] { display: none }` and BOTH panes rendered at once —
          which is why the two tabs looked identical. Never rely on the bare
          attribute against an id-scoped display rule. Same for a channel
          filtered out of view. */
-      #pkg-grid[hidden],
-      #channel-grid[hidden],
-      .pkg-item[hidden] {
-        display: none;
-      }
+    #pkg-grid[hidden],
+    #channel-grid[hidden],
+    .pkg-item[hidden] {
+      display: none;
+    }
 
-      #pkg-grid,
-      #channel-grid {
-        display: grid;
-        grid-template-columns: repeat(auto-fill, minmax(105px, 1fr));
-        gap: 0.6rem;
-        /* .pkg-label lifts 4px on hover and .grid-container clips it with
+    #pkg-grid,
+    #channel-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(105px, 1fr));
+      gap: 0.6rem;
+      /* .pkg-label lifts 4px on hover and .grid-container clips it with
            overflow-y: auto, so the top row's animation was cut off. This is
            the clearance for it — not decorative spacing. */
-        padding-top: 5px;
-      }
+      padding-top: 5px;
+    }
 
-      /* SCROLLBAR */
-      .grid-container::-webkit-scrollbar {
-        width: 5px;
-      }
-      .grid-container::-webkit-scrollbar-thumb {
-        background: var(--secondary);
-        border-radius: 10px;
-      }
+    /* SCROLLBAR */
+    .grid-container::-webkit-scrollbar {
+      width: 5px;
+    }
 
-      .pkg-label {
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        gap: 0.6rem;
-        padding: 1rem 0.5rem;
-        /* Selecting a content type takes up to 4 clicks in a row, and a
+    .grid-container::-webkit-scrollbar-thumb {
+      background: var(--secondary);
+      border-radius: 10px;
+    }
+
+    .pkg-label {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 0.6rem;
+      padding: 1rem 0.5rem;
+      /* Selecting a content type takes up to 4 clicks in a row, and a
            browser reads consecutive clicks as a double-click: without this the
            provider name gets highlighted mid-cycle, so the gesture looks like
            a botched text selection instead of a choice. Prefixed for iOS
            Safari, where a lot of people configure this. */
-        -webkit-user-select: none;
-        user-select: none;
-        border: 1px solid var(--border);
-        border-radius: 16px;
-        cursor: pointer;
-        transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-        background: rgba(255, 255, 255, 0.03);
-        position: relative;
-      }
-      .pkg-label:hover {
-        transform: translateY(-4px);
-        background: rgba(255, 255, 255, 0.08);
-        border-color: var(--secondary);
-      }
-      .pkg-item input:checked + .pkg-label {
-        border-color: var(--accent);
-        background: rgba(255, 121, 198, 0.12);
-        box-shadow: 0 0 15px rgba(255, 121, 198, 0.1);
-      }
-      .pkg-icon {
-        width: 44px;
-        height: 44px;
-        border-radius: 10px;
-        object-fit: contain;
-        /* A click that drifts a pixel would otherwise start dragging the logo
-           and leave a ghost image trailing the cursor. */
-        -webkit-user-drag: none;
-        pointer-events: none;
-      }
-      .pkg-name {
-        font-size: 0.68rem;
-        font-weight: 600;
-        text-align: center;
-        color: var(--text);
-        padding: 0 0.4rem;
-        word-break: break-word;
-      }
+      -webkit-user-select: none;
+      user-select: none;
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      cursor: pointer;
+      transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+      background: rgba(255, 255, 255, 0.03);
+      position: relative;
+    }
 
-      /* Badge in the card's top-right corner. It doubles as the content-type
+    .pkg-label:hover {
+      transform: translateY(-4px);
+      background: rgba(255, 255, 255, 0.08);
+      border-color: var(--secondary);
+    }
+
+    .pkg-item input:checked+.pkg-label {
+      border-color: var(--accent);
+      background: rgba(255, 121, 198, 0.12);
+      box-shadow: 0 0 15px rgba(255, 121, 198, 0.1);
+    }
+
+    .pkg-icon {
+      width: 44px;
+      height: 44px;
+      border-radius: 10px;
+      object-fit: contain;
+      /* A click that drifts a pixel would otherwise start dragging the logo
+           and leave a ghost image trailing the cursor. */
+      -webkit-user-drag: none;
+      pointer-events: none;
+    }
+
+    .pkg-name {
+      font-size: 0.68rem;
+      font-weight: 600;
+      text-align: center;
+      color: var(--text);
+      padding: 0 0.4rem;
+      word-break: break-word;
+    }
+
+    /* Badge in the card's top-right corner. It doubles as the content-type
          indicator: it holds a film glyph and a TV glyph, and the item's
          data-types state hides whichever one this package doesn't generate,
          so "both" shows two glyphs and a restricted package shows one.
          min-width + a pill radius let it shrink and grow with that. */
-      .pkg-check {
-        position: absolute;
-        top: 8px;
-        right: 8px;
-        min-width: 18px;
-        height: 18px;
-        padding: 0 4px;
-        gap: 3px;
-        background: var(--accent);
-        color: #000;
-        border-radius: 999px;
-        display: none;
-        align-items: center;
-        justify-content: center;
-        box-shadow: 0 0 8px var(--accent-glow);
-      }
-      .pkg-item input:checked ~ .pkg-label .pkg-check {
-        display: flex;
-      }
-      .pkg-check svg {
-        display: block;
-        flex-shrink: 0;
-      }
-      /* State visuals stay in these class/attribute rules on purpose — an
+    .pkg-check {
+      position: absolute;
+      top: 8px;
+      right: 8px;
+      min-width: 18px;
+      height: 18px;
+      padding: 0 4px;
+      gap: 3px;
+      background: var(--accent);
+      color: #000;
+      border-radius: 999px;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 0 8px var(--accent-glow);
+    }
+
+    .pkg-item input:checked~.pkg-label .pkg-check {
+      display: flex;
+    }
+
+    .pkg-check svg {
+      display: block;
+      flex-shrink: 0;
+    }
+
+    /* State visuals stay in these class/attribute rules on purpose — an
          inline style on the badge would outrank them no matter the
          specificity, exactly the bug the old global toggle hit. */
-      .pkg-item[data-types="movie"] .type-glyph-series,
-      .pkg-item[data-types="series"] .type-glyph-movie {
-        display: none;
-      }
+    .pkg-item[data-types="movie"] .type-glyph-series,
+    .pkg-item[data-types="series"] .type-glyph-movie {
+      display: none;
+    }
 
-      /* The same badge rendered inline in the hint below, so the legend shows
+    /* The same badge rendered inline in the hint below, so the legend shows
          the actual chip rather than a recolored approximation of it. The film
          glyph's sprockets are punched out in var(--accent) and only read as
          holes on top of the accent pill, which is why this keeps the pill
          instead of just dropping the two glyphs into the text. */
-      .pkg-check-inline {
-        position: static;
-        display: inline-flex;
-      }
+    .pkg-check-inline {
+      position: static;
+      display: inline-flex;
+    }
 
-      /* Explains the 4-state click cycle, since a card no longer just toggles */
-      .pkg-cycle-hint {
-        color: var(--muted);
-        font-size: 0.6rem;
-        line-height: 1.5;
-        margin-bottom: 0.6rem;
-        display: flex;
-        align-items: center;
-        gap: 6px;
-        flex-wrap: wrap;
-      }
-      .pkg-cycle-hint span[data-i18n] {
-        flex: 1;
-        min-width: 180px;
-      }
+    /* Explains the 4-state click cycle, since a card no longer just toggles */
+    .pkg-cycle-hint {
+      color: var(--muted);
+      font-size: 0.6rem;
+      line-height: 1.5;
+      margin-bottom: 0.6rem;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      flex-wrap: wrap;
+    }
 
-      .toggle-card {
-        display: flex;
-        align-items: center;
-        gap: 0.8rem;
-        padding: 0.8rem 1rem;
-        /* Same reason as .pkg-label — the global chips cycle on repeat clicks
+    .pkg-cycle-hint span[data-i18n] {
+      flex: 1;
+      min-width: 180px;
+    }
+
+    .toggle-card {
+      display: flex;
+      align-items: center;
+      gap: 0.8rem;
+      padding: 0.8rem 1rem;
+      /* Same reason as .pkg-label — the global chips cycle on repeat clicks
            too. Harmless on the provider sort chips, which don't. */
-        -webkit-user-select: none;
-        user-select: none;
-        border: 1px solid var(--border);
-        border-radius: 16px;
-        cursor: pointer;
-        transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-        background: rgba(255, 255, 255, 0.03);
-      }
-      .toggle-card:hover {
-        background: rgba(255, 255, 255, 0.08);
-        border-color: var(--secondary);
-      }
-      .toggle-item input:checked + .toggle-card {
-        border-color: var(--accent);
-        background: rgba(255, 121, 198, 0.12);
-        box-shadow: 0 0 15px rgba(255, 121, 198, 0.1);
-      }
-      .toggle-dot {
-        width: 16px;
-        height: 16px;
-        min-width: 16px;
-        /* A pill radius, not 50% — the dot stretches into a rounded rectangle
+      -webkit-user-select: none;
+      user-select: none;
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      cursor: pointer;
+      transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+      background: rgba(255, 255, 255, 0.03);
+    }
+
+    .toggle-card:hover {
+      background: rgba(255, 255, 255, 0.08);
+      border-color: var(--secondary);
+    }
+
+    .toggle-item input:checked+.toggle-card {
+      border-color: var(--accent);
+      background: rgba(255, 121, 198, 0.12);
+      box-shadow: 0 0 15px rgba(255, 121, 198, 0.1);
+    }
+
+    .toggle-dot {
+      width: 16px;
+      height: 16px;
+      min-width: 16px;
+      /* A pill radius, not 50% — the dot stretches into a rounded rectangle
            when it has to hold both glyphs, and only *looks* like a circle at
            its 16px square default. */
-        border-radius: 999px;
-        background: transparent;
-        border: 1px solid var(--muted);
-        transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        gap: 3px;
-        color: #000;
-      }
-      .toggle-item input:checked + .toggle-card .toggle-dot {
-        background: var(--accent);
-        border-color: var(--accent);
-        box-shadow: 0 0 8px var(--accent-glow);
-      }
+      border-radius: 999px;
+      background: transparent;
+      border: 1px solid var(--muted);
+      transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 3px;
+      color: #000;
+    }
 
-      /* Only the chips that carry data-types cycle content types (the global
+    .toggle-item input:checked+.toggle-card .toggle-dot {
+      background: var(--accent);
+      border-color: var(--accent);
+      box-shadow: 0 0 8px var(--accent-glow);
+    }
+
+    /* Only the chips that carry data-types cycle content types (the global
          ones) — the provider sort chips keep the plain filled circle, so their
          dots stay empty and these rules never fire for them. */
-      .toggle-dot svg {
-        display: none;
-        width: 9px;
-        height: 9px;
-        flex-shrink: 0;
-      }
-      .toggle-item[data-types] input:checked + .toggle-card .toggle-dot {
-        width: auto;
-        padding: 0 4px;
-      }
-      .toggle-item[data-types] input:checked + .toggle-card .toggle-dot svg {
-        display: block;
-      }
-      /* Must out-specify the rule right above, which is why this repeats the
+    .toggle-dot svg {
+      display: none;
+      width: 9px;
+      height: 9px;
+      flex-shrink: 0;
+    }
+
+    .toggle-item[data-types] input:checked+.toggle-card .toggle-dot {
+      width: auto;
+      padding: 0 4px;
+    }
+
+    .toggle-item[data-types] input:checked+.toggle-card .toggle-dot svg {
+      display: block;
+    }
+
+    /* Must out-specify the rule right above, which is why this repeats the
          whole input:checked + .toggle-card chain instead of the short form:
          (0,6,1) beats (0,5,2). Source order alone would not be enough. */
-      .toggle-item[data-types="movie"]
-        input:checked
-        + .toggle-card
-        .toggle-dot
-        .type-glyph-series,
-      .toggle-item[data-types="series"]
-        input:checked
-        + .toggle-card
-        .toggle-dot
-        .type-glyph-movie {
-        display: none;
+    .toggle-item[data-types="movie"] input:checked+.toggle-card .toggle-dot .type-glyph-series,
+    .toggle-item[data-types="series"] input:checked+.toggle-card .toggle-dot .type-glyph-movie {
+      display: none;
+    }
+
+    /* URL ESTILO TERMINAL */
+    .result {
+      margin-top: 1.5rem;
+      background: #0c0e14;
+      border-radius: 16px;
+      padding: 1.2rem;
+      border: 1px solid var(--border);
+      display: none;
+      box-shadow: inset 0 0 20px rgba(0, 0, 0, 0.5);
+    }
+
+    .result.visible {
+      display: block;
+      animation: slideUp 0.4s ease;
+    }
+
+    @keyframes slideUp {
+      from {
+        opacity: 0;
+        transform: translateY(20px);
       }
 
-      /* URL ESTILO TERMINAL */
-      .result {
-        margin-top: 1.5rem;
-        background: #0c0e14;
-        border-radius: 16px;
-        padding: 1.2rem;
-        border: 1px solid var(--border);
-        display: none;
-        box-shadow: inset 0 0 20px rgba(0, 0, 0, 0.5);
+      to {
+        opacity: 1;
+        transform: translateY(0);
       }
-      .result.visible {
-        display: block;
-        animation: slideUp 0.4s ease;
-      }
+    }
 
-      @keyframes slideUp {
-        from {
-          opacity: 0;
-          transform: translateY(20px);
-        }
-        to {
-          opacity: 1;
-          transform: translateY(0);
-        }
-      }
+    .terminal-header {
+      display: flex;
+      gap: 6px;
+      margin-bottom: 10px;
+    }
 
-      .terminal-header {
-        display: flex;
-        gap: 6px;
-        margin-bottom: 10px;
-      }
-      .dot {
-        width: 8px;
-        height: 8px;
-        border-radius: 50%;
-      }
-      .dot-red {
-        background: #ff5f56;
-      }
-      .dot-amber {
-        background: #ffbd2e;
-      }
-      .dot-green {
-        background: #27c93f;
-      }
+    .dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+    }
 
-      .url-box {
-        display: flex;
+    .dot-red {
+      background: #ff5f56;
+    }
+
+    .dot-amber {
+      background: #ffbd2e;
+    }
+
+    .dot-green {
+      background: #27c93f;
+    }
+
+    .url-box {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .url-input {
+      flex: 1;
+      background: transparent;
+      border: none;
+      color: var(--neon-green);
+      font-family: "JetBrains Mono", monospace;
+      font-size: 0.75rem;
+      outline: none;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .btn-copy {
+      background: var(--secondary);
+      color: #000;
+      border: none;
+      padding: 6px 15px;
+      border-radius: 8px;
+      font-size: 0.7rem;
+      font-weight: 800;
+      cursor: pointer;
+      transition: 0.2s;
+    }
+
+    .btn-copy:hover {
+      transform: scale(1.05);
+      filter: brightness(1.1);
+    }
+
+    .btn-primary {
+      background: var(--accent);
+      color: #000;
+      width: 100%;
+      padding: 1rem;
+      border-radius: 15px;
+      font-weight: 800;
+      border: none;
+      cursor: pointer;
+      box-shadow: 0 0 20px var(--accent-glow);
+      transition: 0.3s;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+
+    .btn-primary:hover {
+      transform: scale(1.02);
+      box-shadow: 0 0 30px var(--accent-glow);
+    }
+
+    .btn-show-more {
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid var(--secondary);
+      color: var(--secondary);
+      padding: 0.5rem 1.2rem;
+      border-radius: 10px;
+      font-size: 0.75rem;
+      cursor: pointer;
+      margin-top: 0.5rem;
+    }
+
+    /* Aligns a control's top edge with the *cap height* of the label beside it
+       (the top of the letters), not with the label's line box.
+       `align-items: flex-start` on the row lines up the two boxes; this nudge
+       covers the gap the line box leaves above the capitals. With the label at
+       font-size 0.65rem and `line-height: 1`, that gap is ~1.4px — hence 1px.
+       If the label's size or line-height changes, this is the number to redo.
+       Declared **after** .btn-show-more on purpose: same specificity, so source
+       order is what cancels its margin-top. And the button must carry no inline
+       `margin`, which would outrank this outright. */
+    .btn-cap-aligned {
+      margin: 1px 0 0;
+    }
+
+
+    /* BOTÓN DE IDIOMA (flota en la esquina superior derecha de la tarjeta) */
+    .lang-fab-wrap {
+      position: sticky;
+      top: 1.5rem;
+      align-self: flex-end;
+      /* Se superpone al encabezado en vez de empujarlo hacia abajo. */
+      margin-bottom: -54px;
+      z-index: 999;
+    }
+
+    .translate-fab {
+      width: 54px;
+      height: 54px;
+      border-radius: 16px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0;
+      overflow: hidden;
+      background: var(--glass);
+      backdrop-filter: blur(20px);
+      border: 1px solid var(--border);
+      color: var(--text);
+      font-family: inherit;
+      text-decoration: none;
+      cursor: pointer;
+      box-shadow:
+        0 10px 30px rgba(0, 0, 0, 0.5),
+        0 0 20px var(--accent-glow);
+      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    .translate-fab:hover,
+    .lang-fab-wrap.open .translate-fab {
+      width: auto;
+      padding: 0 1.1rem 0 0.9rem;
+      border-color: var(--accent);
+      transform: translateY(-3px);
+      box-shadow:
+        0 15px 35px rgba(0, 0, 0, 0.5),
+        0 0 30px var(--accent-glow);
+    }
+
+    .translate-fab svg {
+      width: 24px;
+      height: 24px;
+      flex-shrink: 0;
+      color: var(--accent);
+    }
+
+    .translate-fab span {
+      max-width: 0;
+      overflow: hidden;
+      white-space: nowrap;
+      font-size: 0.75rem;
+      font-weight: 700;
+      letter-spacing: 0.02em;
+      transition: max-width 0.3s ease;
+    }
+
+    .translate-fab:hover span,
+    .lang-fab-wrap.open .translate-fab span {
+      max-width: 160px;
+      margin-left: 0.6rem;
+    }
+
+    .lang-menu {
+      display: none;
+      position: absolute;
+      right: 0;
+      top: calc(100% + 0.8rem);
+      min-width: 190px;
+      max-height: 320px;
+      overflow-y: auto;
+      padding: 0.4rem;
+      background: var(--glass);
+      backdrop-filter: blur(20px);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      box-shadow: 0 15px 35px rgba(0, 0, 0, 0.5);
+    }
+
+    .lang-fab-wrap.open .lang-menu {
+      display: block;
+    }
+
+    .lang-menu button {
+      display: block;
+      width: 100%;
+      text-align: left;
+      background: none;
+      border: 0;
+      border-radius: 10px;
+      color: var(--text);
+      font-family: inherit;
+      font-size: 0.8rem;
+      padding: 0.55rem 0.8rem;
+      cursor: pointer;
+    }
+
+    .lang-menu button:hover {
+      background: rgba(255, 255, 255, 0.08);
+    }
+
+    .lang-menu button[aria-selected="true"] {
+      color: var(--accent);
+      font-weight: 700;
+    }
+
+    /* RESPONSIVE */
+    @media (max-width: 1000px) {
+      .app-wrapper {
+        flex-direction: column;
+        max-height: none;
         align-items: center;
-        gap: 10px;
-      }
-      .url-input {
-        flex: 1;
-        background: transparent;
-        border: none;
-        color: var(--neon-green);
-        font-family: "JetBrains Mono", monospace;
-        font-size: 0.75rem;
-        outline: none;
-        overflow: hidden;
-        text-overflow: ellipsis;
-      }
-      .btn-copy {
-        background: var(--secondary);
-        color: #000;
-        border: none;
-        padding: 6px 15px;
-        border-radius: 8px;
-        font-size: 0.7rem;
-        font-weight: 800;
-        cursor: pointer;
-        transition: 0.2s;
-      }
-      .btn-copy:hover {
-        transform: scale(1.05);
-        filter: brightness(1.1);
       }
 
-      .btn-primary {
-        background: var(--accent);
-        color: #000;
+      .creator-sidebar {
         width: 100%;
-        padding: 1rem;
-        border-radius: 15px;
-        font-weight: 800;
-        border: none;
-        cursor: pointer;
-        box-shadow: 0 0 20px var(--accent-glow);
-        transition: 0.3s;
-        text-transform: uppercase;
-        letter-spacing: 1px;
-      }
-      .btn-primary:hover {
-        transform: scale(1.02);
-        box-shadow: 0 0 30px var(--accent-glow);
+        max-width: 600px;
       }
 
-      .btn-show-more {
-        background: rgba(255, 255, 255, 0.05);
-        border: 1px solid var(--secondary);
-        color: var(--secondary);
-        padding: 0.5rem 1.2rem;
-        border-radius: 10px;
-        font-size: 0.75rem;
-        cursor: pointer;
-        margin-top: 0.5rem;
-      }
-
-      /* BOTÓN DE IDIOMA (flota en la esquina superior derecha de la tarjeta) */
-      .lang-fab-wrap {
-        position: sticky;
-        top: 1.5rem;
-        align-self: flex-end;
-        /* Se superpone al encabezado en vez de empujarlo hacia abajo. */
-        margin-bottom: -54px;
-        z-index: 999;
-      }
-      .translate-fab {
-        width: 54px;
-        height: 54px;
-        border-radius: 16px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        gap: 0;
-        overflow: hidden;
-        background: var(--glass);
-        backdrop-filter: blur(20px);
-        border: 1px solid var(--border);
-        color: var(--text);
-        font-family: inherit;
-        text-decoration: none;
-        cursor: pointer;
-        box-shadow:
-          0 10px 30px rgba(0, 0, 0, 0.5),
-          0 0 20px var(--accent-glow);
-        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-      }
-      .translate-fab:hover,
-      .lang-fab-wrap.open .translate-fab {
-        width: auto;
-        padding: 0 1.1rem 0 0.9rem;
-        border-color: var(--accent);
-        transform: translateY(-3px);
-        box-shadow:
-          0 15px 35px rgba(0, 0, 0, 0.5),
-          0 0 30px var(--accent-glow);
-      }
-      .translate-fab svg {
-        width: 24px;
-        height: 24px;
-        flex-shrink: 0;
-        color: var(--accent);
-      }
-      .translate-fab span {
-        max-width: 0;
-        overflow: hidden;
-        white-space: nowrap;
-        font-size: 0.75rem;
-        font-weight: 700;
-        letter-spacing: 0.02em;
-        transition: max-width 0.3s ease;
-      }
-      .translate-fab:hover span,
-      .lang-fab-wrap.open .translate-fab span {
-        max-width: 160px;
-        margin-left: 0.6rem;
-      }
-
-      .lang-menu {
-        display: none;
-        position: absolute;
-        right: 0;
-        top: calc(100% + 0.8rem);
-        min-width: 190px;
-        max-height: 320px;
-        overflow-y: auto;
-        padding: 0.4rem;
-        background: var(--glass);
-        backdrop-filter: blur(20px);
-        border: 1px solid var(--border);
-        border-radius: 16px;
-        box-shadow: 0 15px 35px rgba(0, 0, 0, 0.5);
-      }
-      .lang-fab-wrap.open .lang-menu {
-        display: block;
-      }
-      .lang-menu button {
-        display: block;
+      .card {
         width: 100%;
-        text-align: left;
-        background: none;
-        border: 0;
-        border-radius: 10px;
-        color: var(--text);
-        font-family: inherit;
-        font-size: 0.8rem;
-        padding: 0.55rem 0.8rem;
-        cursor: pointer;
+        max-width: 600px;
+        max-height: none;
+        overflow: visible;
       }
-      .lang-menu button:hover {
-        background: rgba(255, 255, 255, 0.08);
-      }
-      .lang-menu button[aria-selected="true"] {
-        color: var(--accent);
-        font-weight: 700;
-      }
+    }
+  </style>
+</head>
 
-      /* RESPONSIVE */
-      @media (max-width: 1000px) {
-        .app-wrapper {
-          flex-direction: column;
-          max-height: none;
-          align-items: center;
-        }
-        .creator-sidebar {
-          width: 100%;
-          max-width: 600px;
-        }
-        .card {
-          width: 100%;
-          max-width: 600px;
-          max-height: none;
-          overflow: visible;
-        }
-      }
-    </style>
-  </head>
-  <body>
-    <div class="app-wrapper">
-      <!-- MAIN CARD -->
-      <main class="card">
-        <!-- BOTÓN FLOTANTE: IDIOMA DE LA PÁGINA -->
-        <div class="lang-fab-wrap">
-          <div class="lang-menu" id="lang-menu" role="listbox"></div>
-          <button
-            type="button"
-            id="translate-fab"
-            class="translate-fab"
-            data-i18n-title="uiLanguage"
-            title="Idioma de la página"
-          >
-            <svg
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="2"
-              stroke-linecap="round"
-              stroke-linejoin="round"
-            >
-              <path d="M5 8l6 6" />
-              <path d="M4 14l6-6 2-3" />
-              <path d="M2 5h12" />
-              <path d="M7 2h1" />
-              <path d="M22 22l-5-10-5 10" />
-              <path d="M14 18h6" />
-            </svg>
-            <span id="lang-fab-label">Español</span>
-          </button>
-        </div>
+<body>
+  <div class="app-wrapper">
+    <!-- MAIN CARD -->
+    <main class="card">
+      <!-- BOTÓN FLOTANTE: IDIOMA DE LA PÁGINA -->
+      <div class="lang-fab-wrap">
+        <div class="lang-menu" id="lang-menu" role="listbox"></div>
+        <button type="button" id="translate-fab" class="translate-fab" data-i18n-title="uiLanguage"
+          title="Idioma de la página">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+            stroke-linejoin="round">
+            <path d="M5 8l6 6" />
+            <path d="M4 14l6-6 2-3" />
+            <path d="M2 5h12" />
+            <path d="M7 2h1" />
+            <path d="M22 22l-5-10-5 10" />
+            <path d="M14 18h6" />
+          </svg>
+          <span id="lang-fab-label">Español</span>
+        </button>
+      </div>
 
-        <div class="header">
-          <img
-            src="/static/logo.svg"
-            alt="Logo"
-            onerror="this.style.display = 'none'"
-          />
-          <h1>OmniCatalog</h1>
-          <p
-            data-i18n="tagline"
-            style="
+      <div class="header">
+        <img src="/static/logo.svg" alt="Logo" onerror="this.style.display = 'none'" />
+        <h1>OmniCatalog</h1>
+        <p data-i18n="tagline" style="
               font-size: 0.7rem;
               color: var(--muted);
               margin: 0 0 -1rem;
               text-align: center;
               letter-spacing: 0.03em;
-            "
-          >
-            Configura tu addon en 3 pasos
-          </p>
-        </div>
+            ">
+          Configura tu addon en 3 pasos
+        </p>
+      </div>
 
-        <!-- ── Paso 1 ── -->
-        <div
-          style="
+      <!-- ── Paso 1 ── -->
+      <div style="
             display: flex;
             align-items: center;
             gap: 0.6rem;
             margin-bottom: 0.7rem;
-          "
-        >
-          <span
-            style="
+          ">
+        <span style="
               background: var(--accent);
               color: #0f0c29;
               border-radius: 50%;
@@ -985,73 +1073,50 @@
               font-size: 0.7rem;
               font-weight: 700;
               flex-shrink: 0;
-            "
-            >1</span
-          >
-          <span
-            data-i18n="step1"
-            style="
+            ">1</span>
+        <span data-i18n="step1" style="
               font-size: 0.7rem;
               font-weight: 600;
               color: var(--text);
               letter-spacing: 0.05em;
               text-transform: uppercase;
-            "
-            >Selecciona tu país e idioma</span
-          >
-        </div>
+            ">Selecciona tu país e idioma</span>
+      </div>
 
-        <div class="row">
-          <div class="field">
-            <label data-i18n="region">Región</label>
-            <div class="custom-select" id="cs-country">
-              <div class="cs-trigger">
-                <span class="cs-label" data-i18n="loading">Cargando...</span
-                ><span class="cs-arrow">▾</span>
-              </div>
-              <div class="cs-list">
-                <input
-                  type="text"
-                  class="cs-search"
-                  data-i18n-placeholder="searchCountry"
-                  placeholder="Buscar país..."
-                  autocomplete="off"
-                  spellcheck="false"
-                />
-                <div id="cs-country-list">
-                  <!-- Countries will be loaded here dynamically -->
-                </div>
-              </div>
+      <div class="row">
+        <div class="field">
+          <label data-i18n="region">Región</label>
+          <div class="custom-select" id="cs-country">
+            <div class="cs-trigger">
+              <span class="cs-label" data-i18n="loading">Cargando...</span><span class="cs-arrow">▾</span>
             </div>
-          </div>
-          <div class="field">
-            <label data-i18n="titleLanguage">Idioma de los títulos</label>
-            <div class="custom-select" id="cs-language">
-              <div class="cs-trigger">
-                <span class="cs-label" data-i18n="loading">Cargando...</span
-                ><span class="cs-arrow">▾</span>
-              </div>
-              <div class="cs-list">
-                <input
-                  type="text"
-                  class="cs-search"
-                  data-i18n-placeholder="searchLanguage"
-                  placeholder="Buscar idioma..."
-                  autocomplete="off"
-                  spellcheck="false"
-                />
-                <div id="cs-language-list">
-                  <!-- Languages will be loaded here dynamically -->
-                </div>
+            <div class="cs-list">
+              <input type="text" class="cs-search" data-i18n-placeholder="searchCountry" placeholder="Buscar país..."
+                autocomplete="off" spellcheck="false" />
+              <div id="cs-country-list">
+                <!-- Countries will be loaded here dynamically -->
               </div>
             </div>
           </div>
         </div>
+        <div class="field">
+          <label data-i18n="titleLanguage">Idioma de los títulos</label>
+          <div class="custom-select" id="cs-language">
+            <div class="cs-trigger">
+              <span class="cs-label" data-i18n="loading">Cargando...</span><span class="cs-arrow">▾</span>
+            </div>
+            <div class="cs-list">
+              <input type="text" class="cs-search" data-i18n-placeholder="searchLanguage" placeholder="Buscar idioma..."
+                autocomplete="off" spellcheck="false" />
+              <div id="cs-language-list">
+                <!-- Languages will be loaded here dynamically -->
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
 
-        <div
-          id="language-warning"
-          data-i18n="languageWarning"
-          style="
+      <div id="language-warning" data-i18n="languageWarning" style="
             display: none;
             background: rgba(255, 121, 198, 0.12);
             border: 1px solid var(--accent);
@@ -1062,25 +1127,21 @@
             line-height: 1.4;
             color: var(--text);
             flex-shrink: 0;
-          "
-        >
-          ⚠ Este idioma solo traduce los géneros y las cabeceras de catálogo
-          (Popular / Tendencias / Nuevos). Los títulos y sinopsis de las
-          películas y series seguirán en inglés — el proveedor todavía no tiene
-          esos datos traducidos a este idioma.
-        </div>
+          ">
+        ⚠ Este idioma solo traduce los géneros y las cabeceras de catálogo
+        (Popular / Tendencias / Nuevos). Los títulos y sinopsis de las
+        películas y series seguirán en inglés — el proveedor todavía no tiene
+        esos datos traducidos a este idioma.
+      </div>
 
-        <!-- ── Paso 2 ── -->
-        <div
-          style="
+      <!-- ── Paso 2 ── -->
+      <div style="
             display: flex;
             align-items: center;
             gap: 0.6rem;
             margin: 1.2rem 0 0.7rem;
-          "
-        >
-          <span
-            style="
+          ">
+        <span style="
               background: var(--accent);
               color: #0f0c29;
               border-radius: 50%;
@@ -1092,235 +1153,83 @@
               font-size: 0.7rem;
               font-weight: 700;
               flex-shrink: 0;
-            "
-            >2</span
-          >
-          <span
-            data-i18n="step2"
-            style="
+            ">2</span>
+        <span data-i18n="step2" style="
               font-size: 0.7rem;
               font-weight: 600;
               color: var(--text);
               letter-spacing: 0.05em;
               text-transform: uppercase;
-            "
-            >Elige tus plataformas</span
-          >
-        </div>
-
-        <div class="toggle-item" style="margin-bottom: 1rem; flex-shrink: 0">
-          <input type="checkbox" id="randomize-toggle" style="display: none" />
-          <label for="randomize-toggle" class="toggle-card">
-            <span class="toggle-dot"></span>
-            <span style="font-size: 0.72rem; color: var(--text)">
-              <span data-i18n="randomize">Aleatorizar catálogos</span>
-              <span
-                data-i18n="randomizeHint"
-                style="
-                  display: block;
-                  color: var(--muted);
-                  font-size: 0.62rem;
-                  line-height: 1.35;
-                  margin-top: 0.15rem;
-                "
-                >Baraja el orden de todos los catálogos (globales y de
-                proveedores), con una mezcla nueva cada día.</span
-              >
-            </span>
-          </label>
-        </div>
-
-        <div class="pkg-cycle-hint">
-          <span class="pkg-check pkg-check-inline" id="pkg-hint-glyphs"></span>
-          <span data-i18n="typeCycleHint"
-            >Pulsa una plataforma para elegir qué importa: películas y series →
-            solo películas → solo series → ninguna.</span
-          >
-        </div>
-        <label
-          style="
+            ">Elige tus plataformas</span>
+      </div>
+      <div class="pkg-cycle-hint">
+        <span class="pkg-check pkg-check-inline" id="pkg-hint-glyphs"></span>
+        <span data-i18n="typeCycleHint">Pulsa una plataforma para elegir qué importa: películas y series →
+          solo películas → solo series → ninguna.</span>
+      </div>
+      <label style="
             color: var(--secondary);
             font-size: 0.65rem;
             display: block;
             margin-bottom: 0.4rem;
-          "
-          ><span data-i18n="globalCatalogs">Catálogos globales</span>
-          <span
-            data-i18n="globalCatalogsHint"
-            style="color: var(--muted); font-weight: 400"
-            >(opcional — todo el país, sin filtrar por plataforma)</span
-          ></label
-        >
-        <div
-          id="global-sort-row"
-          style="
+          "><span data-i18n="globalCatalogs">Catálogos globales</span>
+        <span data-i18n="globalCatalogsHint" style="color: var(--muted); font-weight: 400">(opcional — todo el país, sin
+          filtrar por plataforma)</span></label>
+      <div id="global-sort-row" style="
             display: flex;
             gap: 0.5rem;
             margin-bottom: 1rem;
             flex-shrink: 0;
-          "
-        >
-          <div class="toggle-item" data-types="all" style="flex: 1">
-            <input
-              type="checkbox"
-              id="global-sort-pop-toggle"
-              style="display: none"
-            />
-            <label
-              for="global-sort-pop-toggle"
-              class="toggle-card"
-              style="padding: 0.6rem 0.4rem; justify-content: center"
-            >
-              <span class="toggle-dot"></span>
-              <span
-                data-i18n="sortPop"
-                style="font-size: 0.72rem; color: var(--text)"
-                >Popular</span
-              >
-            </label>
-          </div>
-          <div class="toggle-item" data-types="all" style="flex: 1">
-            <input
-              type="checkbox"
-              id="global-sort-tnd-toggle"
-              style="display: none"
-            />
-            <label
-              for="global-sort-tnd-toggle"
-              class="toggle-card"
-              style="padding: 0.6rem 0.4rem; justify-content: center"
-            >
-              <span class="toggle-dot"></span>
-              <span
-                data-i18n="sortTnd"
-                style="font-size: 0.72rem; color: var(--text)"
-                >Tendencias</span
-              >
-            </label>
-          </div>
-          <div class="toggle-item" data-types="all" style="flex: 1">
-            <input
-              type="checkbox"
-              id="global-sort-new-toggle"
-              style="display: none"
-            />
-            <label
-              for="global-sort-new-toggle"
-              class="toggle-card"
-              style="padding: 0.6rem 0.4rem; justify-content: center"
-            >
-              <span class="toggle-dot"></span>
-              <span
-                data-i18n="sortNew"
-                style="font-size: 0.72rem; color: var(--text)"
-                >Nuevos</span
-              >
-            </label>
-          </div>
+          ">
+        <div class="toggle-item" data-types="all" style="flex: 1">
+          <input type="checkbox" id="global-sort-pop-toggle" style="display: none" />
+          <label for="global-sort-pop-toggle" class="toggle-card"
+            style="padding: 0.6rem 0.4rem; justify-content: center">
+            <span class="toggle-dot"></span>
+            <span data-i18n="sortPop" style="font-size: 0.72rem; color: var(--text)">Popular</span>
+          </label>
         </div>
+        <div class="toggle-item" data-types="all" style="flex: 1">
+          <input type="checkbox" id="global-sort-tnd-toggle" style="display: none" />
+          <label for="global-sort-tnd-toggle" class="toggle-card"
+            style="padding: 0.6rem 0.4rem; justify-content: center">
+            <span class="toggle-dot"></span>
+            <span data-i18n="sortTnd" style="font-size: 0.72rem; color: var(--text)">Tendencias</span>
+          </label>
+        </div>
+        <div class="toggle-item" data-types="all" style="flex: 1">
+          <input type="checkbox" id="global-sort-new-toggle" style="display: none" />
+          <label for="global-sort-new-toggle" class="toggle-card"
+            style="padding: 0.6rem 0.4rem; justify-content: center">
+            <span class="toggle-dot"></span>
+            <span data-i18n="sortNew" style="font-size: 0.72rem; color: var(--text)">Nuevos</span>
+          </label>
+        </div>
+      </div>
 
-        <div
-          style="
+      <div style="
             display: flex;
             justify-content: space-between;
-            align-items: flex-end;
+            align-items: flex-start;
             margin-bottom: 0.8rem;
-          "
-        >
-          <label
-            data-i18n="providerCatalogs"
-            style="color: var(--secondary); font-size: 0.65rem"
-            >Catálogos de proveedores</label
-          >
-          <div style="display: flex; gap: 8px">
-            <!-- TODO button removed -->
-            <button
-              class="btn-show-more"
-              id="btn-none"
-              data-i18n="clear"
-              style="
-                margin: 0;
+          ">
+        <label data-i18n="providerCatalogs"
+          style="color: var(--secondary); font-size: 0.65rem; line-height: 1">Catálogos de
+          proveedores</label>
+        <div style="display: flex; gap: 8px">
+          <!-- TODO button removed -->
+          <button class="btn-show-more btn-cap-aligned" id="btn-none" data-i18n="clear" style="
                 padding: 4px 10px;
                 font-size: 9px;
                 border-color: var(--muted);
                 color: var(--muted);
-              "
-            >
-              LIMPIAR
-            </button>
-          </div>
+              ">
+            LIMPIAR
+          </button>
         </div>
+      </div>
 
-        <div
-          style="
-            display: flex;
-            gap: 0.5rem;
-            margin-bottom: 0.8rem;
-            flex-shrink: 0;
-          "
-        >
-          <div class="toggle-item" style="flex: 1">
-            <input
-              type="checkbox"
-              id="sort-pop-toggle"
-              checked
-              style="display: none"
-            />
-            <label
-              for="sort-pop-toggle"
-              class="toggle-card"
-              style="padding: 0.6rem 0.4rem; justify-content: center"
-            >
-              <span class="toggle-dot"></span>
-              <span
-                data-i18n="sortPop"
-                style="font-size: 0.72rem; color: var(--text)"
-                >Popular</span
-              >
-            </label>
-          </div>
-          <div class="toggle-item" style="flex: 1">
-            <input
-              type="checkbox"
-              id="sort-tnd-toggle"
-              checked
-              style="display: none"
-            />
-            <label
-              for="sort-tnd-toggle"
-              class="toggle-card"
-              style="padding: 0.6rem 0.4rem; justify-content: center"
-            >
-              <span class="toggle-dot"></span>
-              <span
-                data-i18n="sortTnd"
-                style="font-size: 0.72rem; color: var(--text)"
-                >Tendencias</span
-              >
-            </label>
-          </div>
-          <div class="toggle-item" style="flex: 1">
-            <input
-              type="checkbox"
-              id="sort-new-toggle"
-              checked
-              style="display: none"
-            />
-            <label
-              for="sort-new-toggle"
-              class="toggle-card"
-              style="padding: 0.6rem 0.4rem; justify-content: center"
-            >
-              <span class="toggle-dot"></span>
-              <span
-                data-i18n="sortNew"
-                style="font-size: 0.72rem; color: var(--text)"
-                >Nuevos</span
-              >
-            </label>
-          </div>
-        </div>
-
+      <div class="pkg-tabbar">
         <div class="pkg-tabs">
           <button type="button" class="pkg-tab active" data-pane="providers">
             <span data-i18n="tabProviders">Proveedores</span>
@@ -1332,41 +1241,92 @@
           </button>
         </div>
 
-        <div class="chan-filter" id="channel-filter" hidden>
-          <span class="chan-filter-label" data-i18n="filterByService"
-            >Filtrar por servicio</span
-          >
-          <div class="chan-filter-row" id="channel-parents"></div>
+        <!-- Which sort types every package generates. Applies to both tabs,
+             which is why it sits on the bar rather than inside a pane. -->
+        <div class="pkg-sorts">
+          <div class="toggle-item">
+            <input type="checkbox" id="sort-pop-toggle" checked style="display: none" />
+            <label for="sort-pop-toggle" class="toggle-card">
+              <span class="toggle-dot"></span>
+              <span data-i18n="sortPop">Popular</span>
+            </label>
+          </div>
+          <div class="toggle-item">
+            <input type="checkbox" id="sort-tnd-toggle" checked style="display: none" />
+            <label for="sort-tnd-toggle" class="toggle-card">
+              <span class="toggle-dot"></span>
+              <span data-i18n="sortTnd">Tendencias</span>
+            </label>
+          </div>
+          <div class="toggle-item">
+            <input type="checkbox" id="sort-new-toggle" checked style="display: none" />
+            <label for="sort-new-toggle" class="toggle-card">
+              <span class="toggle-dot"></span>
+              <span data-i18n="sortNew">Nuevos</span>
+            </label>
+          </div>
         </div>
+      </div>
 
-        <div class="pkg-tab-hint" id="channels-hint" hidden data-i18n="channelsHint">
-          Canales que se ven dentro de otra suscripción. Si tienes el servicio
-          contratado directamente, elige el proveedor de la otra pestaña: el
-          catálogo es el mismo.
-        </div>
+      <div class="chan-filter" id="channel-filter" hidden>
+        <span class="chan-filter-label" data-i18n="filterByService">Filtrar por servicio</span>
+        <div class="chan-filter-row" id="channel-parents"></div>
+      </div>
 
-        <div class="grid-container" id="pkg-panes">
-          <div id="pkg-grid"></div>
-          <div id="channel-grid" hidden></div>
-        </div>
+      <div class="pkg-tab-hint" id="channels-hint" hidden data-i18n="channelsHint">
+        Canales que se ven dentro de otra suscripción. Si tienes el servicio
+        contratado directamente, elige el proveedor de la otra pestaña: el
+        catálogo es el mismo.
+      </div>
 
-        <div
-          id="load-more-slot"
-          style="flex-shrink: 0; text-align: center"
-        ></div>
+      <div class="grid-container" id="pkg-panes">
+        <div id="pkg-grid"></div>
+        <div id="channel-grid" hidden></div>
+      </div>
 
-        <!-- ── Paso 3 ── -->
-        <div
-          style="
+      <div id="load-more-slot" style="flex-shrink: 0; text-align: center"></div>
+
+
+
+
+      <label style="
+            color: var(--secondary);
+            font-size: 0.65rem;
+            display: block;
+            margin-bottom: 0.4rem;
+          ">
+        <span data-i18n="additionalOptions">Opciones Adicionales</span>
+      </label>
+
+      <div class="toggle-item" style="margin-bottom: 1rem; flex-shrink: 0">
+        <input type="checkbox" id="randomize-toggle" style="display: none" />
+        <label for="randomize-toggle" class="toggle-card">
+          <span class="toggle-dot"></span>
+          <span style="font-size: 0.72rem; color: var(--text)">
+
+            <span data-i18n="randomize">Aleatorizar Catálogos</span>
+            <span data-i18n="randomizeHint" style="
+                  display: block;
+                  color: var(--muted);
+                  font-size: 0.62rem;
+                  line-height: 1.35;
+                  margin-top: 0.15rem;
+                ">Baraja el orden de todos los catálogos (globales y de
+              proveedores), con una mezcla nueva cada día.</span>
+          </span>
+        </label>
+      </div>
+
+
+      <!-- ── Paso 3 ── -->
+      <div style="
             display: flex;
             align-items: center;
             gap: 0.6rem;
             margin: 1.2rem 0 0.7rem;
             flex-shrink: 0;
-          "
-        >
-          <span
-            style="
+          ">
+        <span style="
               background: var(--accent);
               color: #0f0c29;
               border-radius: 50%;
@@ -1378,86 +1338,52 @@
               font-size: 0.7rem;
               font-weight: 700;
               flex-shrink: 0;
-            "
-            >3</span
-          >
-          <span
-            style="
+            ">3</span>
+        <span style="
               font-size: 0.7rem;
               font-weight: 600;
               color: var(--text);
               letter-spacing: 0.05em;
               text-transform: uppercase;
-            "
-            ><span data-i18n="step3">Muestra los ratings en las portadas</span>
-            <span
-              data-i18n="optional"
-              style="
+            "><span data-i18n="step3">Muestra los ratings en las portadas</span>
+          <span data-i18n="optional" style="
                 color: var(--muted);
                 font-weight: 400;
                 text-transform: none;
-              "
-              >(opcional)</span
-            ></span
-          >
-        </div>
+              ">(opcional)</span></span>
+      </div>
 
-        <div class="row" style="flex-shrink: 0">
-          <div class="field">
-            <label data-i18n="posterProvider">Proveedor de pósters</label>
-            <div class="custom-select" id="cs-poster-provider">
-              <div class="cs-trigger">
-                <span class="cs-label notranslate" translate="no">Ninguno</span
-                ><span class="cs-arrow">▾</span>
-              </div>
-              <div class="cs-list" id="cs-poster-provider-list">
-                <div class="cs-option selected" data-value="">Ninguno</div>
-              </div>
+      <div class="row" style="flex-shrink: 0">
+        <div class="field">
+          <label data-i18n="posterProvider">Proveedor de pósters</label>
+          <div class="custom-select" id="cs-poster-provider">
+            <div class="cs-trigger">
+              <span class="cs-label notranslate" translate="no">Ninguno</span><span class="cs-arrow">▾</span>
+            </div>
+            <div class="cs-list" id="cs-poster-provider-list">
+              <div class="cs-option selected" data-value="">Ninguno</div>
             </div>
           </div>
-          <div class="field">
-            <label
-              id="poster-key-label"
-              style="
+        </div>
+        <div class="field">
+          <label id="poster-key-label" style="
                 display: flex;
                 align-items: baseline;
                 gap: 0.4rem;
                 justify-content: space-between;
-              "
-            >
-              <span
-                ><span data-i18n="apiKey">API Key</span>
-                <span
-                  data-i18n="optional"
-                  style="font-size: 0.7em; color: var(--secondary)"
-                  >(opcional)</span
-                ></span
-              >
-              <a
-                id="poster-key-help"
-                href="#"
-                target="_blank"
-                rel="noopener"
-                data-i18n="getApiKey"
-                style="
+              ">
+            <span><span data-i18n="apiKey">API Key</span>
+              <span data-i18n="optional" style="font-size: 0.7em; color: var(--secondary)">(opcional)</span></span>
+            <a id="poster-key-help" href="#" target="_blank" rel="noopener" data-i18n="getApiKey" style="
                   display: none;
                   font-size: 1em;
                   font-weight: 400;
                   color: var(--accent);
                   text-decoration: none;
-                "
-                >Conseguir API Key</a
-              >
-            </label>
-            <input
-              id="poster-api-key"
-              type="text"
-              data-i18n-placeholder="chooseProviderFirst"
-              placeholder="Elige un proveedor primero"
-              autocomplete="off"
-              spellcheck="false"
-              disabled
-              style="
+                ">Conseguir API Key</a>
+          </label>
+          <input id="poster-api-key" type="text" data-i18n-placeholder="chooseProviderFirst"
+            placeholder="Elige un proveedor primero" autocomplete="off" spellcheck="false" disabled style="
                 width: 100%;
                 background: var(--glass);
                 border: 1px solid rgba(255, 255, 255, 0.15);
@@ -1467,808 +1393,776 @@
                 font-size: 0.9rem;
                 outline: none;
                 box-sizing: border-box;
-              "
-            />
-          </div>
+              " />
         </div>
+      </div>
 
-        <div class="actions" style="flex-shrink: 0; padding-top: 1rem">
-          <button class="btn-primary" id="btn-generate" data-i18n="install">
-            Instalar en Stremio
-          </button>
+      <div class="actions" style="flex-shrink: 0; padding-top: 1rem">
+        <button class="btn-primary" id="btn-generate" data-i18n="install">
+          Instalar en Stremio
+        </button>
 
-          <div class="result visible" id="result">
-            <div class="terminal-header">
-              <div class="dot dot-red"></div>
-              <div class="dot dot-amber"></div>
-              <div class="dot dot-green"></div>
-              <span
-                data-i18n="manifestGenerated"
-                style="
+        <div class="result visible" id="result">
+          <div class="terminal-header">
+            <div class="dot dot-red"></div>
+            <div class="dot dot-amber"></div>
+            <div class="dot dot-green"></div>
+            <span data-i18n="manifestGenerated" style="
                   font-size: 0.6rem;
                   color: var(--muted);
                   margin-left: 5px;
                   font-family: monospace;
-                "
-                >URL del manifest generada</span
-              >
-            </div>
-            <div class="url-box">
-              <input class="url-input" id="url-out" type="text" readonly />
-              <button class="btn-copy" id="btn-copy" data-i18n="copy">
-                COPIAR
-              </button>
-            </div>
+                ">URL del manifest generada</span>
+          </div>
+          <div class="url-box">
+            <input class="url-input" id="url-out" type="text" readonly />
+            <button class="btn-copy" id="btn-copy" data-i18n="copy">
+              COPIAR
+            </button>
           </div>
         </div>
-      </main>
+      </div>
+    </main>
 
-      <!-- SIDEBAR -->
-      <aside class="creator-sidebar">
-        <div class="sidebar-content">
-          <img
-            class="creator-avatar"
-            src="/static/avatar.webp"
-            alt="careway"
-            onerror="
+    <!-- SIDEBAR -->
+    <aside class="creator-sidebar">
+      <div class="sidebar-content">
+        <img class="creator-avatar" src="/static/avatar.webp" alt="careway" onerror="
               this.src =
                 'https://api.dicebear.com/7.x/avataaars/svg?seed=careway'
-            "
-          />
-          <span class="creator-name">careway</span>
-          <p class="creator-bio">
-            <span data-i18n="creatorBio"
-              >Informático y amante del voleibol. Demasiado vago para configurar
-              AIOStreams cuando solo quería el catálogo de mis servicios de
-              streaming, así que me hice mi propio addon — le das a instalar y
-              funciona. ☕</span
-            ><br /><br />
-            <span data-i18n="creatorDonate">¡Dona si te gusta el addon!</span>
-          </p>
+            " />
+        <span class="creator-name">careway</span>
+        <p class="creator-bio">
+          <span data-i18n="creatorBio">Informático y amante del voleibol. Demasiado vago para configurar
+            AIOStreams cuando solo quería el catálogo de mis servicios de
+            streaming, así que me hice mi propio addon — le das a instalar y
+            funciona. ☕</span><br /><br />
+          <span data-i18n="creatorDonate">¡Dona si te gusta el addon!</span>
+        </p>
 
-          <div class="creator-links">
-            <a
-              href="https://discord.gg/EYQyJBjWn3"
-              class="social-btn link-discord"
-              target="_blank"
-            >
-              <svg
-                width="20"
-                height="20"
-                fill="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  d="M20.317 4.37a19.791 19.791 0 0 0-4.885-1.515.074.074 0 0 0-.079.037c-.21.375-.444.864-.608 1.25a18.27 18.27 0 0 0-5.487 0 12.64 12.64 0 0 0-.617-1.25.077.077 0 0 0-.079-.037A19.736 19.736 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 0 0 .031.057 19.9 19.9 0 0 0 5.993 3.03.078.078 0 0 0 .084-.028c.462-.63.874-1.295 1.226-1.994a.076.076 0 0 0-.041-.106 13.107 13.107 0 0 1-1.872-.892.077.077 0 0 1-.008-.128 10.2 10.2 0 0 0 .372-.292.074.074 0 0 1 .077-.01c3.928 1.793 8.18 1.793 12.062 0a.074.074 0 0 1 .078.01c.12.098.246.198.373.292a.077.077 0 0 1-.006.127 12.299 12.299 0 0 1-1.873.892.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.028 19.839 19.839 0 0 0 6.002-3.03.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.03z"
-                />
-              </svg>
-              <span data-i18n="discord">COMUNIDAD DE DISCORD</span>
-            </a>
-            <a
-              href="https://ko-fi.com/careway"
-              class="social-btn link-kofi"
-              target="_blank"
-            >
-              <svg
-                width="20"
-                height="20"
-                fill="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  d="M23.881 8.948c-.773-4.085-4.859-4.593-4.859-4.593H.723c-.604 0-.679.798-.679.798s-.082 7.324-.022 11.822c.164 2.424 2.586 2.672 2.586 2.672s8.267-.023 11.966-.049c2.438-.426 2.683-2.566 2.658-3.734 4.352.24 7.422-2.831 6.649-6.916zm-11.062 3.511c-1.246 1.453-4.011 3.976-4.011 3.976s-.121.119-.31.023c-.076-.057-.108-.09-.108-.09-.443-.441-3.368-3.049-4.034-3.954-.709-.965-1.041-2.7-.091-3.71.951-1.01 3.005-1.086 4.363.407 0 0 1.565-1.782 3.468-.963 1.904.82 1.832 2.692.723 4.311zm6.173.478c-.928.116-1.682-.028-1.682-.028V7.284h1.77s1.971.551 1.971 2.638c0 1.913-.985 2.667-2.059 3.015z"
-                />
-              </svg>
-              <span data-i18n="kofi">APÓYAME EN KO-FI</span>
-            </a>
-          </div>
+        <div class="creator-links">
+          <a href="https://discord.gg/EYQyJBjWn3" class="social-btn link-discord" target="_blank">
+            <svg width="20" height="20" fill="currentColor" viewBox="0 0 24 24">
+              <path
+                d="M20.317 4.37a19.791 19.791 0 0 0-4.885-1.515.074.074 0 0 0-.079.037c-.21.375-.444.864-.608 1.25a18.27 18.27 0 0 0-5.487 0 12.64 12.64 0 0 0-.617-1.25.077.077 0 0 0-.079-.037A19.736 19.736 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 0 0 .031.057 19.9 19.9 0 0 0 5.993 3.03.078.078 0 0 0 .084-.028c.462-.63.874-1.295 1.226-1.994a.076.076 0 0 0-.041-.106 13.107 13.107 0 0 1-1.872-.892.077.077 0 0 1-.008-.128 10.2 10.2 0 0 0 .372-.292.074.074 0 0 1 .077-.01c3.928 1.793 8.18 1.793 12.062 0a.074.074 0 0 1 .078.01c.12.098.246.198.373.292a.077.077 0 0 1-.006.127 12.299 12.299 0 0 1-1.873.892.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.028 19.839 19.839 0 0 0 6.002-3.03.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.03z" />
+            </svg>
+            <span data-i18n="discord">COMUNIDAD DE DISCORD</span>
+          </a>
+          <a href="https://ko-fi.com/careway" class="social-btn link-kofi" target="_blank">
+            <svg width="20" height="20" fill="currentColor" viewBox="0 0 24 24">
+              <path
+                d="M23.881 8.948c-.773-4.085-4.859-4.593-4.859-4.593H.723c-.604 0-.679.798-.679.798s-.082 7.324-.022 11.822c.164 2.424 2.586 2.672 2.586 2.672s8.267-.023 11.966-.049c2.438-.426 2.683-2.566 2.658-3.734 4.352.24 7.422-2.831 6.649-6.916zm-11.062 3.511c-1.246 1.453-4.011 3.976-4.011 3.976s-.121.119-.31.023c-.076-.057-.108-.09-.108-.09-.443-.441-3.368-3.049-4.034-3.954-.709-.965-1.041-2.7-.091-3.71.951-1.01 3.005-1.086 4.363.407 0 0 1.565-1.782 3.468-.963 1.904.82 1.832 2.692.723 4.311zm6.173.478c-.928.116-1.682-.028-1.682-.028V7.284h1.77s1.971.551 1.971 2.638c0 1.913-.985 2.667-2.059 3.015z" />
+            </svg>
+            <span data-i18n="kofi">APÓYAME EN KO-FI</span>
+          </a>
         </div>
-      </aside>
-    </div>
+      </div>
+    </aside>
+  </div>
 
-    <script>
-      /* LÓGICA DE JAVASCRIPT */
+  <script>
+    /* LÓGICA DE JAVASCRIPT */
 
-      /* ── i18n propio: mismos idiomas que ofrecen los catálogos ── */
-      const UI_LANG_KEY = "omnicatalog.uiLang";
-      const DEFAULT_UI_LANG = "es";
-      let uiLang = DEFAULT_UI_LANG;
-      let uiStrings = {};
-      let availableLanguages = [];
+    /* ── i18n propio: mismos idiomas que ofrecen los catálogos ── */
+    const UI_LANG_KEY = "omnicatalog.uiLang";
+    const DEFAULT_UI_LANG = "es";
+    let uiLang = DEFAULT_UI_LANG;
+    let uiStrings = {};
+    let availableLanguages = [];
 
-      function t(key, vars) {
-        let text = uiStrings[key];
-        if (text === undefined) return "";
-        if (vars) {
-          for (const [name, value] of Object.entries(vars)) {
-            text = text.split(`{${name}}`).join(value);
+    function t(key, vars) {
+      let text = uiStrings[key];
+      if (text === undefined) return "";
+      if (vars) {
+        for (const [name, value] of Object.entries(vars)) {
+          text = text.split(`{${name}}`).join(value);
+        }
+      }
+      return text;
+    }
+
+    function applyTranslations() {
+      document.documentElement.lang = uiLang;
+      for (const el of document.querySelectorAll("[data-i18n]")) {
+        const key = el.dataset.i18n;
+        if (uiStrings[key] === undefined) continue;
+        el.textContent =
+          el.dataset.i18nCount !== undefined
+            ? t(key, { n: el.dataset.i18nCount })
+            : t(key);
+      }
+      for (const el of document.querySelectorAll("[data-i18n-placeholder]")) {
+        const key = el.dataset.i18nPlaceholder;
+        if (uiStrings[key] !== undefined) el.placeholder = t(key);
+      }
+      for (const el of document.querySelectorAll("[data-i18n-title]")) {
+        const key = el.dataset.i18nTitle;
+        if (uiStrings[key] !== undefined) el.title = t(key);
+      }
+      // Poster provider: the trigger label mirrors the selected option, and
+      // the API-key placeholder is set from JS — neither is a data-i18n node.
+      if (posterProviderSel) {
+        if (!posterProviderSel.value) {
+          document.querySelector(
+            "#cs-poster-provider .cs-label",
+          ).textContent = t("none");
+        }
+        updatePosterKeyField(posterProviderSel.value);
+      }
+      // Country names are localized server-side, so they need a re-fetch —
+      // both the names and their alphabetical order change per language.
+      if (countrySel && countriesLang !== uiLang) {
+        loadCountries(countrySel.value).catch((e) =>
+          console.error("Failed to reload countries:", e),
+        );
+      }
+      updateLangFabLabel();
+    }
+
+    function updateLangFabLabel() {
+      const current = availableLanguages.find((l) => l.code === uiLang);
+      const label = document.getElementById("lang-fab-label");
+      if (current) label.textContent = current.name;
+      for (const btn of document.querySelectorAll("#lang-menu button")) {
+        btn.setAttribute(
+          "aria-selected",
+          btn.dataset.lang === uiLang ? "true" : "false",
+        );
+      }
+    }
+
+    async function setUiLanguage(code, persist = true) {
+      try {
+        const res = await fetch(
+          `/api/ui-strings?lang=${encodeURIComponent(code)}`,
+        );
+        const data = await res.json();
+        if (!data || !data.strings) throw new Error("Bad response");
+        uiStrings = data.strings;
+        uiLang = data.lang;
+        document.documentElement.dir = data.rtl ? "rtl" : "ltr";
+        if (persist) {
+          try {
+            localStorage.setItem(UI_LANG_KEY, uiLang);
+          } catch {
+            // private mode / storage disabled — the choice just won't stick
           }
         }
-        return text;
+        applyTranslations();
+      } catch (e) {
+        console.error("Failed to load UI strings:", e);
       }
+    }
 
-      function applyTranslations() {
-        document.documentElement.lang = uiLang;
-        for (const el of document.querySelectorAll("[data-i18n]")) {
-          const key = el.dataset.i18n;
-          if (uiStrings[key] === undefined) continue;
-          el.textContent =
-            el.dataset.i18nCount !== undefined
-              ? t(key, { n: el.dataset.i18nCount })
-              : t(key);
-        }
-        for (const el of document.querySelectorAll("[data-i18n-placeholder]")) {
-          const key = el.dataset.i18nPlaceholder;
-          if (uiStrings[key] !== undefined) el.placeholder = t(key);
-        }
-        for (const el of document.querySelectorAll("[data-i18n-title]")) {
-          const key = el.dataset.i18nTitle;
-          if (uiStrings[key] !== undefined) el.title = t(key);
-        }
-        // Poster provider: the trigger label mirrors the selected option, and
-        // the API-key placeholder is set from JS — neither is a data-i18n node.
-        if (posterProviderSel) {
-          if (!posterProviderSel.value) {
-            document.querySelector(
-              "#cs-poster-provider .cs-label",
-            ).textContent = t("none");
-          }
-          updatePosterKeyField(posterProviderSel.value);
-        }
-        // Country names are localized server-side, so they need a re-fetch —
-        // both the names and their alphabetical order change per language.
-        if (countrySel && countriesLang !== uiLang) {
-          loadCountries(countrySel.value).catch((e) =>
-            console.error("Failed to reload countries:", e),
-          );
-        }
-        updateLangFabLabel();
-      }
-
-      function updateLangFabLabel() {
-        const current = availableLanguages.find((l) => l.code === uiLang);
-        const label = document.getElementById("lang-fab-label");
-        if (current) label.textContent = current.name;
-        for (const btn of document.querySelectorAll("#lang-menu button")) {
-          btn.setAttribute(
-            "aria-selected",
-            btn.dataset.lang === uiLang ? "true" : "false",
-          );
-        }
-      }
-
-      async function setUiLanguage(code, persist = true) {
-        try {
-          const res = await fetch(
-            `/api/ui-strings?lang=${encodeURIComponent(code)}`,
-          );
-          const data = await res.json();
-          if (!data || !data.strings) throw new Error("Bad response");
-          uiStrings = data.strings;
-          uiLang = data.lang;
-          document.documentElement.dir = data.rtl ? "rtl" : "ltr";
-          if (persist) {
-            try {
-              localStorage.setItem(UI_LANG_KEY, uiLang);
-            } catch {
-              // private mode / storage disabled — the choice just won't stick
-            }
-          }
-          applyTranslations();
-        } catch (e) {
-          console.error("Failed to load UI strings:", e);
-        }
-      }
-
-      function buildLanguageMenu() {
-        const menu = document.getElementById("lang-menu");
-        menu.innerHTML = "";
-        for (const lang of availableLanguages) {
-          const btn = document.createElement("button");
-          btn.type = "button";
-          btn.dataset.lang = lang.code;
-          btn.textContent = lang.name;
-          btn.setAttribute("role", "option");
-          btn.addEventListener("click", () => {
-            document.querySelector(".lang-fab-wrap").classList.remove("open");
-            setUiLanguage(lang.code);
-          });
-          menu.appendChild(btn);
-        }
-        updateLangFabLabel();
-      }
-
-      function initialUiLanguage() {
-        const codes = availableLanguages.map((l) => l.code);
-        let stored = null;
-        try {
-          stored = localStorage.getItem(UI_LANG_KEY);
-        } catch {
-          // storage disabled — fall back to the browser language below
-        }
-        if (stored && codes.includes(stored)) return stored;
-        const nav = (navigator.language || "").toLowerCase().split("-")[0];
-        return codes.includes(nav) ? nav : DEFAULT_UI_LANG;
-      }
-
-      document
-        .getElementById("translate-fab")
-        .addEventListener("click", (e) => {
-          e.stopPropagation();
-          document.querySelector(".lang-fab-wrap").classList.toggle("open");
+    function buildLanguageMenu() {
+      const menu = document.getElementById("lang-menu");
+      menu.innerHTML = "";
+      for (const lang of availableLanguages) {
+        const btn = document.createElement("button");
+        btn.type = "button";
+        btn.dataset.lang = lang.code;
+        btn.textContent = lang.name;
+        btn.setAttribute("role", "option");
+        btn.addEventListener("click", () => {
+          document.querySelector(".lang-fab-wrap").classList.remove("open");
+          setUiLanguage(lang.code);
         });
-      document
-        .getElementById("lang-menu")
-        .addEventListener("click", (e) => e.stopPropagation());
-      document.addEventListener("click", () => {
-        document.querySelector(".lang-fab-wrap").classList.remove("open");
+        menu.appendChild(btn);
+      }
+      updateLangFabLabel();
+    }
+
+    function initialUiLanguage() {
+      const codes = availableLanguages.map((l) => l.code);
+      let stored = null;
+      try {
+        stored = localStorage.getItem(UI_LANG_KEY);
+      } catch {
+        // storage disabled — fall back to the browser language below
+      }
+      if (stored && codes.includes(stored)) return stored;
+      const nav = (navigator.language || "").toLowerCase().split("-")[0];
+      return codes.includes(nav) ? nav : DEFAULT_UI_LANG;
+    }
+
+    document
+      .getElementById("translate-fab")
+      .addEventListener("click", (e) => {
+        e.stopPropagation();
+        document.querySelector(".lang-fab-wrap").classList.toggle("open");
+      });
+    document
+      .getElementById("lang-menu")
+      .addEventListener("click", (e) => e.stopPropagation());
+    document.addEventListener("click", () => {
+      document.querySelector(".lang-fab-wrap").classList.remove("open");
+    });
+
+    /* ── Custom dropdowns ── */
+    // Accent/case-insensitive compare so "espana" still matches "España".
+    function normalizeSearchText(s) {
+      return s.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
+    }
+
+    function initCustomSelect(id, onChange) {
+      const wrap = document.getElementById(id);
+      const trigger = wrap.querySelector(".cs-trigger");
+      const label = wrap.querySelector(".cs-label");
+      const searchInput = wrap.querySelector(".cs-search");
+      const opts = wrap.querySelectorAll(".cs-option");
+      let value = wrap.querySelector(".cs-option.selected").dataset.value;
+
+      trigger.addEventListener("click", (e) => {
+        e.stopPropagation();
+        document.querySelectorAll(".custom-select.open").forEach((el) => {
+          if (el !== wrap) el.classList.remove("open");
+        });
+        wrap.classList.toggle("open");
+        if (wrap.classList.contains("open") && searchInput) {
+          searchInput.value = "";
+          opts.forEach((o) => (o.style.display = ""));
+          // Focus after the click that opened it finishes bubbling,
+          // otherwise some browsers immediately blur it again.
+          setTimeout(() => searchInput.focus(), 0);
+        }
       });
 
-      /* ── Custom dropdowns ── */
-      // Accent/case-insensitive compare so "espana" still matches "España".
-      function normalizeSearchText(s) {
-        return s.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
+      if (searchInput) {
+        searchInput.addEventListener("click", (e) => e.stopPropagation());
+        searchInput.addEventListener("input", () => {
+          const query = normalizeSearchText(searchInput.value);
+          opts.forEach((o) => {
+            const matches = normalizeSearchText(o.textContent).includes(
+              query,
+            );
+            o.style.display = matches ? "" : "none";
+          });
+        });
       }
 
-      function initCustomSelect(id, onChange) {
-        const wrap = document.getElementById(id);
-        const trigger = wrap.querySelector(".cs-trigger");
-        const label = wrap.querySelector(".cs-label");
-        const searchInput = wrap.querySelector(".cs-search");
-        const opts = wrap.querySelectorAll(".cs-option");
-        let value = wrap.querySelector(".cs-option.selected").dataset.value;
-
-        trigger.addEventListener("click", (e) => {
-          e.stopPropagation();
-          document.querySelectorAll(".custom-select.open").forEach((el) => {
-            if (el !== wrap) el.classList.remove("open");
-          });
-          wrap.classList.toggle("open");
-          if (wrap.classList.contains("open") && searchInput) {
-            searchInput.value = "";
-            opts.forEach((o) => (o.style.display = ""));
-            // Focus after the click that opened it finishes bubbling,
-            // otherwise some browsers immediately blur it again.
-            setTimeout(() => searchInput.focus(), 0);
-          }
+      opts.forEach((opt) => {
+        opt.addEventListener("click", () => {
+          opts.forEach((o) => o.classList.remove("selected"));
+          opt.classList.add("selected");
+          // The placeholder label starts as the translated "Loading...";
+          // once it shows a real choice it must stop being retranslated.
+          label.removeAttribute("data-i18n");
+          label.textContent = opt.textContent;
+          value = opt.dataset.value;
+          wrap.classList.remove("open");
+          onChange && onChange(value);
         });
+      });
 
-        if (searchInput) {
-          searchInput.addEventListener("click", (e) => e.stopPropagation());
-          searchInput.addEventListener("input", () => {
-            const query = normalizeSearchText(searchInput.value);
-            opts.forEach((o) => {
-              const matches = normalizeSearchText(o.textContent).includes(
-                query,
-              );
-              o.style.display = matches ? "" : "none";
-            });
-          });
+      document.addEventListener("click", () => wrap.classList.remove("open"));
+      return {
+        get value() {
+          return value;
+        },
+        set value(v) {
+          const match = [...opts].find((o) => o.dataset.value === v);
+          if (!match) return;
+          opts.forEach((o) => o.classList.remove("selected"));
+          match.classList.add("selected");
+          label.removeAttribute("data-i18n");
+          label.textContent = match.textContent;
+          value = v;
+        },
+      };
+    }
+
+    // Load countries dynamically from API
+    let countrySel = null;
+    let languageSel = null;
+    let posterProviderSel = null;
+    let partialTranslationLanguages = new Set();
+
+    function updateLanguageWarning(code) {
+      document.getElementById("language-warning").style.display =
+        partialTranslationLanguages.has(code) ? "block" : "none";
+    }
+    let posterProvidersByID = {};
+
+    // ── Shared: pre-fill data from ?config= (mirrors src/config.js decodeConfig) ──
+    const cfgParam = new URLSearchParams(window.location.search).get(
+      "config",
+    );
+    const cfgParts = cfgParam ? cfgParam.split("_") : null;
+    const pendingPosterSegment = cfgParts
+      ? cfgParts
+        .slice(2)
+        .find((p) => p.startsWith("poster-") || p.startsWith("rpdb-"))
+      : null;
+
+    // Mirrors src/domain/userConfig.js's encodePosterKey/decodePosterKey —
+    // a poster "key" can be an arbitrary custom URL (BetterPosters), which
+    // doesn't fit the [A-Za-z0-9_-] charset a URL path segment allows, so
+    // anything outside that charset is hex-encoded behind a "url-" marker.
+    // Uses TextEncoder/TextDecoder instead of Buffer (browser, not Node).
+    // Keep byte-for-byte in sync with the server copy — see
+    // test/posterKeyCodec.test.js, which extracts this exact block and
+    // checks the two against each other and against real round trips.
+    const SAFE_POSTER_KEY_RE = /^[A-Za-z0-9-]+$/;
+
+    // A plain key shaped like "url-{even-length hex}" would be ambiguous —
+    // encode would otherwise leave it raw (charset-safe), decode would then
+    // wrongly treat it as hex and corrupt it. Both directions share this
+    // one predicate so they can't disagree on what "encoded" means.
+    function looksLikePosterKeyMarker(value) {
+      if (!value.startsWith("url-")) return false;
+      const hex = value.slice(4);
+      return (
+        hex.length > 0 && hex.length % 2 === 0 && /^[0-9a-f]+$/.test(hex)
+      );
+    }
+
+    function encodePosterKey(raw) {
+      if (SAFE_POSTER_KEY_RE.test(raw) && !looksLikePosterKeyMarker(raw)) {
+        return raw;
+      }
+      const hex = [...new TextEncoder().encode(raw)]
+        .map((b) => b.toString(16).padStart(2, "0"))
+        .join("");
+      return `url-${hex}`;
+    }
+
+    function decodePosterKey(encoded) {
+      if (looksLikePosterKeyMarker(encoded)) {
+        try {
+          const bytes = new Uint8Array(
+            encoded
+              .slice(4)
+              .match(/.{2}/g)
+              .map((h) => parseInt(h, 16)),
+          );
+          return new TextDecoder().decode(bytes);
+        } catch {
+          // fall through to the literal value below
         }
+      }
+      return encoded;
+    }
 
-        opts.forEach((opt) => {
-          opt.addEventListener("click", () => {
-            opts.forEach((o) => o.classList.remove("selected"));
-            opt.classList.add("selected");
-            // The placeholder label starts as the translated "Loading...";
-            // once it shows a real choice it must stop being retranslated.
-            label.removeAttribute("data-i18n");
-            label.textContent = opt.textContent;
-            value = opt.dataset.value;
-            wrap.classList.remove("open");
-            onChange && onChange(value);
-          });
-        });
-
-        document.addEventListener("click", () => wrap.classList.remove("open"));
+    function parsePosterSegment(segment) {
+      if (!segment) return null;
+      if (segment.startsWith("rpdb-")) {
         return {
-          get value() {
-            return value;
-          },
-          set value(v) {
-            const match = [...opts].find((o) => o.dataset.value === v);
-            if (!match) return;
-            opts.forEach((o) => o.classList.remove("selected"));
-            match.classList.add("selected");
-            label.removeAttribute("data-i18n");
-            label.textContent = match.textContent;
-            value = v;
-          },
+          providerId: "rpdb",
+          apiKey: decodePosterKey(segment.slice(5)),
         };
       }
-
-      // Load countries dynamically from API
-      let countrySel = null;
-      let languageSel = null;
-      let posterProviderSel = null;
-      let partialTranslationLanguages = new Set();
-
-      function updateLanguageWarning(code) {
-        document.getElementById("language-warning").style.display =
-          partialTranslationLanguages.has(code) ? "block" : "none";
+      const rest = segment.slice("poster-".length);
+      const sep = rest.indexOf("-");
+      if (sep === -1) {
+        // Keyless provider: "poster-{providerId}", no "-{key}" suffix.
+        return rest ? { providerId: rest, apiKey: "" } : null;
       }
-      let posterProvidersByID = {};
+      if (sep > 0 && sep < rest.length - 1) {
+        return {
+          providerId: rest.slice(0, sep),
+          apiKey: decodePosterKey(rest.slice(sep + 1)),
+        };
+      }
+      return null;
+    }
 
-      // ── Shared: pre-fill data from ?config= (mirrors src/config.js decodeConfig) ──
-      const cfgParam = new URLSearchParams(window.location.search).get(
-        "config",
-      );
-      const cfgParts = cfgParam ? cfgParam.split("_") : null;
-      const pendingPosterSegment = cfgParts
-        ? cfgParts
-            .slice(2)
-            .find((p) => p.startsWith("poster-") || p.startsWith("rpdb-"))
-        : null;
+    function updatePosterKeyField(providerId) {
+      const input = document.getElementById("poster-api-key");
+      const help = document.getElementById("poster-key-help");
+      const provider = posterProvidersByID[providerId];
+      if (!provider) {
+        input.disabled = true;
+        input.value = "";
+        input.placeholder =
+          t("chooseProviderFirst") || "Elige un proveedor primero";
+        help.style.display = "none";
+        return;
+      }
+      input.disabled = false;
+      input.placeholder = provider.keyPlaceholder || "";
+      if (provider.keyHelpUrl) {
+        help.href = provider.keyHelpUrl;
+        help.style.display = "inline";
+      } else {
+        help.style.display = "none";
+      }
+    }
 
-      // Mirrors src/domain/userConfig.js's encodePosterKey/decodePosterKey —
-      // a poster "key" can be an arbitrary custom URL (BetterPosters), which
-      // doesn't fit the [A-Za-z0-9_-] charset a URL path segment allows, so
-      // anything outside that charset is hex-encoded behind a "url-" marker.
-      // Uses TextEncoder/TextDecoder instead of Buffer (browser, not Node).
-      // Keep byte-for-byte in sync with the server copy — see
-      // test/posterKeyCodec.test.js, which extracts this exact block and
-      // checks the two against each other and against real round trips.
-      const SAFE_POSTER_KEY_RE = /^[A-Za-z0-9-]+$/;
+    // Load poster providers from API
+    (async () => {
+      try {
+        const res = await fetch("/api/poster-providers");
+        const providers = await res.json();
+        if (!Array.isArray(providers)) throw new Error("Bad response");
 
-      // A plain key shaped like "url-{even-length hex}" would be ambiguous —
-      // encode would otherwise leave it raw (charset-safe), decode would then
-      // wrongly treat it as hex and corrupt it. Both directions share this
-      // one predicate so they can't disagree on what "encoded" means.
-      function looksLikePosterKeyMarker(value) {
-        if (!value.startsWith("url-")) return false;
-        const hex = value.slice(4);
-        return (
-          hex.length > 0 && hex.length % 2 === 0 && /^[0-9a-f]+$/.test(hex)
+        posterProvidersByID = Object.fromEntries(
+          providers.map((p) => [p.id, p]),
         );
-      }
 
-      function encodePosterKey(raw) {
-        if (SAFE_POSTER_KEY_RE.test(raw) && !looksLikePosterKeyMarker(raw)) {
-          return raw;
-        }
-        const hex = [...new TextEncoder().encode(raw)]
-          .map((b) => b.toString(16).padStart(2, "0"))
-          .join("");
-        return `url-${hex}`;
-      }
-
-      function decodePosterKey(encoded) {
-        if (looksLikePosterKeyMarker(encoded)) {
-          try {
-            const bytes = new Uint8Array(
-              encoded
-                .slice(4)
-                .match(/.{2}/g)
-                .map((h) => parseInt(h, 16)),
-            );
-            return new TextDecoder().decode(bytes);
-          } catch {
-            // fall through to the literal value below
-          }
-        }
-        return encoded;
-      }
-
-      function parsePosterSegment(segment) {
-        if (!segment) return null;
-        if (segment.startsWith("rpdb-")) {
-          return {
-            providerId: "rpdb",
-            apiKey: decodePosterKey(segment.slice(5)),
-          };
-        }
-        const rest = segment.slice("poster-".length);
-        const sep = rest.indexOf("-");
-        if (sep === -1) {
-          // Keyless provider: "poster-{providerId}", no "-{key}" suffix.
-          return rest ? { providerId: rest, apiKey: "" } : null;
-        }
-        if (sep > 0 && sep < rest.length - 1) {
-          return {
-            providerId: rest.slice(0, sep),
-            apiKey: decodePosterKey(rest.slice(sep + 1)),
-          };
-        }
-        return null;
-      }
-
-      function updatePosterKeyField(providerId) {
-        const input = document.getElementById("poster-api-key");
-        const help = document.getElementById("poster-key-help");
-        const provider = posterProvidersByID[providerId];
-        if (!provider) {
-          input.disabled = true;
-          input.value = "";
-          input.placeholder =
-            t("chooseProviderFirst") || "Elige un proveedor primero";
-          help.style.display = "none";
-          return;
-        }
-        input.disabled = false;
-        input.placeholder = provider.keyPlaceholder || "";
-        if (provider.keyHelpUrl) {
-          help.href = provider.keyHelpUrl;
-          help.style.display = "inline";
-        } else {
-          help.style.display = "none";
-        }
-      }
-
-      // Load poster providers from API
-      (async () => {
-        try {
-          const res = await fetch("/api/poster-providers");
-          const providers = await res.json();
-          if (!Array.isArray(providers)) throw new Error("Bad response");
-
-          posterProvidersByID = Object.fromEntries(
-            providers.map((p) => [p.id, p]),
-          );
-
-          const list = document.getElementById("cs-poster-provider-list");
-          list.innerHTML =
-            `<div class="cs-option selected" data-value="" data-i18n="none">${t("none")}</div>` +
-            providers
-              .map(
-                (p) =>
-                  `<div class="cs-option notranslate" translate="no" data-value="${p.id}">${p.name}</div>`,
-              )
-              .join("");
-
-          posterProviderSel = initCustomSelect("cs-poster-provider", (v) => {
-            updatePosterKeyField(v);
-            if (resultEl.classList.contains("visible")) generateUrl();
-          });
-
-          // Pre-fill from ?config= once the provider list is ready.
-          const parsed = parsePosterSegment(pendingPosterSegment);
-          if (parsed && posterProvidersByID[parsed.providerId]) {
-            posterProviderSel.value = parsed.providerId;
-            updatePosterKeyField(parsed.providerId);
-            document.getElementById("poster-api-key").value = parsed.apiKey;
-          }
-        } catch (e) {
-          console.error("Failed to load poster providers:", e);
-        }
-      })();
-
-      // Load languages from API
-      (async () => {
-        try {
-          const res = await fetch("/api/languages");
-          const languages = await res.json();
-          if (!Array.isArray(languages) || languages.length === 0) {
-            throw new Error("No languages returned");
-          }
-
-          const languageList = document.getElementById("cs-language-list");
-          const defaultLanguage =
-            languages.find((l) => l.code === "es") || languages[0];
-
-          // The page's own language picker offers exactly the same languages
-          // the catalogs can be served in.
-          availableLanguages = languages;
-          buildLanguageMenu();
-          await setUiLanguage(initialUiLanguage(), false);
-
-          partialTranslationLanguages = new Set(
-            languages.filter((l) => l.partialTranslation).map((l) => l.code),
-          );
-
-          // Populate the language options
-          languageList.innerHTML = languages
+        const list = document.getElementById("cs-poster-provider-list");
+        list.innerHTML =
+          `<div class="cs-option selected" data-value="" data-i18n="none">${t("none")}</div>` +
+          providers
             .map(
-              (l) =>
-                `<div class="cs-option${l.code === defaultLanguage.code ? " selected" : ""}" data-value="${l.code}">${l.name}${l.partialTranslation ? " ⚠" : ""}</div>`,
-            )
-            .join("");
-
-          // Update the trigger label to show the default language
-          const label = document.querySelector("#cs-language .cs-label");
-          label.removeAttribute("data-i18n");
-          label.textContent = defaultLanguage.name;
-
-          // Initialize the custom select for languages
-          languageSel = initCustomSelect("cs-language", (v) => {
-            updateLanguageWarning(v);
-            if (resultEl.classList.contains("visible")) generateUrl();
-          });
-          updateLanguageWarning(defaultLanguage.code);
-
-          // A reconfigure link (?config=…) carries the chosen language. The
-          // country/init IIFE runs concurrently and may reach its own
-          // languageSel assignment before this dropdown exists, so this is the
-          // authoritative place to apply it.
-          const cfgLang = cfgParts && cfgParts[1];
-          if (cfgLang) {
-            languageSel.value = cfgLang;
-            updateLanguageWarning(cfgLang);
-          }
-        } catch (e) {
-          console.error("Failed to load languages:", e);
-          // Fallback: show error message in language dropdown
-          const languageList = document.getElementById("cs-language-list");
-          languageList.innerHTML = `<div style="padding: 1rem; color: var(--accent); text-align: center;" data-i18n="errLanguages">${t("errLanguages") || "Error al cargar idiomas"}</div>`;
-        }
-      })();
-
-      // Load countries dynamically from API. Country names are localized
-      // server-side, so a page-language switch means re-fetching the list:
-      // the names *and* their alphabetical order change with the language.
-      let countriesLang = null;
-
-      async function loadCountries(selectedCode) {
-        const lang = uiLang;
-        const res = await fetch(
-          `/api/countries?lang=${encodeURIComponent(lang)}`,
-        );
-        const countries = await res.json();
-        if (!Array.isArray(countries) || countries.length === 0) {
-          throw new Error("No countries returned");
-        }
-
-        const selected =
-          countries.find((c) => c.code === selectedCode) ||
-          countries.find((c) => c.code === "ES") ||
-          countries[0];
-        const list = document.getElementById("cs-country-list");
-        const label = document.querySelector("#cs-country .cs-label");
-
-        if (countrySel) {
-          // Already initialized: rename and re-sort the existing option nodes
-          // instead of rebuilding them, so initCustomSelect's listeners (bound
-          // to those exact nodes and to the trigger) survive the switch.
-          const nameByCode = new Map(countries.map((c) => [c.code, c.name]));
-          const nodes = [...list.querySelectorAll(".cs-option")];
-          for (const node of nodes) {
-            const name = nameByCode.get(node.dataset.value);
-            if (name) node.textContent = name;
-          }
-          nodes
-            .sort((a, b) => a.textContent.localeCompare(b.textContent, lang))
-            .forEach((node) => list.appendChild(node));
-          const selectedNode = list.querySelector(".cs-option.selected");
-          if (selectedNode) label.textContent = selectedNode.textContent;
-        } else {
-          list.innerHTML = countries
-            .map(
-              (c) =>
-                `<div class="cs-option${c.code === selected.code ? " selected" : ""}" data-value="${c.code}">${c.name}</div>`,
-            )
-            .join("");
-          label.removeAttribute("data-i18n");
-          label.textContent = selected.name;
-          countrySel = initCustomSelect("cs-country", (v) => {
-            loadPackages(v);
-            if (resultEl.classList.contains("visible")) generateUrl();
-          });
-        }
-        countriesLang = lang;
-
-        // The page language may have changed while this request was in flight.
-        if (countriesLang !== uiLang) return loadCountries(selected.code);
-        return selected.code;
-      }
-
-      (async () => {
-        try {
-          const defaultCode = await loadCountries(
-            cfgParts && cfgParts[0] ? cfgParts[0] : null,
-          );
-
-          // ── Init: pre-fill from ?config= if coming from Stremio reconfigure ──
-          if (cfgParts && cfgParts.length >= 2) {
-            const [country, lang, ...rest] = cfgParts;
-            // Exclude the poster-provider and sort-types segments — handled
-            // separately below, not treated as packages.
-            const pkgs = rest.filter(
               (p) =>
-                p !== "rnd" &&
-                !RESERVED_PREFIXES.some((prefix) => p.startsWith(prefix)),
-            );
-            // A single-type package is only named in its m-/s- segment now,
-            // not in the trailing list, so pull those members back in.
-            for (const prefix of Object.values(PKG_TYPE_PREFIX)) {
-              const seg = rest.find((p) => p.startsWith(prefix));
-              if (!seg) continue;
-              for (const member of seg.slice(prefix.length).split("-")) {
-                if (/^[a-z0-9-]{1,30}$/.test(member) && !pkgs.includes(member)) {
-                  pkgs.push(member);
-                }
-              }
-            }
-            // countrySel / languageSel are set by concurrent IIFEs. This
-            // block is reached after loadCountries() resolves (1 request), but
-            // the language dropdown needs 2–3, so languageSel can still be
-            // null here — the language IIFE applies the ?config= language
-            // itself once its dropdown exists. Guard so the race can't throw
-            // and abort init before loadPackages() runs.
-            if (country && countrySel) countrySel.value = country;
-            if (lang) {
-              if (languageSel) languageSel.value = lang;
-              updateLanguageWarning(lang);
-            }
+                `<div class="cs-option notranslate" translate="no" data-value="${p.id}">${p.name}</div>`,
+            )
+            .join("");
 
-            document.getElementById("randomize-toggle").checked =
-              rest.includes("rnd");
+        posterProviderSel = initCustomSelect("cs-poster-provider", (v) => {
+          updatePosterKeyField(v);
+          if (resultEl.classList.contains("visible")) generateUrl();
+        });
 
-            const sortsSegment = rest.find((p) => p.startsWith("sorts-"));
-            if (sortsSegment) {
-              const enabledSorts = sortsSegment
-                .slice("sorts-".length)
-                .split("-");
-              document.getElementById("sort-pop-toggle").checked =
-                enabledSorts.includes("pop");
-              document.getElementById("sort-tnd-toggle").checked =
-                enabledSorts.includes("tnd");
-              document.getElementById("sort-new-toggle").checked =
-                enabledSorts.includes("new");
-            }
-
-            // Global catalogs are enabled purely by "global" being present in
-            // pkgs — no separate on/off toggle. A gsorts- segment picks which
-            // types; absent (but "global" present) means all three, matching
-            // links generated before this per-type selector existed.
-            if (pkgs.includes("global")) {
-              const gsortsSegment = rest.find((p) => p.startsWith("gsorts-"));
-              const enabledGlobalSorts = gsortsSegment
-                ? gsortsSegment.slice("gsorts-".length).split("-")
-                : ["pop", "tnd", "new"];
-              // gm-/gs- restore each chip's cycle position; a chip in neither
-              // renders at "all", which is what every link from before this
-              // selector existed means.
-              const globalTypes = parseTypeSegments(
-                rest,
-                enabledGlobalSorts,
-                GLOBAL_TYPE_PREFIX,
-              );
-              for (const key of ["pop", "tnd", "new"]) {
-                const input = document.getElementById(
-                  `global-sort-${key}-toggle`,
-                );
-                input.checked = enabledGlobalSorts.includes(key);
-                input.closest(".toggle-item").dataset.types =
-                  globalTypes[key] || "all";
-              }
-            }
-
-            // Per-package content types. Anything absent here renders at the
-            // "all" default — which is every package in a link generated
-            // before this selector existed.
-            const preTypes = parseTypeSegments(rest, pkgs, PKG_TYPE_PREFIX);
-
-            loadPackages(country || countrySel.value, pkgs, preTypes);
-            return;
-          }
-          loadPackages(defaultCode);
-        } catch (e) {
-          console.error("Failed to load countries:", e);
-          // Fallback: show error message in country dropdown
-          const countryList = document.getElementById("cs-country-list");
-          countryList.innerHTML = `<div style="padding: 1rem; color: var(--accent); text-align: center;" data-i18n="errCountries">${t("errCountries") || "Error al cargar países"}</div>`;
+        // Pre-fill from ?config= once the provider list is ready.
+        const parsed = parsePosterSegment(pendingPosterSegment);
+        if (parsed && posterProvidersByID[parsed.providerId]) {
+          posterProviderSel.value = parsed.providerId;
+          updatePosterKeyField(parsed.providerId);
+          document.getElementById("poster-api-key").value = parsed.apiKey;
         }
-      })();
+      } catch (e) {
+        console.error("Failed to load poster providers:", e);
+      }
+    })();
 
-      const pkgGrid = document.getElementById("pkg-grid");
-      const channelGrid = document.getElementById("channel-grid");
-      // Both panes live in the DOM at once, one hidden. Selections therefore
-      // survive a tab switch for free, and everything that reads the grid —
-      // generateUrl, LIMPIAR, the cycle handler — queries this shared root so
-      // it never misses the pane that isn't showing.
-      const pkgPanes = document.getElementById("pkg-panes");
-      // const btnAll = document.getElementById("btn-all");
-      const btnNone = document.getElementById("btn-none");
-      const btnGenerate = document.getElementById("btn-generate");
-      const resultEl = document.getElementById("result");
-      const urlOut = document.getElementById("url-out");
-      const btnCopy = document.getElementById("btn-copy");
+    // Load languages from API
+    (async () => {
+      try {
+        const res = await fetch("/api/languages");
+        const languages = await res.json();
+        if (!Array.isArray(languages) || languages.length === 0) {
+          throw new Error("No languages returned");
+        }
 
-      const PINNED = [
-        "nfx",
-        "prv",
-        "atp",
-        "dnp",
-        "mxx",
-        "cru",
-        "sst",
-        "nfk",
-        "fil",
-      ];
+        const languageList = document.getElementById("cs-language-list");
+        const defaultLanguage =
+          languages.find((l) => l.code === "es") || languages[0];
 
-      function sortPackages(pkgs) {
-        const pinned = PINNED.map((sn) =>
-          pkgs.find((p) => p.shortName === sn),
-        ).filter(Boolean);
-        const rest = pkgs.filter((p) => !PINNED.includes(p.shortName));
-        return [...pinned, ...rest];
+        // The page's own language picker offers exactly the same languages
+        // the catalogs can be served in.
+        availableLanguages = languages;
+        buildLanguageMenu();
+        await setUiLanguage(initialUiLanguage(), false);
+
+        partialTranslationLanguages = new Set(
+          languages.filter((l) => l.partialTranslation).map((l) => l.code),
+        );
+
+        // Populate the language options
+        languageList.innerHTML = languages
+          .map(
+            (l) =>
+              `<div class="cs-option${l.code === defaultLanguage.code ? " selected" : ""}" data-value="${l.code}">${l.name}${l.partialTranslation ? " ⚠" : ""}</div>`,
+          )
+          .join("");
+
+        // Update the trigger label to show the default language
+        const label = document.querySelector("#cs-language .cs-label");
+        label.removeAttribute("data-i18n");
+        label.textContent = defaultLanguage.name;
+
+        // Initialize the custom select for languages
+        languageSel = initCustomSelect("cs-language", (v) => {
+          updateLanguageWarning(v);
+          if (resultEl.classList.contains("visible")) generateUrl();
+        });
+        updateLanguageWarning(defaultLanguage.code);
+
+        // A reconfigure link (?config=…) carries the chosen language. The
+        // country/init IIFE runs concurrently and may reach its own
+        // languageSel assignment before this dropdown exists, so this is the
+        // authoritative place to apply it.
+        const cfgLang = cfgParts && cfgParts[1];
+        if (cfgLang) {
+          languageSel.value = cfgLang;
+          updateLanguageWarning(cfgLang);
+        }
+      } catch (e) {
+        console.error("Failed to load languages:", e);
+        // Fallback: show error message in language dropdown
+        const languageList = document.getElementById("cs-language-list");
+        languageList.innerHTML = `<div style="padding: 1rem; color: var(--accent); text-align: center;" data-i18n="errLanguages">${t("errLanguages") || "Error al cargar idiomas"}</div>`;
+      }
+    })();
+
+    // Load countries dynamically from API. Country names are localized
+    // server-side, so a page-language switch means re-fetching the list:
+    // the names *and* their alphabetical order change with the language.
+    let countriesLang = null;
+
+    async function loadCountries(selectedCode) {
+      const lang = uiLang;
+      const res = await fetch(
+        `/api/countries?lang=${encodeURIComponent(lang)}`,
+      );
+      const countries = await res.json();
+      if (!Array.isArray(countries) || countries.length === 0) {
+        throw new Error("No countries returned");
       }
 
-      async function loadPackages(
-        country,
-        preSelected = null,
-        preTypes = null,
-      ) {
-        pkgGrid.innerHTML = `<div style="grid-column: 1/-1; text-align: center; padding: 2rem; color: var(--secondary); font-size: 0.8rem;" data-i18n="loadingSystem">${t("loadingSystem") || "Iniciando sistema..."}</div>`;
-        channelGrid.innerHTML = "";
-        loadMoreSlot.innerHTML = "";
-        showPane("providers");
-        try {
-          const res = await fetch(
-            `/api/packages?country=${encodeURIComponent(country)}`,
+      const selected =
+        countries.find((c) => c.code === selectedCode) ||
+        countries.find((c) => c.code === "ES") ||
+        countries[0];
+      const list = document.getElementById("cs-country-list");
+      const label = document.querySelector("#cs-country .cs-label");
+
+      if (countrySel) {
+        // Already initialized: rename and re-sort the existing option nodes
+        // instead of rebuilding them, so initCustomSelect's listeners (bound
+        // to those exact nodes and to the trigger) survive the switch.
+        const nameByCode = new Map(countries.map((c) => [c.code, c.name]));
+        const nodes = [...list.querySelectorAll(".cs-option")];
+        for (const node of nodes) {
+          const name = nameByCode.get(node.dataset.value);
+          if (name) node.textContent = name;
+        }
+        nodes
+          .sort((a, b) => a.textContent.localeCompare(b.textContent, lang))
+          .forEach((node) => list.appendChild(node));
+        const selectedNode = list.querySelector(".cs-option.selected");
+        if (selectedNode) label.textContent = selectedNode.textContent;
+      } else {
+        list.innerHTML = countries
+          .map(
+            (c) =>
+              `<div class="cs-option${c.code === selected.code ? " selected" : ""}" data-value="${c.code}">${c.name}</div>`,
+          )
+          .join("");
+        label.removeAttribute("data-i18n");
+        label.textContent = selected.name;
+        countrySel = initCustomSelect("cs-country", (v) => {
+          loadPackages(v);
+          if (resultEl.classList.contains("visible")) generateUrl();
+        });
+      }
+      countriesLang = lang;
+
+      // The page language may have changed while this request was in flight.
+      if (countriesLang !== uiLang) return loadCountries(selected.code);
+      return selected.code;
+    }
+
+    (async () => {
+      try {
+        const defaultCode = await loadCountries(
+          cfgParts && cfgParts[0] ? cfgParts[0] : null,
+        );
+
+        // ── Init: pre-fill from ?config= if coming from Stremio reconfigure ──
+        if (cfgParts && cfgParts.length >= 2) {
+          const [country, lang, ...rest] = cfgParts;
+          // Exclude the poster-provider and sort-types segments — handled
+          // separately below, not treated as packages.
+          const pkgs = rest.filter(
+            (p) =>
+              p !== "rnd" &&
+              !RESERVED_PREFIXES.some((prefix) => p.startsWith(prefix)),
           );
-          const pkgs = await res.json();
-          renderPackages(sortPackages(pkgs), preSelected, preTypes);
-        } catch (e) {
-          pkgGrid.innerHTML = `<div style="color: var(--accent)" data-i18n="errConnection">${t("errConnection") || "Error de conexión"}</div>`;
-          showPane("providers");
-        }
-      }
+          // A single-type package is only named in its m-/s- segment now,
+          // not in the trailing list, so pull those members back in.
+          for (const prefix of Object.values(PKG_TYPE_PREFIX)) {
+            const seg = rest.find((p) => p.startsWith(prefix));
+            if (!seg) continue;
+            for (const member of seg.slice(prefix.length).split("-")) {
+              if (/^[a-z0-9-]{1,30}$/.test(member) && !pkgs.includes(member)) {
+                pkgs.push(member);
+              }
+            }
+          }
+          // countrySel / languageSel are set by concurrent IIFEs. This
+          // block is reached after loadCountries() resolves (1 request), but
+          // the language dropdown needs 2–3, so languageSel can still be
+          // null here — the language IIFE applies the ?config= language
+          // itself once its dropdown exists. Guard so the race can't throw
+          // and abort init before loadPackages() runs.
+          if (country && countrySel) countrySel.value = country;
+          if (lang) {
+            if (languageSel) languageSel.value = lang;
+            updateLanguageWarning(lang);
+          }
 
-      // The two content-type glyphs the corner badge is built from. Filled
-      // with currentColor so they take the badge's black-on-accent, and the
-      // film sprockets are punched out in var(--accent) so they read as holes
-      // against the badge rather than as extra ink.
-      const MOVIE_GLYPH = `<svg class="type-glyph-movie" width="11" height="11" viewBox="0 0 16 16" aria-hidden="true"><path fill="currentColor" d="M2 3h12a1.2 1.2 0 0 1 1.2 1.2v7.6A1.2 1.2 0 0 1 14 13H2a1.2 1.2 0 0 1-1.2-1.2V4.2A1.2 1.2 0 0 1 2 3Z"/><g fill="var(--accent)"><rect x="2" y="4.3" width="2" height="1.7" rx=".4"/><rect x="2" y="7.15" width="2" height="1.7" rx=".4"/><rect x="2" y="10" width="2" height="1.7" rx=".4"/><rect x="12" y="4.3" width="2" height="1.7" rx=".4"/><rect x="12" y="7.15" width="2" height="1.7" rx=".4"/><rect x="12" y="10" width="2" height="1.7" rx=".4"/></g></svg>`;
-      const SERIES_GLYPH = `<svg class="type-glyph-series" width="11" height="11" viewBox="0 0 16 16" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" d="m4.8 1.9 3.2 3 3.2-3"/><path fill="currentColor" d="M2.6 5.6h10.8a1.4 1.4 0 0 1 1.4 1.4v5.6a1.4 1.4 0 0 1-1.4 1.4H2.6a1.4 1.4 0 0 1-1.4-1.4V7a1.4 1.4 0 0 1 1.4-1.4Z"/></svg>`;
+          document.getElementById("randomize-toggle").checked =
+            rest.includes("rnd");
 
-      document.getElementById("pkg-hint-glyphs").innerHTML =
-        MOVIE_GLYPH + SERIES_GLYPH;
+          const sortsSegment = rest.find((p) => p.startsWith("sorts-"));
+          if (sortsSegment) {
+            const enabledSorts = sortsSegment
+              .slice("sorts-".length)
+              .split("-");
+            document.getElementById("sort-pop-toggle").checked =
+              enabledSorts.includes("pop");
+            document.getElementById("sort-tnd-toggle").checked =
+              enabledSorts.includes("tnd");
+            document.getElementById("sort-new-toggle").checked =
+              enabledSorts.includes("new");
+          }
 
-      // Clicking a provider card — or a global sort chip — walks these states
-      // in order and then falls off the end back to unselected, so one control
-      // covers both "is this on" and "which content types does it import".
-      const PKG_TYPE_CYCLE = ["all", "movie", "series"];
+          // Global catalogs are enabled purely by "global" being present in
+          // pkgs — no separate on/off toggle. A gsorts- segment picks which
+          // types; absent (but "global" present) means all three, matching
+          // links generated before this per-type selector existed.
+          if (pkgs.includes("global")) {
+            const gsortsSegment = rest.find((p) => p.startsWith("gsorts-"));
+            const enabledGlobalSorts = gsortsSegment
+              ? gsortsSegment.slice("gsorts-".length).split("-")
+              : ["pop", "tnd", "new"];
+            // gm-/gs- restore each chip's cycle position; a chip in neither
+            // renders at "all", which is what every link from before this
+            // selector existed means.
+            const globalTypes = parseTypeSegments(
+              rest,
+              enabledGlobalSorts,
+              GLOBAL_TYPE_PREFIX,
+            );
+            for (const key of ["pop", "tnd", "new"]) {
+              const input = document.getElementById(
+                `global-sort-${key}-toggle`,
+              );
+              input.checked = enabledGlobalSorts.includes(key);
+              input.closest(".toggle-item").dataset.types =
+                globalTypes[key] || "all";
+            }
+          }
 
-      // Reflected onto the item as data-types; the CSS above turns that into
-      // which glyphs its badge shows. Nothing here writes an inline style.
-      function setPkgTypes(item, types) {
-        item.dataset.types = types;
-      }
+          // Per-package content types. Anything absent here renders at the
+          // "all" default — which is every package in a link generated
+          // before this selector existed.
+          const preTypes = parseTypeSegments(rest, pkgs, PKG_TYPE_PREFIX);
 
-      // One step of the cycle, shared by the provider grid and the global sort
-      // chips so the two can't drift into behaving differently.
-      function advanceTypeCycle(item) {
-        const input = item.querySelector('input[type="checkbox"]');
-        if (!input.checked) {
-          input.checked = true;
-          setPkgTypes(item, PKG_TYPE_CYCLE[0]);
+          loadPackages(country || countrySel.value, pkgs, preTypes);
           return;
         }
-        const next =
-          PKG_TYPE_CYCLE[PKG_TYPE_CYCLE.indexOf(item.dataset.types) + 1];
-        if (next) {
-          setPkgTypes(item, next);
-        } else {
-          // Past the last state: deselect, and rewind to the first state so
-          // the next click starts at "both" rather than resuming mid-cycle.
-          input.checked = false;
-          setPkgTypes(item, PKG_TYPE_CYCLE[0]);
-        }
+        loadPackages(defaultCode);
+      } catch (e) {
+        console.error("Failed to load countries:", e);
+        // Fallback: show error message in country dropdown
+        const countryList = document.getElementById("cs-country-list");
+        countryList.innerHTML = `<div style="padding: 1rem; color: var(--accent); text-align: center;" data-i18n="errCountries">${t("errCountries") || "Error al cargar países"}</div>`;
       }
+    })();
 
-      // The global chips' dots hold the same two glyphs the provider badge
-      // does; which of them shows is driven by data-types in CSS.
-      const globalSortRow = document.getElementById("global-sort-row");
-      for (const dot of globalSortRow.querySelectorAll(".toggle-dot")) {
-        dot.innerHTML = MOVIE_GLYPH + SERIES_GLYPH;
+    const pkgGrid = document.getElementById("pkg-grid");
+    const channelGrid = document.getElementById("channel-grid");
+    // Both panes live in the DOM at once, one hidden. Selections therefore
+    // survive a tab switch for free, and everything that reads the grid —
+    // generateUrl, LIMPIAR, the cycle handler — queries this shared root so
+    // it never misses the pane that isn't showing.
+    const pkgPanes = document.getElementById("pkg-panes");
+    // const btnAll = document.getElementById("btn-all");
+    const btnNone = document.getElementById("btn-none");
+    const btnGenerate = document.getElementById("btn-generate");
+    const resultEl = document.getElementById("result");
+    const urlOut = document.getElementById("url-out");
+    const btnCopy = document.getElementById("btn-copy");
+
+    const PINNED = [
+      "nfx",
+      "prv",
+      "atp",
+      "dnp",
+      "mxx",
+      "cru",
+      "sst",
+      "nfk",
+      "fil",
+    ];
+
+    function sortPackages(pkgs) {
+      const pinned = PINNED.map((sn) =>
+        pkgs.find((p) => p.shortName === sn),
+      ).filter(Boolean);
+      const rest = pkgs.filter((p) => !PINNED.includes(p.shortName));
+      return [...pinned, ...rest];
+    }
+
+    async function loadPackages(
+      country,
+      preSelected = null,
+      preTypes = null,
+    ) {
+      pkgGrid.innerHTML = `<div style="grid-column: 1/-1; text-align: center; padding: 2rem; color: var(--secondary); font-size: 0.8rem;" data-i18n="loadingSystem">${t("loadingSystem") || "Iniciando sistema..."}</div>`;
+      channelGrid.innerHTML = "";
+      loadMoreSlot.innerHTML = "";
+      showPane("providers");
+      try {
+        const res = await fetch(
+          `/api/packages?country=${encodeURIComponent(country)}`,
+        );
+        const pkgs = await res.json();
+        renderPackages(sortPackages(pkgs), preSelected, preTypes);
+      } catch (e) {
+        pkgGrid.innerHTML = `<div style="color: var(--accent)" data-i18n="errConnection">${t("errConnection") || "Error de conexión"}</div>`;
+        showPane("providers");
       }
+    }
 
-      // Same preventDefault reasoning as the provider grid below: without it
-      // the <label for=…> runs its own checked/unchecked toggle underneath and
-      // fights the cycle. No change event fires, so this re-runs generateUrl.
-      globalSortRow.addEventListener("click", (e) => {
-        const label = e.target.closest(".toggle-card");
-        if (!label) return;
-        e.preventDefault();
-        advanceTypeCycle(label.closest(".toggle-item"));
-        if (resultEl.classList.contains("visible")) generateUrl();
-      });
+    // The two content-type glyphs the corner badge is built from. Filled
+    // with currentColor so they take the badge's black-on-accent, and the
+    // film sprockets are punched out in var(--accent) so they read as holes
+    // against the badge rather than as extra ink.
+    const MOVIE_GLYPH = `<svg class="type-glyph-movie" width="11" height="11" viewBox="0 0 16 16" aria-hidden="true"><path fill="currentColor" d="M2 3h12a1.2 1.2 0 0 1 1.2 1.2v7.6A1.2 1.2 0 0 1 14 13H2a1.2 1.2 0 0 1-1.2-1.2V4.2A1.2 1.2 0 0 1 2 3Z"/><g fill="var(--accent)"><rect x="2" y="4.3" width="2" height="1.7" rx=".4"/><rect x="2" y="7.15" width="2" height="1.7" rx=".4"/><rect x="2" y="10" width="2" height="1.7" rx=".4"/><rect x="12" y="4.3" width="2" height="1.7" rx=".4"/><rect x="12" y="7.15" width="2" height="1.7" rx=".4"/><rect x="12" y="10" width="2" height="1.7" rx=".4"/></g></svg>`;
+    const SERIES_GLYPH = `<svg class="type-glyph-series" width="11" height="11" viewBox="0 0 16 16" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" d="m4.8 1.9 3.2 3 3.2-3"/><path fill="currentColor" d="M2.6 5.6h10.8a1.4 1.4 0 0 1 1.4 1.4v5.6a1.4 1.4 0 0 1-1.4 1.4H2.6a1.4 1.4 0 0 1-1.4-1.4V7a1.4 1.4 0 0 1 1.4-1.4Z"/></svg>`;
 
-      function renderPackageItem(pkg, isChecked, types) {
-        const icon = pkg.iconUrl
-          ? `<img class="pkg-icon" src="${pkg.iconUrl}" loading="lazy" onerror="this.style.opacity=0">`
-          : `<div class="pkg-icon" style="opacity:0"></div>`;
-        return `
+    document.getElementById("pkg-hint-glyphs").innerHTML =
+      MOVIE_GLYPH + SERIES_GLYPH;
+
+    // Clicking a provider card — or a global sort chip — walks these states
+    // in order and then falls off the end back to unselected, so one control
+    // covers both "is this on" and "which content types does it import".
+    const PKG_TYPE_CYCLE = ["all", "movie", "series"];
+
+    // Reflected onto the item as data-types; the CSS above turns that into
+    // which glyphs its badge shows. Nothing here writes an inline style.
+    function setPkgTypes(item, types) {
+      item.dataset.types = types;
+    }
+
+    // One step of the cycle, shared by the provider grid and the global sort
+    // chips so the two can't drift into behaving differently.
+    function advanceTypeCycle(item) {
+      const input = item.querySelector('input[type="checkbox"]');
+      if (!input.checked) {
+        input.checked = true;
+        setPkgTypes(item, PKG_TYPE_CYCLE[0]);
+        return;
+      }
+      const next =
+        PKG_TYPE_CYCLE[PKG_TYPE_CYCLE.indexOf(item.dataset.types) + 1];
+      if (next) {
+        setPkgTypes(item, next);
+      } else {
+        // Past the last state: deselect, and rewind to the first state so
+        // the next click starts at "both" rather than resuming mid-cycle.
+        input.checked = false;
+        setPkgTypes(item, PKG_TYPE_CYCLE[0]);
+      }
+    }
+
+    // The global chips' dots hold the same two glyphs the provider badge
+    // does; which of them shows is driven by data-types in CSS.
+    const globalSortRow = document.getElementById("global-sort-row");
+    for (const dot of globalSortRow.querySelectorAll(".toggle-dot")) {
+      dot.innerHTML = MOVIE_GLYPH + SERIES_GLYPH;
+    }
+
+    // Same preventDefault reasoning as the provider grid below: without it
+    // the <label for=…> runs its own checked/unchecked toggle underneath and
+    // fights the cycle. No change event fires, so this re-runs generateUrl.
+    globalSortRow.addEventListener("click", (e) => {
+      const label = e.target.closest(".toggle-card");
+      if (!label) return;
+      e.preventDefault();
+      advanceTypeCycle(label.closest(".toggle-item"));
+      if (resultEl.classList.contains("visible")) generateUrl();
+    });
+
+    function renderPackageItem(pkg, isChecked, types) {
+      const icon = pkg.iconUrl
+        ? `<img class="pkg-icon" src="${pkg.iconUrl}" loading="lazy" onerror="this.style.opacity=0">`
+        : `<div class="pkg-icon" style="opacity:0"></div>`;
+      return `
           <div class="pkg-item" data-types="${types || "all"}" data-parent="${pkg.addonParentShortName || ""}">
             <input type="checkbox" id="pkg-${pkg.shortName}" value="${pkg.shortName}" ${isChecked ? "checked" : ""} style="display:none">
             <label class="pkg-label" for="pkg-${pkg.shortName}" title="${pkg.clearName}">
@@ -2277,398 +2171,473 @@
               <div class="pkg-check">${MOVIE_GLYPH}${SERIES_GLYPH}</div>
             </label>
           </div>`;
+    }
+
+    const loadMoreSlot = document.getElementById("load-more-slot");
+    const channelsHint = document.getElementById("channels-hint");
+    const channelFilter = document.getElementById("channel-filter");
+    const channelParents = document.getElementById("channel-parents");
+
+    // Providers and channels are the same widget over two lists. A channel
+    // ("HBO Max Amazon Channel") is a service watched through another
+    // subscription, and its catalogue duplicates the direct provider's, so
+    // mixing them in one grid buries the entry most people actually want.
+    // isAddon comes from JustWatch's own addonParent — see infra/justwatch.js.
+    const PANES = {
+      // `lazy` panes draw INITIAL_ITEMS and own the expand/collapse control.
+      // Channels are not lazy: the pane is at most ~105 entries and its parent
+      // filter must be able to match anything, which a partly-drawn list can't
+      // guarantee. Drawing it whole also means it never needs the control —
+      // offering "collapse" on a list nobody expanded reads as a bug.
+      providers: {
+        grid: pkgGrid,
+        all: [],
+        shown: 0,
+        lazy: true,
+        expanded: false,
+        pre: null,
+        preTypes: null,
+      },
+      channels: {
+        grid: channelGrid,
+        all: [],
+        shown: 0,
+        lazy: false,
+        expanded: true,
+        pre: null,
+        preTypes: null,
+      },
+    };
+    const INITIAL_ITEMS = 10;
+    let activePane = "providers";
+    // Which parent service the channels pane is narrowed to; null = all.
+    let activeParent = null;
+
+    function renderPackageItemFor(pane, pkg) {
+      return renderPackageItem(
+        pkg,
+        pane.pre ? pane.pre.includes(pkg.shortName) : false,
+        (pane.preTypes && pane.preTypes[pkg.shortName]) || "all",
+      );
+    }
+
+    // Appends, never replaces. Re-rendering a pane would recompute every
+    // checkbox from the pre-fill and silently wipe whatever the user had
+    // picked — which is exactly what "load more" used to do.
+    function growPane(name, upTo) {
+      const pane = PANES[name];
+      const next = pane.all.slice(pane.shown, upTo);
+      if (!next.length) return;
+      pane.grid.insertAdjacentHTML(
+        "beforeend",
+        next.map((p) => renderPackageItemFor(pane, p)).join(""),
+      );
+      pane.shown = upTo;
+    }
+
+    // Single place deciding what a pane shows, so collapsing and the channels
+    // parent filter can't fight over the same items.
+    //
+    // Both **hide** rather than remove: a removed node takes its checkbox with
+    // it, and generateUrl reads selections straight out of the DOM, so
+    // collapsing would silently drop them from the URL.
+    function applyVisibility(name) {
+      const pane = PANES[name];
+      const items = [...pane.grid.querySelectorAll(".pkg-item")];
+      items.forEach((item, i) => {
+        const checked = item.querySelector('input[type="checkbox"]').checked;
+        // A checked item is never hidden by collapsing — otherwise your own
+        // pick would vanish from view while staying in the generated URL.
+        const pastCollapse = !pane.expanded && i >= INITIAL_ITEMS && !checked;
+        const filteredOut =
+          name === "channels" &&
+          activeParent !== null &&
+          item.dataset.parent !== activeParent;
+        item.hidden = pastCollapse || filteredOut;
+      });
+    }
+
+    function visibleCount(pane) {
+      return pane.grid.querySelectorAll(".pkg-item:not([hidden])").length;
+    }
+
+    // The expander persists once used and flips to the opposite action, so the
+    // list can be folded back up instead of staying long forever.
+    function renderLoadMore() {
+      const pane = PANES[activePane];
+      if (!pane.lazy) {
+        loadMoreSlot.innerHTML = "";
+        return;
       }
+      const hidden = pane.all.length - visibleCount(pane);
 
-      const loadMoreSlot = document.getElementById("load-more-slot");
-      const channelsHint = document.getElementById("channels-hint");
-      const channelFilter = document.getElementById("channel-filter");
-      const channelParents = document.getElementById("channel-parents");
-
-      // Providers and channels are the same widget over two lists. A channel
-      // ("HBO Max Amazon Channel") is a service watched through another
-      // subscription, and its catalogue duplicates the direct provider's, so
-      // mixing them in one grid buries the entry most people actually want.
-      // isAddon comes from JustWatch's own addonParent — see infra/justwatch.js.
-      const PANES = {
-        providers: { grid: pkgGrid, all: [], shown: 0, pre: null, preTypes: null },
-        channels: { grid: channelGrid, all: [], shown: 0, pre: null, preTypes: null },
-      };
-      const INITIAL_ITEMS = 10;
-      let activePane = "providers";
-      // Which parent service the channels pane is narrowed to; null = all.
-      let activeParent = null;
-
-      function renderPackageItemFor(pane, pkg) {
-        return renderPackageItem(
-          pkg,
-          pane.pre ? pane.pre.includes(pkg.shortName) : false,
-          (pane.preTypes && pane.preTypes[pkg.shortName]) || "all",
-        );
-      }
-
-      // Appends, never replaces. Re-rendering a pane would recompute every
-      // checkbox from the pre-fill and silently wipe whatever the user had
-      // picked — which is exactly what "load more" used to do.
-      function growPane(name, upTo) {
-        const pane = PANES[name];
-        const next = pane.all.slice(pane.shown, upTo);
-        if (!next.length) return;
-        pane.grid.insertAdjacentHTML(
-          "beforeend",
-          next.map((p) => renderPackageItemFor(pane, p)).join(""),
-        );
-        pane.shown = upTo;
-      }
-
-      function renderLoadMore() {
-        const pane = PANES[activePane];
-        const remaining = pane.all.length - pane.shown;
-        if (remaining <= 0) {
+      if (pane.expanded) {
+        // Nothing was ever hidden (a short pane): no control to offer.
+        if (pane.all.length <= INITIAL_ITEMS) {
           loadMoreSlot.innerHTML = "";
           return;
         }
-        loadMoreSlot.innerHTML = `<button class="btn-show-more" data-i18n="loadMore" data-i18n-count="${remaining}">${t("loadMore", { n: remaining })}</button>`;
+        loadMoreSlot.innerHTML = `<button class="btn-show-more" data-i18n="collapseList">${t("collapseList") || "Contraer lista"}</button>`;
         loadMoreSlot.firstChild.onclick = () => {
-          growPane(activePane, PANES[activePane].all.length);
+          pane.expanded = false;
+          applyVisibility(activePane);
           renderLoadMore();
         };
+        return;
       }
 
-      function updateTabCounts() {
-        for (const [name, pane] of Object.entries(PANES)) {
-          const n = pane.grid.querySelectorAll(
-            'input[type="checkbox"]:checked',
-          ).length;
-          const badge = document.querySelector(
-            `.pkg-tab[data-pane="${name}"] .pkg-tab-count`,
-          );
-          badge.textContent = n;
-          badge.hidden = n === 0;
-        }
+      if (hidden <= 0) {
+        loadMoreSlot.innerHTML = "";
+        return;
       }
-
-      function showPane(name) {
-        activePane = name;
-        for (const [key, pane] of Object.entries(PANES)) {
-          pane.grid.hidden = key !== name;
-        }
-        for (const tab of document.querySelectorAll(".pkg-tab")) {
-          tab.classList.toggle("active", tab.dataset.pane === name);
-        }
-        channelsHint.hidden = name !== "channels";
-        channelFilter.hidden =
-          name !== "channels" || PANES.channels.all.length === 0;
+      loadMoreSlot.innerHTML = `<button class="btn-show-more" data-i18n="loadMore" data-i18n-count="${hidden}">${t("loadMore", { n: hidden })}</button>`;
+      loadMoreSlot.firstChild.onclick = () => {
+        // Create the tail once; from here on expanding/collapsing is pure
+        // visibility, so it's instant and never re-renders an existing item.
+        growPane(activePane, pane.all.length);
+        pane.expanded = true;
+        applyVisibility(activePane);
         renderLoadMore();
-      }
-
-      for (const tab of document.querySelectorAll(".pkg-tab")) {
-        tab.onclick = () => showPane(tab.dataset.pane);
-      }
-
-      function renderPackages(pkgs, preSelected, preTypes) {
-        const selected = preSelected || [];
-        for (const [name, pane] of Object.entries(PANES)) {
-          const wanted = name === "channels";
-          // Pre-selected entries are pulled to the front of their pane. The
-          // grid only renders INITIAL_ITEMS up front, and generateUrl reads
-          // selections out of the DOM — so anything selected but unrendered
-          // would vanish from the regenerated URL. Ordering them first makes
-          // that impossible, and also shows people their own picks first.
-          const inPane = pkgs.filter((p) => Boolean(p.isAddon) === wanted);
-          const picked = inPane.filter((p) => selected.includes(p.shortName));
-          const rest = inPane.filter((p) => !selected.includes(p.shortName));
-          pane.all = [...picked, ...rest];
-          pane.pre = preSelected;
-          pane.preTypes = preTypes;
-          pane.shown = 0;
-          pane.grid.innerHTML = "";
-          // Channels render in full: the pane is at most ~105 entries, and a
-          // parent filter over a lazily-drawn list would silently show nothing
-          // whenever the matches sat past the undrawn tail. Providers (up to
-          // ~290) keep the expander.
-          growPane(
-            name,
-            wanted ? pane.all.length : Math.max(INITIAL_ITEMS, picked.length),
-          );
-        }
-        buildParentFilter();
-        showPane(activePane);
-        updateTabCounts();
-      }
-
-      // One chip per parent service, built from the channels actually present
-      // in this country — usually just Amazon Prime Video, sometimes a second.
-      function buildParentFilter() {
-        const byParent = new Map();
-        for (const pkg of PANES.channels.all) {
-          const key = pkg.addonParentShortName || "";
-          if (!byParent.has(key)) {
-            byParent.set(key, { name: pkg.addonParentName || key, n: 0 });
-          }
-          byParent.get(key).n++;
-        }
-        const parents = [...byParent].sort((a, b) => b[1].n - a[1].n);
-        if (!parents.length) {
-          channelParents.innerHTML = "";
-          activeParent = null;
-          return;
-        }
-        const chip = (value, label, n, on) =>
-          `<button type="button" class="chan-chip${on ? " active" : ""}" data-parent="${value}">${label}<span class="chan-chip-n">${n}</span></button>`;
-        const total = PANES.channels.all.length;
-        channelParents.innerHTML =
-          chip("", t("filterAll") || "Todos", total, activeParent === null) +
-          parents
-            .map(([key, v]) => chip(key, v.name, v.n, activeParent === key))
-            .join("");
-        for (const btn of channelParents.querySelectorAll(".chan-chip")) {
-          btn.onclick = () => applyParentFilter(btn.dataset.parent || null);
-        }
-      }
-
-      // Hides non-matching items rather than re-rendering them, so a channel
-      // that is selected but filtered out stays checked and stays in the URL —
-      // the tab badge is what tells the user it's still there.
-      function applyParentFilter(parent) {
-        activeParent = parent;
-        for (const item of PANES.channels.grid.querySelectorAll(".pkg-item")) {
-          item.hidden = parent !== null && item.dataset.parent !== parent;
-        }
-        for (const btn of channelParents.querySelectorAll(".chan-chip")) {
-          btn.classList.toggle(
-            "active",
-            (btn.dataset.parent || null) === parent,
-          );
-        }
-      }
-
-      const ALL_SORT_KEYS = ["pop", "tnd", "new"];
-
-      // ── Content-type segment codec ────────────────────────────────────────
-      // An independent browser mirror of the "m-"/"s-"/"gm-"/"gs-" handling in
-      // ../domain/userConfig.js, in the same spirit as the poster-key codec
-      // above: two implementations of one scheme, kept honest by
-      // test/packageTypes.test.js, which slices this file's own source text
-      // from the prefix-table declaration below down to the URL builder that
-      // follows, runs it in a vm, and pushes the same vectors through both
-      // sides. Renaming either of those two anchor identifiers, or moving
-      // this block, breaks that extraction — deliberately, since it is the
-      // only thing stopping the two copies from drifting apart.
-      const PKG_TYPE_PREFIX = { movie: "m-", series: "s-" };
-      const GLOBAL_TYPE_PREFIX = { movie: "gm-", series: "gs-" };
-
-      // Every marker that must not be mistaken for a package shortName, built
-      // from the tables above so adding a prefix can't be forgotten here.
-      const RESERVED_PREFIXES = [
-        "rpdb-",
-        "poster-",
-        "sorts-",
-        "gsorts-",
-        ...Object.values(PKG_TYPE_PREFIX),
-        ...Object.values(GLOBAL_TYPE_PREFIX),
-      ];
-
-      // `types` holds only the members narrowed away from the "all" default,
-      // so an untouched selection yields "" and the URL is exactly what it was
-      // before this feature existed. Members are packages for PKG_TYPE_PREFIX
-      // and sort keys for GLOBAL_TYPE_PREFIX.
-      function encodeTypeSegments(members, types, prefixes) {
-        return Object.entries(prefixes)
-          .map(([type, prefix]) => {
-            const narrowed = members.filter((m) => types[m] === type);
-            return narrowed.length ? `${prefix}${narrowed.join("-")}_` : "";
-          })
-          .join("");
-      }
-
-      // Inverse. Restrictions naming something not in `allowed` are dropped,
-      // and a member named under both types wants both — which is "all", the
-      // same thing as not being named at all.
-      function parseTypeSegments(parts, allowed, prefixes) {
-        const found = new Map();
-        for (const [type, prefix] of Object.entries(prefixes)) {
-          const segment = parts.find((p) => p.startsWith(prefix));
-          if (!segment) continue;
-          for (const member of segment.slice(prefix.length).split("-")) {
-            if (!allowed.includes(member)) continue;
-            if (!found.has(member)) found.set(member, new Set());
-            found.get(member).add(type);
-          }
-        }
-        const types = {};
-        for (const [member, memberTypes] of found) {
-          types[member] = memberTypes.size === 1 ? [...memberTypes][0] : "all";
-        }
-        return types;
-      }
-
-      function generateUrl() {
-        const providerPkgs = [
-          ...pkgPanes.querySelectorAll('input[type="checkbox"]:checked'),
-        ].map((i) => i.value);
-
-        // Only the packages narrowed away from the "all" default land here;
-        // everything else is left out so it encodes as nothing.
-        const pkgTypes = {};
-        for (const item of pkgPanes.querySelectorAll(".pkg-item")) {
-          const input = item.querySelector('input[type="checkbox"]');
-          if (input.checked && item.dataset.types !== "all") {
-            pkgTypes[input.value] = item.dataset.types;
-          }
-        }
-
-        const enabledSorts = ALL_SORT_KEYS.filter(
-          (key) => document.getElementById(`sort-${key}-toggle`).checked,
-        );
-        // Real providers selected but every catalog type for them is off —
-        // that combination can never produce anything, so it's the same as
-        // not having selected those providers at all.
-        if (providerPkgs.length && !enabledSorts.length) {
-          urlOut.value = "";
-          return null;
-        }
-
-        const enabledGlobalSorts = ALL_SORT_KEYS.filter(
-          (key) => document.getElementById(`global-sort-${key}-toggle`).checked,
-        );
-
-        // Global narrows content types per *sort*, not per package — each chip
-        // cycles on its own. Only chips narrowed away from "all" land here.
-        const globalTypes = {};
-        for (const key of enabledGlobalSorts) {
-          const item = document
-            .getElementById(`global-sort-${key}-toggle`)
-            .closest(".toggle-item");
-          if (item.dataset.types !== "all") globalTypes[key] = item.dataset.types;
-        }
-
-        const selected = [...providerPkgs];
-        if (enabledGlobalSorts.length) selected.push("global");
-        if (!selected.length) {
-          urlOut.value = "";
-          return null;
-        }
-
-        const posterProviderId = posterProviderSel
-          ? posterProviderSel.value
-          : "";
-        const posterApiKey = document
-          .getElementById("poster-api-key")
-          .value.trim();
-        const posterProviderInfo = posterProvidersByID[posterProviderId];
-        const posterNeedsKey = posterProviderInfo
-          ? posterProviderInfo.requiresKey !== false
-          : true;
-        let posterPart = "";
-        if (posterProviderId && posterApiKey) {
-          posterPart = `poster-${posterProviderId}-${encodePosterKey(posterApiKey)}_`;
-        } else if (posterProviderId && !posterNeedsKey) {
-          posterPart = `poster-${posterProviderId}_`;
-        }
-        const rndPart = document.getElementById("randomize-toggle").checked
-          ? "rnd_"
-          : "";
-        const sortsPart =
-          providerPkgs.length && enabledSorts.length < ALL_SORT_KEYS.length
-            ? `sorts-${enabledSorts.join("-")}_`
-            : "";
-        const gsortsPart =
-          enabledGlobalSorts.length &&
-          enabledGlobalSorts.length < ALL_SORT_KEYS.length
-            ? `gsorts-${enabledGlobalSorts.join("-")}_`
-            : "";
-        // Emitted in the same position and order the server encodes them:
-        // package types first, then global's per-sort ones.
-        const typesPart = encodeTypeSegments(selected, pkgTypes, PKG_TYPE_PREFIX);
-        const gtypesPart = enabledGlobalSorts.length
-          ? encodeTypeSegments(
-              enabledGlobalSorts,
-              globalTypes,
-              GLOBAL_TYPE_PREFIX,
-            )
-          : "";
-        // A package narrowed to one type is already named in its m-/s-
-        // segment; that alone marks it selected, so it is left out of the
-        // trailing list rather than repeated. Mirrors userConfig.js.
-        const trailingList = selected.filter((p) => !(p in pkgTypes));
-        const config =
-          `${countrySel.value}_${languageSel.value}_${posterPart}${rndPart}${sortsPart}${gsortsPart}${typesPart}${gtypesPart}${trailingList.join("_")}`.replace(
-            /_+$/,
-            "",
-          );
-        const manifest = `${window.location.origin}/${config}/manifest.json`;
-        urlOut.value = manifest;
-        resultEl.classList.add("visible");
-        return manifest;
-      }
-
-      // btnAll removed
-      btnNone.onclick = () => {
-        for (const item of pkgPanes.querySelectorAll(".pkg-item")) {
-          item.querySelector('input[type="checkbox"]').checked = false;
-          setPkgTypes(item, PKG_TYPE_CYCLE[0]);
-        }
-        updateTabCounts();
-        if (resultEl.classList.contains("visible")) generateUrl();
       };
+    }
 
-      // A provider card is no longer a plain on/off checkbox — each click
-      // advances it through PKG_TYPE_CYCLE and then off the end. preventDefault
-      // is what stops the <label for=…> from running its own checked/unchecked
-      // toggle underneath this, which would fight the cycle.
-      pkgPanes.addEventListener("click", (e) => {
-        const label = e.target.closest(".pkg-label");
-        if (!label) return;
-        e.preventDefault();
-        advanceTypeCycle(label.closest(".pkg-item"));
-        updateTabCounts();
-        if (resultEl.classList.contains("visible")) generateUrl();
-      });
+    function updateTabCounts() {
+      for (const [name, pane] of Object.entries(PANES)) {
+        const n = pane.grid.querySelectorAll(
+          'input[type="checkbox"]:checked',
+        ).length;
+        const badge = document.querySelector(
+          `.pkg-tab[data-pane="${name}"] .pkg-tab-count`,
+        );
+        badge.textContent = n;
+        badge.hidden = n === 0;
+      }
+    }
 
-      // Provider sort chips are still plain checkboxes — only the global ones
-      // cycle content types, and those are driven by the click handler above.
-      for (const key of ALL_SORT_KEYS) {
-        document
-          .getElementById(`sort-${key}-toggle`)
-          .addEventListener("change", () => {
-            if (resultEl.classList.contains("visible")) generateUrl();
-          });
+    function showPane(name) {
+      activePane = name;
+      for (const [key, pane] of Object.entries(PANES)) {
+        pane.grid.hidden = key !== name;
+      }
+      for (const tab of document.querySelectorAll(".pkg-tab")) {
+        tab.classList.toggle("active", tab.dataset.pane === name);
+      }
+      channelsHint.hidden = name !== "channels";
+      channelFilter.hidden =
+        name !== "channels" || PANES.channels.all.length === 0;
+      renderLoadMore();
+    }
+
+    for (const tab of document.querySelectorAll(".pkg-tab")) {
+      tab.onclick = () => showPane(tab.dataset.pane);
+    }
+
+    function renderPackages(pkgs, preSelected, preTypes) {
+      const selected = preSelected || [];
+      for (const [name, pane] of Object.entries(PANES)) {
+        const wanted = name === "channels";
+        const drawAll = !pane.lazy;
+        // Pre-selected entries are pulled to the front of their pane. The
+        // grid only renders INITIAL_ITEMS up front, and generateUrl reads
+        // selections out of the DOM — so anything selected but unrendered
+        // would vanish from the regenerated URL. Ordering them first makes
+        // that impossible, and also shows people their own picks first.
+        const inPane = pkgs.filter((p) => Boolean(p.isAddon) === wanted);
+        const picked = inPane.filter((p) => selected.includes(p.shortName));
+        const rest = inPane.filter((p) => !selected.includes(p.shortName));
+        pane.all = [...picked, ...rest];
+        pane.pre = preSelected;
+        pane.preTypes = preTypes;
+        pane.shown = 0;
+        pane.grid.innerHTML = "";
+        // Channels render in full: the pane is at most ~105 entries, and a
+        // parent filter over a lazily-drawn list would silently show nothing
+        // whenever the matches sat past the undrawn tail. Providers (up to
+        // ~290) keep the expander.
+        growPane(
+          name,
+          drawAll ? pane.all.length : Math.max(INITIAL_ITEMS, picked.length),
+        );
+        pane.expanded = pane.shown >= pane.all.length;
+        applyVisibility(name);
+      }
+      buildParentFilter();
+      showPane(activePane);
+      updateTabCounts();
+    }
+
+    // One chip per parent service, built from the channels actually present
+    // in this country — usually just Amazon Prime Video, sometimes a second.
+    function buildParentFilter() {
+      const byParent = new Map();
+      for (const pkg of PANES.channels.all) {
+        const key = pkg.addonParentShortName || "";
+        if (!byParent.has(key)) {
+          byParent.set(key, { name: pkg.addonParentName || key, n: 0 });
+        }
+        byParent.get(key).n++;
+      }
+      const parents = [...byParent].sort((a, b) => b[1].n - a[1].n);
+      if (!parents.length) {
+        channelParents.innerHTML = "";
+        activeParent = null;
+        return;
+      }
+      const chip = (value, label, n, on) =>
+        `<button type="button" class="chan-chip${on ? " active" : ""}" data-parent="${value}">${label}<span class="chan-chip-n">${n}</span></button>`;
+      const total = PANES.channels.all.length;
+      channelParents.innerHTML =
+        chip("", t("filterAll") || "Todos", total, activeParent === null) +
+        parents
+          .map(([key, v]) => chip(key, v.name, v.n, activeParent === key))
+          .join("");
+      for (const btn of channelParents.querySelectorAll(".chan-chip")) {
+        btn.onclick = () => applyParentFilter(btn.dataset.parent || null);
+      }
+    }
+
+    // Hides non-matching items rather than re-rendering them, so a channel
+    // that is selected but filtered out stays checked and stays in the URL —
+    // the tab badge is what tells the user it's still there.
+    function applyParentFilter(parent) {
+      activeParent = parent;
+      applyVisibility("channels");
+      for (const btn of channelParents.querySelectorAll(".chan-chip")) {
+        btn.classList.toggle(
+          "active",
+          (btn.dataset.parent || null) === parent,
+        );
+      }
+    }
+
+    const ALL_SORT_KEYS = ["pop", "tnd", "new"];
+
+    // ── Content-type segment codec ────────────────────────────────────────
+    // An independent browser mirror of the "m-"/"s-"/"gm-"/"gs-" handling in
+    // ../domain/userConfig.js, in the same spirit as the poster-key codec
+    // above: two implementations of one scheme, kept honest by
+    // test/packageTypes.test.js, which slices this file's own source text
+    // from the prefix-table declaration below down to the URL builder that
+    // follows, runs it in a vm, and pushes the same vectors through both
+    // sides. Renaming either of those two anchor identifiers, or moving
+    // this block, breaks that extraction — deliberately, since it is the
+    // only thing stopping the two copies from drifting apart.
+    const PKG_TYPE_PREFIX = { movie: "m-", series: "s-" };
+    const GLOBAL_TYPE_PREFIX = { movie: "gm-", series: "gs-" };
+
+    // Every marker that must not be mistaken for a package shortName, built
+    // from the tables above so adding a prefix can't be forgotten here.
+    const RESERVED_PREFIXES = [
+      "rpdb-",
+      "poster-",
+      "sorts-",
+      "gsorts-",
+      ...Object.values(PKG_TYPE_PREFIX),
+      ...Object.values(GLOBAL_TYPE_PREFIX),
+    ];
+
+    // `types` holds only the members narrowed away from the "all" default,
+    // so an untouched selection yields "" and the URL is exactly what it was
+    // before this feature existed. Members are packages for PKG_TYPE_PREFIX
+    // and sort keys for GLOBAL_TYPE_PREFIX.
+    function encodeTypeSegments(members, types, prefixes) {
+      return Object.entries(prefixes)
+        .map(([type, prefix]) => {
+          const narrowed = members.filter((m) => types[m] === type);
+          return narrowed.length ? `${prefix}${narrowed.join("-")}_` : "";
+        })
+        .join("");
+    }
+
+    // Inverse. Restrictions naming something not in `allowed` are dropped,
+    // and a member named under both types wants both — which is "all", the
+    // same thing as not being named at all.
+    function parseTypeSegments(parts, allowed, prefixes) {
+      const found = new Map();
+      for (const [type, prefix] of Object.entries(prefixes)) {
+        const segment = parts.find((p) => p.startsWith(prefix));
+        if (!segment) continue;
+        for (const member of segment.slice(prefix.length).split("-")) {
+          if (!allowed.includes(member)) continue;
+          if (!found.has(member)) found.set(member, new Set());
+          found.get(member).add(type);
+        }
+      }
+      const types = {};
+      for (const [member, memberTypes] of found) {
+        types[member] = memberTypes.size === 1 ? [...memberTypes][0] : "all";
+      }
+      return types;
+    }
+
+    function generateUrl() {
+      const providerPkgs = [
+        ...pkgPanes.querySelectorAll('input[type="checkbox"]:checked'),
+      ].map((i) => i.value);
+
+      // Only the packages narrowed away from the "all" default land here;
+      // everything else is left out so it encodes as nothing.
+      const pkgTypes = {};
+      for (const item of pkgPanes.querySelectorAll(".pkg-item")) {
+        const input = item.querySelector('input[type="checkbox"]');
+        if (input.checked && item.dataset.types !== "all") {
+          pkgTypes[input.value] = item.dataset.types;
+        }
       }
 
+      const enabledSorts = ALL_SORT_KEYS.filter(
+        (key) => document.getElementById(`sort-${key}-toggle`).checked,
+      );
+      // Real providers selected but every catalog type for them is off —
+      // that combination can never produce anything, so it's the same as
+      // not having selected those providers at all.
+      if (providerPkgs.length && !enabledSorts.length) {
+        urlOut.value = "";
+        return null;
+      }
+
+      const enabledGlobalSorts = ALL_SORT_KEYS.filter(
+        (key) => document.getElementById(`global-sort-${key}-toggle`).checked,
+      );
+
+      // Global narrows content types per *sort*, not per package — each chip
+      // cycles on its own. Only chips narrowed away from "all" land here.
+      const globalTypes = {};
+      for (const key of enabledGlobalSorts) {
+        const item = document
+          .getElementById(`global-sort-${key}-toggle`)
+          .closest(".toggle-item");
+        if (item.dataset.types !== "all") globalTypes[key] = item.dataset.types;
+      }
+
+      const selected = [...providerPkgs];
+      if (enabledGlobalSorts.length) selected.push("global");
+      if (!selected.length) {
+        urlOut.value = "";
+        return null;
+      }
+
+      const posterProviderId = posterProviderSel
+        ? posterProviderSel.value
+        : "";
+      const posterApiKey = document
+        .getElementById("poster-api-key")
+        .value.trim();
+      const posterProviderInfo = posterProvidersByID[posterProviderId];
+      const posterNeedsKey = posterProviderInfo
+        ? posterProviderInfo.requiresKey !== false
+        : true;
+      let posterPart = "";
+      if (posterProviderId && posterApiKey) {
+        posterPart = `poster-${posterProviderId}-${encodePosterKey(posterApiKey)}_`;
+      } else if (posterProviderId && !posterNeedsKey) {
+        posterPart = `poster-${posterProviderId}_`;
+      }
+      const rndPart = document.getElementById("randomize-toggle").checked
+        ? "rnd_"
+        : "";
+      const sortsPart =
+        providerPkgs.length && enabledSorts.length < ALL_SORT_KEYS.length
+          ? `sorts-${enabledSorts.join("-")}_`
+          : "";
+      const gsortsPart =
+        enabledGlobalSorts.length &&
+          enabledGlobalSorts.length < ALL_SORT_KEYS.length
+          ? `gsorts-${enabledGlobalSorts.join("-")}_`
+          : "";
+      // Emitted in the same position and order the server encodes them:
+      // package types first, then global's per-sort ones.
+      const typesPart = encodeTypeSegments(selected, pkgTypes, PKG_TYPE_PREFIX);
+      const gtypesPart = enabledGlobalSorts.length
+        ? encodeTypeSegments(
+          enabledGlobalSorts,
+          globalTypes,
+          GLOBAL_TYPE_PREFIX,
+        )
+        : "";
+      // A package narrowed to one type is already named in its m-/s-
+      // segment; that alone marks it selected, so it is left out of the
+      // trailing list rather than repeated. Mirrors userConfig.js.
+      const trailingList = selected.filter((p) => !(p in pkgTypes));
+      const config =
+        `${countrySel.value}_${languageSel.value}_${posterPart}${rndPart}${sortsPart}${gsortsPart}${typesPart}${gtypesPart}${trailingList.join("_")}`.replace(
+          /_+$/,
+          "",
+        );
+      const manifest = `${window.location.origin}/${config}/manifest.json`;
+      urlOut.value = manifest;
+      resultEl.classList.add("visible");
+      return manifest;
+    }
+
+    // btnAll removed
+    btnNone.onclick = () => {
+      for (const item of pkgPanes.querySelectorAll(".pkg-item")) {
+        item.querySelector('input[type="checkbox"]').checked = false;
+        setPkgTypes(item, PKG_TYPE_CYCLE[0]);
+      }
+      updateTabCounts();
+      if (resultEl.classList.contains("visible")) generateUrl();
+    };
+
+    // A provider card is no longer a plain on/off checkbox — each click
+    // advances it through PKG_TYPE_CYCLE and then off the end. preventDefault
+    // is what stops the <label for=…> from running its own checked/unchecked
+    // toggle underneath this, which would fight the cycle.
+    pkgPanes.addEventListener("click", (e) => {
+      const label = e.target.closest(".pkg-label");
+      if (!label) return;
+      e.preventDefault();
+      advanceTypeCycle(label.closest(".pkg-item"));
+      updateTabCounts();
+      if (resultEl.classList.contains("visible")) generateUrl();
+    });
+
+    // Provider sort chips are still plain checkboxes — only the global ones
+    // cycle content types, and those are driven by the click handler above.
+    for (const key of ALL_SORT_KEYS) {
       document
-        .getElementById("randomize-toggle")
+        .getElementById(`sort-${key}-toggle`)
         .addEventListener("change", () => {
           if (resultEl.classList.contains("visible")) generateUrl();
         });
+    }
 
-      document
-        .getElementById("poster-api-key")
-        .addEventListener("input", () => {
-          if (resultEl.classList.contains("visible")) generateUrl();
-        });
+    document
+      .getElementById("randomize-toggle")
+      .addEventListener("change", () => {
+        if (resultEl.classList.contains("visible")) generateUrl();
+      });
 
-      btnGenerate.onclick = () => {
-        const manifest = generateUrl();
-        if (!manifest) return;
-        window.location.href = manifest.replace(/^https?:\/\//, "stremio://");
-      };
+    document
+      .getElementById("poster-api-key")
+      .addEventListener("input", () => {
+        if (resultEl.classList.contains("visible")) generateUrl();
+      });
 
-      btnCopy.onclick = async () => {
-        const text = urlOut.value;
-        if (!text) return;
-        try {
-          await navigator.clipboard.writeText(text);
-        } catch {
-          // navigator.clipboard is unavailable on non-secure origins
-          // (plain http on a LAN IP), so fall back to a temporary textarea.
-          urlOut.focus();
-          urlOut.select();
-          document.execCommand("copy");
-          window.getSelection().removeAllRanges();
-        }
-        btnCopy.textContent = t("copied");
-        setTimeout(() => (btnCopy.textContent = t("copy")), 2000);
-      };
-    </script>
-  </body>
+    btnGenerate.onclick = () => {
+      const manifest = generateUrl();
+      if (!manifest) return;
+      window.location.href = manifest.replace(/^https?:\/\//, "stremio://");
+    };
+
+    btnCopy.onclick = async () => {
+      const text = urlOut.value;
+      if (!text) return;
+      try {
+        await navigator.clipboard.writeText(text);
+      } catch {
+        // navigator.clipboard is unavailable on non-secure origins
+        // (plain http on a LAN IP), so fall back to a temporary textarea.
+        urlOut.focus();
+        urlOut.select();
+        document.execCommand("copy");
+        window.getSelection().removeAllRanges();
+      }
+      btnCopy.textContent = t("copied");
+      setTimeout(() => (btnCopy.textContent = t("copy")), 2000);
+    };
+  </script>
+</body>
+
 </html>

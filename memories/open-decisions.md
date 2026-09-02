@@ -55,7 +55,7 @@ Constraints on all of them:
   both. Precedent: the legacy `rpdb-{key}` branch. See
   [config-codec.md](config-codec.md).
 - Option 3 needs a `CONFIG_SECRET` surviving every deploy on
-  BeamUp/Vercel/Render — **losing it breaks every installation** — and moves URL
+  BeamUp/Render — **losing it breaks every installation** — and moves URL
   generation out of the browser (`/configure` would need a `POST /api/seal`).
 - Option 4 depends on the L2 Redis, which is **optional and TTL-based** (see
   [cache-layers.md](cache-layers.md)). Eviction, a missing Redis or a free-tier

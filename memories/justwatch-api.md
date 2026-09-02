@@ -36,11 +36,21 @@ ES 99 → 125. Among the recovered: HBO Max, Crunchyroll, AMC+, Shudder, MUBI,
 Discovery+ and MGM+ Amazon Channels. Absence is still regional and genuine —
 Screambox is US-only, and correctly missing from ES/GB even with the flag.
 
-The `packages:v3:{country}` cache key is **versioned for this reason**: the old
-key would have kept serving the pre-addons list for up to `PACKAGES_TTL_S`
-(24 h) after deploy. Bump it on any change to this query — v2→v3 was needed
-the moment `addonParent` was added, and forgetting it means the new field is
-simply absent from the cached payload while everything still "works".
+The `packages:v2:{country}` cache key is **versioned for this reason**: the
+unversioned `packages:{country}` key (v1, still what production runs) would
+otherwise keep serving the pre-addons list for up to `PACKAGES_TTL_S` (24 h)
+after deploy. Forgetting the bump means a new field is simply absent from the
+cached payload while everything still appears to "work".
+
+It went v2→v3→v4 during development and was collapsed back to **v2** before
+shipping: none of those intermediate shapes ever reached a deploy or the shared
+Upstash (no credentials in the dev environment, so L2 is a no-op there and every
+local run only touched the in-process L1). Leaving them in would have implied
+three production migrations that never happened.
+
+**Bump it on any change to the query *or* to `data/packageFilters.js`** — the
+cached value carries `isAddon`/`addonParent*`, so a rule change is a payload
+change.
 
 **`addonParent(country:, platform:)`** on `Package` is the classifier for
 channels: non-null means the package is watched through another subscription
@@ -48,14 +58,50 @@ channels: non-null means the package is watched through another subscription
 `isAddon` / `addonParentName` / `addonParentShortName`, and `/configure` splits
 its grid on that flag and groups the channels tab by parent.
 
-In practice there are only **one or two** parents per country: Amazon Prime
-Video everywhere (US 67, DE 105, ES 22), plus The Roku Channel in US (4) and
-Now TV in GB (1).
+Parents per country, after the supplement below: Amazon Prime Video everywhere
+(US 154, DE 114, GB 82, JP 44), Apple TV in most (US 23, GB 6, DE 4, ES 2),
+plus The Roku Channel in US (4) and Now TV in GB (1).
 
-**Don't classify by name.** `"Cinemax Apple TV channel"` has **no**
-`addonParent` and is a plain provider, so a `/channel/i` test on `clearName`
-disagrees with the API. US splits 286 providers / 71 channels after the existing
-filters; DE 117 / 105.
+### `addonParent` is authoritative but badly incomplete (measured 2026-09-02)
+
+It links **71** packages in US/WEB and misses roughly **110** more that are
+plainly channels:
+
+- **Every single "… Apple TV channel."** `addonParent` is null for all 23 of
+  them on every platform (WEB/IOS/ANDROID/ANDROID_TV/FIRE_TV), and the reverse
+  direction agrees: only `amp` (71 addons), `rkc` (4) and the three Sling TV
+  packages (1 each) declare an `addons` list at all — **`atp` Apple TV declares
+  zero**. So it is a gap in JustWatch's data, not in our query.
+- **A long tail of "… Amazon channel"** entries that sit in the *base* package
+  list rather than behind `includeAddons`, and carry no parent link.
+
+Cross-tab that pins the shape of it: of the 74 packages `includeAddons` adds,
+**all 74 have `addonParent`**, and none of the base-list packages gained one.
+The two flags agree perfectly — the API simply classifies far fewer things as
+add-ons than the names suggest.
+
+`src/data/packageFilters.js` supplements it with a display-name suffix rule.
+The API's own answer is tried first, so the heuristic never overrules a package
+JustWatch did classify. The suffix must be a **platform name immediately
+before "channel"**, never the word alone.
+
+Audited across 15 countries: **zero false positives**. These all correctly stay
+providers — Channel 4, Channel 4 Plus, Criterion Channel, Science Channel,
+Travel Channel, Super Channel Plus, Plex Channel, The Roku Channel
+(`rokuchannel`) and RokuChannel Live TV (`rokuchannelfast`). Note the last two:
+a `technicalName` prefix rule on `roku` would have caught them wrongly, which is
+why the rule reads `clearName`, not `technicalName`.
+
+`"Amzon"` is in the pattern on purpose — a real JustWatch typo, in 2 US
+packages.
+
+Each supplemented channel resolves its parent to the **real package** by
+`technicalName` (`amazonprime` → `amp`, `appletvplus` → `atp`, `rokuchannel` →
+`rkc`) so API-linked and name-linked channels share one shortName; otherwise
+`/configure` would draw two filter chips for the same service.
+
+Splits after all of it — US 176 providers / 181 channels, DE 104 / 118,
+GB 75 / 89, ES 55 / 27, JP 35 / 44.
 
 ## The schema is closed, so probe it with argument names
 
@@ -101,6 +147,25 @@ Rationale and measurements in
 It is **not part of the cache key** (computed fresh per call). At a Dec 31 →
 Jan 1 boundary a stale year's filter could be served for up to one TTL window —
 accepted, same class of imprecision as the TTL system generally.
+
+## Package rules live in `data/packageFilters.js`, not in the API client
+
+`infra/justwatch.js` only fetches and resolves icons. Which packages survive and
+how they're classified is two arrays in `src/data/packageFilters.js`, so a rule
+can be added or dropped in one edit:
+
+| Stage           | Array           | Applied by           |
+| --------------- | --------------- | -------------------- |
+| exclusions      | `EXCLUSIONS`    | `keepPackage(pkg)`   |
+| channel split   | `CHANNEL_RULES` | `annotateChannels()` |
+
+`CHANNEL_RULES` is `[addonParentRule, nameSuffixRule]`, first match wins, with
+the platform suffixes themselves in `CHANNEL_SUFFIXES`. `annotateChannels()`
+resolves each parent against the package list by `technicalName`, so an
+API-linked channel and a name-matched one **share the parent's real shortName**
+— without that, `/configure` draws two filter chips for the same service.
+`test/packageFilters.test.js` pins the whole audit as fixtures, including every
+provider that merely ends in "Channel".
 
 ## Package list filtering (`getPackages`)
 
@@ -148,7 +213,7 @@ History:
 
 If it's ever re-enabled, the prerequisites are: a hard per-task timeout that
 always settles the promise regardless of axios, plus slot-leak instrumentation.
-Note also that a semaphore only bounds one warm instance — Vercel can run
+Note also that a semaphore only bounds one process — a host can run
 several in parallel and there's no cross-instance coordination point.
 
 ## Error handling

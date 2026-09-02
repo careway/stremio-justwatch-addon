@@ -35,6 +35,9 @@ class L2 {
   constructor() {
     // Only initialize the connection once to avoid exhausting connections
     if (!_redisConnection) {
+      // REDIS_KV_REST_API_* are legacy names (they came from the Vercel <->
+      // Upstash KV integration, removed 2026-09-02). Still read so a deployment
+      // that set them doesn't silently fall back to L1-only.
       const url =
         process.env.REDIS_KV_REST_API_URL || process.env.UPSTASH_REDIS_REST_URL;
       const token =

@@ -1,9 +1,13 @@
 "use strict";
 
 const axios = require("axios");
-const { trackCacheHit, trackCacheMiss, track } = require("./analytics");
+const { trackCacheHit, trackCacheMiss } = require("./analytics");
 const { L1Cache, L2Cache } = require("./cache");
 const { TTL_S, PACKAGES_TTL_S } = require("../ttl");
+const {
+  keepPackage,
+  annotateChannels,
+} = require("../data/packageFilters");
 const GRAPHQL_URL = "https://apis.justwatch.com/graphql";
 
 // ─── GraphQL Queries ──────────────────────────────────────────────────────────
@@ -89,9 +93,8 @@ const GET_PACKAGES_QUERY = `
 // Catalog/search results (TTL_S) and provider/package lists (PACKAGES_TTL_S)
 // refresh on the cadence defined in ./ttl — everything derives from TTL_H
 // there, nothing is redefined here. There's no cron/scheduler in this
-// deployment (Vercel Hobby only guarantees daily cron; BeamUp has none at
-// all), so freshness is driven purely by TTL expiry + stale-while-revalidate,
-// not by an active refresh job.
+// deployment (BeamUp has none), so freshness is driven purely by TTL expiry +
+// stale-while-revalidate, not by an active refresh job.
 
 /**
  * Lookup order: L1 in-memory → L2 Redis
@@ -132,11 +135,12 @@ async function cacheSet(key, data, ttl_s) {
 // still bounding worst-case fan-out (e.g. many catalogs loading at once on a
 // manifest fetch).
 //
-// Caveat: this only bounds concurrency within a single warm serverless
-// instance (like the L1 cache in ./cache) — Vercel can still spin up several
-// instances handling different requests truly in parallel, and production
-// IP reputation may behave differently than the environment this was tested
-// from. There's no cross-instance coordination point (e.g. a Redis lock).
+// Caveat: this only bounds concurrency within a single process (like the L1
+// cache in ./cache). Any host that runs more than one instance — or restarts
+// one — has them fanning out independently, and production IP reputation may
+// behave differently than the environment this was tested from. There's no
+// cross-instance coordination point (the L2 Redis could be one, but isn't
+// used for it).
 //
 // DISABLED (2026-08-24): real Stremio usage showed some requests hanging for
 // a long time on a cache miss, causing client-side timeouts in Stremio
@@ -290,18 +294,22 @@ async function searchTitles({
 
 /**
  * Get available streaming packages for a country.
- * Includes add-on/channel packages (see GET_PACKAGES_QUERY).
- * Excludes cinema-only packages (monetizationTypes = ["CINEMA"]) and
- * sports/live-only providers (hasTitles = false).
+ *
+ * Fetches and resolves icons; **which** packages survive and how they are
+ * classified is not decided here — that's ../data/packageFilters, so the rules
+ * can be added to or removed without touching the API client.
  *
  * @param {string} country - ISO country code (e.g. 'ES')
- * @returns {Promise<Array>} Array of package objects with iconUrl resolved
+ * @returns {Promise<Array>} packages with iconUrl, isAddon and addonParent* set
  */
 async function getPackages(country = "US") {
-  // Versioned: the value shape/contents change when the query does, and the
-  // old entry would otherwise keep serving the pre-addons list for up to
-  // PACKAGES_TTL_S (24 h) after a deploy. Bump on any query change.
-  const cacheKey = `packages:v3:${country}`;
+  // Versioned so a payload change can't be served from entries written by the
+  // previous shape for up to PACKAGES_TTL_S (24 h) after a deploy. v1 is the
+  // unversioned `packages:{country}` key still live in production; v2 covers
+  // includeAddons, addonParent and the channel classification together, since
+  // none of those shipped separately. **Bump on any change to the query or to
+  // data/packageFilters.js.**
+  const cacheKey = `packages:v2:${country}`;
   const cached = await cacheGet(cacheKey, PACKAGES_TTL_S);
   if (cached) return cached;
 
@@ -310,31 +318,14 @@ async function getPackages(country = "US") {
     platform: "WEB",
     includeAddons: true,
   });
-  const pkgs = (rawData?.packages || [])
-    .filter((pkg) => {
-      const types = pkg.monetizationTypes || [];
-      // Exclude pure cinema-ticketing packages
-      if (types.length === 1 && types[0] === "CINEMA") return false;
-      // Exclude sports-only / live-only providers (no VOD movie/series catalog)
-      if (pkg.hasTitles === false) return false;
-      return true;
-    })
-    .map((pkg) => ({
+  const pkgs = annotateChannels(
+    (rawData?.packages || []).filter(keepPackage).map((pkg) => ({
       ...pkg,
       iconUrl: pkg.icon
         ? `https://images.justwatch.com${pkg.icon.replace("{format}", "webp")}`
         : null,
-      // A channel/add-on is a service watched *through* another subscription
-      // ("HBO Max Amazon Channel" rides on Amazon Prime Video). JustWatch's own
-      // addonParent is the classifier — don't pattern-match the clearName, the
-      // two disagree: "Cinemax Apple TV channel" has no addonParent and is a
-      // plain provider here. /configure splits the grid on this flag, because a
-      // channel's catalogue duplicates the parent service's and the direct
-      // provider is almost always the one a user wants.
-      isAddon: Boolean(pkg.addonParent),
-      addonParentName: pkg.addonParent?.clearName || null,
-      addonParentShortName: pkg.addonParent?.shortName || null,
-    }));
+    })),
+  );
 
   await cacheSet(cacheKey, pkgs, PACKAGES_TTL_S);
   return pkgs;

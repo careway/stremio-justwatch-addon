@@ -6,7 +6,7 @@ open the two or three files that match the work at hand.
 
 | File                                                     | Read it when…                                                                            |
 | -------------------------------------------------------- | ---------------------------------------------------------------------------------------- |
-| [project-and-deploy.md](project-and-deploy.md)           | running it locally, env vars, pushing to BeamUp/Vercel/Render, anything host-specific      |
+| [project-and-deploy.md](project-and-deploy.md)           | running it locally, env vars, pushing to BeamUp/Render, anything host-specific      |
 | [architecture.md](architecture.md)                       | you need the module map — which file owns what, and the layering rules                     |
 | [http-and-caching.md](http-and-caching.md)               | touching routes, `Cache-Control`, the edge/Cloudflare staleness class of bug, `/static/*`  |
 | [config-codec.md](config-codec.md)                       | touching the `/{config}/` URL segment, `encodeConfig`/`decodeConfig`, the poster-key codec |

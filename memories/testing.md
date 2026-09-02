@@ -2,7 +2,7 @@
 
 `npm test` → `node --test test/**/*.test.js`. No test framework, no mocks
 library — plain `node:test` + `node:assert`.
-**214 tests / 29 suites, all passing as of 2026-09-02.**
+**240 tests / 32 suites, all passing as of 2026-09-02.**
 
 ## The suites
 
@@ -13,6 +13,8 @@ library — plain `node:test` + `node:assert`.
 | `posterKeyCodec.test.js`  | client (`configure.html`) vs server (`userConfig.js`) codec agreement, plus `encodeConfig`/`decodeConfig` poster-segment round-trips including the legacy `rpdb-` shape |
 | `security.test.js`        | path traversal (raw and URL-encoded), long config segments, country-param validation, config-segment injection, the cache-invalidation route being closed when `INV_KEY` is unset (every trailing-slash shape), path normalisation (duplicated slashes route correctly, traversal still refused), and the 35-package ceiling (accepted at 35, refused at 36 and 200, global not counted, /configure still reachable, refusal not cached, and configure.html mirroring the same number) |
 | `genreEncoding.test.js`   | that Stremio's double-encoded genre still resolves — accents, spaces and non-Latin scripts — plus a sweep over every genre of 15 languages, and that an unresolvable one degrades to unfiltered rather than empty |
+| `viewport.test.js`        | the adaptive-viewport snippet, **extracted from configure.html and run** against simulated devices: phones in portrait get the fixed width, landscape/tablet/desktop stay 1:1, the 593/594 boundary is exact, and it never reads `innerWidth` |
+| `logging.test.js`         | the stats counters (nesting, ring eviction while the tally keeps rising, truncation) and the log levels — each level case runs in a **child process**, since the logger reads NODE_ENV/LOG_LEVEL at require time and a cached module can't be re-required |
 | `circuitBreaker.test.js`  | the upstream breaker with an **injected clock**, so no timers or sleeps: opens exactly on the threshold failure, a success resets the streak, closes when the cooldown elapses, and a failed half-open probe re-arms the full cooldown |
 | `packageFilters.test.js`  | the package rule set with no network: exclusions (cinema-only, hasTitles, and that a *missing* hasTitles is not treated as false), every channel the API fails to link (Apple TV, the lowercase "Amazon channel" tail, the real "Amzon" typo, trailing spaces), every provider that merely ends in "Channel", and that a rule-matched channel resolves to the same parent shortName as an API-linked one |
 | `packageTypes.test.js`    | the `m-`/`s-` per-package and `gm-`/`gs-` per-global-sort content-type codec, `buildManifest`'s use of both (including per-sort beating package-level), that `s-`/`gs-` are never confused with `sorts-`/`gsorts-`, backward compatibility of pre-feature URLs, **and** a second client-vs-server extraction test (see below) |
@@ -29,6 +31,8 @@ extracting this page's real source text.
 | ------------------------ | ----------------------------------------------------- |
 | `posterKeyCodec.test.js` | `const SAFE_POSTER_KEY_RE` → `function parsePosterSegment` |
 | `genreEncoding.test.js`   | that Stremio's double-encoded genre still resolves — accents, spaces and non-Latin scripts — plus a sweep over every genre of 15 languages, and that an unresolvable one degrades to unfiltered rather than empty |
+| `viewport.test.js`        | the adaptive-viewport snippet, **extracted from configure.html and run** against simulated devices: phones in portrait get the fixed width, landscape/tablet/desktop stay 1:1, the 593/594 boundary is exact, and it never reads `innerWidth` |
+| `logging.test.js`         | the stats counters (nesting, ring eviction while the tally keeps rising, truncation) and the log levels — each level case runs in a **child process**, since the logger reads NODE_ENV/LOG_LEVEL at require time and a cached module can't be re-required |
 | `circuitBreaker.test.js`  | the upstream breaker with an **injected clock**, so no timers or sleeps: opens exactly on the threshold failure, a success resets the streak, closes when the cooldown elapses, and a failed half-open probe re-arms the full cooldown |
 | `packageFilters.test.js`  | the package rule set with no network: exclusions (cinema-only, hasTitles, and that a *missing* hasTitles is not treated as false), every channel the API fails to link (Apple TV, the lowercase "Amazon channel" tail, the real "Amzon" typo, trailing spaces), every provider that merely ends in "Channel", and that a rule-matched channel resolves to the same parent shortName as an API-linked one |
 | `packageTypes.test.js`   | the `PKG_TYPE_PREFIX` declaration → the `generateUrl` declaration |

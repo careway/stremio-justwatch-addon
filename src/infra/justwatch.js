@@ -10,6 +10,7 @@ const {
   UPSTREAM_COOLDOWN_S,
 } = require("../ttl");
 const { createCircuitBreaker } = require("./circuitBreaker");
+const stats = require("./stats");
 const {
   keepPackage,
   annotateChannels,
@@ -204,6 +205,7 @@ async function gql(query, variables) {
   // runs, so a manifest degrades and a catalog serves its placeholder — the
   // difference is that JustWatch stops hearing from us while it's refusing.
   if (breaker.isOpen()) {
+    stats.bump("upstream.shortCircuited");
     const err = new Error(
       `[justwatch] upstream circuit open, ${Math.ceil(breaker.remainingMs() / 1000)}s left`,
     );
@@ -228,6 +230,7 @@ async function gql(query, variables) {
         },
       );
       breaker.recordSuccess();
+      stats.bump("upstream.ok");
       if (data.errors) {
         console.error("GQL Request Query:", JSON.stringify(query, null, 2));
         console.error(
@@ -251,6 +254,7 @@ async function gql(query, variables) {
         typeof err.response?.data === "string"
           ? err.response.data.replace(/\s+/g, " ").slice(0, 200)
           : JSON.stringify(err.response?.data ?? "").slice(0, 200);
+      stats.bump(`upstream.fail.${status || err.code || "unknown"}`);
       const justOpened = breaker.recordFailure();
       if (justOpened) {
         console.error(

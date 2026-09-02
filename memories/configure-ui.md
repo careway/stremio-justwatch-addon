@@ -61,9 +61,31 @@ know the keyword keep the working desktop centring. Don't collapse the two into
 one declaration.
 
 A `@media (max-width: 640px)` trims body padding from 1.5rem to 0.75rem, which
-moves the "no horizontal scroll" threshold from 618px of viewport to 594px.
-Phones (360–414px) still scroll sideways by ~180–235px; that's the accepted cost
-of the floor, not a bug.
+puts the floor's real cost at **594px** of viewport (570 + 12 either side).
+
+### Phones don't scroll sideways — the viewport adapts (2026-09-02)
+
+With a plain `width=device-width`, a 390px phone gets a 390px layout viewport,
+the 594px content overflows it, and the browser offers **sideways scrolling
+instead of fitting the page** — you have to pinch-zoom out by hand.
+
+The inline snippet in `<head>` (the *first* `<script>` in the file) swaps the
+meta to `width=594` **only when the device is genuinely narrower**, which makes
+the browser do the arithmetic and scale the page to fit. Measured: iPhone SE
+0.63×, iPhone 15 0.66×, Pixel 8 0.69×, 15 Pro Max 0.72×. Landscape phones,
+tablets and desktop keep `width=device-width` at 1:1 and stay crisp.
+
+Three things it must keep doing, each pinned by `test/viewport.test.js`:
+
+- **Inline and in `<head>`.** It has to run before first paint, or the page
+  renders once at the wrong scale and visibly reflows.
+- **Read `screen.width`, never `window.innerWidth`.** innerWidth is a *product*
+  of the viewport being set, so reading it feeds back on itself.
+- **Re-evaluate on `orientationchange`.** Otherwise a phone rotated to landscape
+  stays locked at 594 and gets scaled *up*.
+
+`MIN_WIDTH = 594` mirrors the CSS floor; a test asserts both numbers together so
+changing one without the other fails.
 
 ## `generateUrl()`
 

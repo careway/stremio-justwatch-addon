@@ -1,5 +1,8 @@
 "use strict";
 
+const stats = require("./stats");
+const { debug } = require("../http/logger");
+
 // ─── Cache / request instrumentation ──────────────────────────────────────────
 // This was a wrapper around Vercel Web Analytics. Vercel support was removed
 // (2026-09-02) and with it the only backend these events had, so what remains
@@ -16,7 +19,8 @@
  * @param {string} key - Cache key
  */
 function trackCacheHit(level, key) {
-  console.log(`[${level} - Hit] ${key}`);
+  stats.bump(`cache.${level.toLowerCase()}Hit`);
+  debug(`[${level} - Hit] ${key}`);
 }
 
 /**
@@ -25,7 +29,8 @@ function trackCacheHit(level, key) {
  * @param {string} key - Cache key
  */
 function trackCacheMiss(level, key) {
-  console.log(`[Cache MISS] ${key}`);
+  stats.bump("cache.miss");
+  debug(`[Cache MISS] ${key}`);
 }
 
 /**
@@ -33,7 +38,8 @@ function trackCacheMiss(level, key) {
  * those were `x-vercel-ip-*`, which no host we target sets.
  */
 function trackCatalogRequest(req) {
-  console.log(`[catalog] ${req.method} ${req.url}`);
+  stats.bump("requests.catalog");
+  debug(`[catalog] ${req.method} ${req.url}`);
 }
 
 module.exports = { trackCacheHit, trackCacheMiss, trackCatalogRequest };

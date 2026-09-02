@@ -13,7 +13,7 @@ src/
     router.js       the whole route table
     responses.js    respond / respondHtml / redirect
     request.js      parseExtra, getAddonBaseUrl, getLanguageFromRequest, PORT
-    logger.js       file+stdout logger, console.* monkey-patch
+    logger.js       leveled logger (info silenced in production), console.* patch
     configure.html  the config UI, sitting next to the route that serves it
   domain/           business logic, no HTTP, no network
     catalog.js      handleCatalog — browse/genre/pagination/dedupe/filtering
@@ -24,7 +24,9 @@ src/
     justwatch.js    GraphQL client + concurrency queue
     cache.js        L1 (Map) + L2 (Upstash Redis)
     posterProviders.js  third-party poster adapter registry
-    analytics.js    cache/request logging (was a Vercel Analytics wrapper)
+    analytics.js    cache/request instrumentation → stats + debug lines
+    stats.js        in-process counters + ring of recent errors
+    circuitBreaker.js  generic breaker; one instance gates all JustWatch calls
   data/             static datasets + leaf rule sets
     catalogMeta.js  GENRES, COUNTRIES, LANGUAGE_NAMES, SORT_MAP, GLOBAL_PACKAGE_ID
     uiStrings.js    /configure translations (20 languages)

@@ -169,3 +169,40 @@ sweep asserting every genre of 15 languages survives the round trip.
 Side observation while verifying: JustWatch sometimes returns genre shortNames
 absent from `GENRES` (saw `eur`), which then appear raw in a meta's genre list.
 Unfixed, cosmetic.
+
+## Logging levels and runtime counters (2026-09-02)
+
+**The host's log buffer is cyclic**, so log lines cannot answer "what has been
+failing?" — they scroll away. Measured on BeamUp: asking for 4000 lines returned
+337, spread over three non-contiguous minutes, and a burst present in one dump
+was gone from the next.
+
+Two changes follow from that:
+
+**`http/logger.js` has levels.** `debug < info < warn < error`, threshold
+`warn` when `NODE_ENV=production`, everything otherwise, overridable with
+`LOG_LEVEL`. Request lines and cache hit/miss chatter are `debug`/`info`, so
+production stdout carries only warnings and errors — measured, 10 requests
+produce 10 log lines in dev and **0** in production. The dev log **file** still
+receives every level regardless: it doesn't scroll, and grepping it is how local
+debugging works.
+
+`console.log/warn/error` are still monkey-patched onto these, so module-level
+logging needs no changes and `console.warn` finally emits at warn level rather
+than being an ordinary line with a prefix.
+
+**`infra/stats.js` keeps what the log loses.** Dotted counters
+(`upstream.fail.403`, `cache.l1Hit`, `responses.200`) plus a ring of the last 25
+error/warning messages, newest first, truncated to 400 chars so one stack can't
+fill it. `logError`/`logWarn` record **before** the level check, so an error
+lands in the snapshot even if output is silenced.
+
+Note the counter keeps rising after the ring evicts — that's why both exist.
+
+Read it at **`/api/stats/{INV_KEY}`**, `no-store`, closed when `INV_KEY` is
+unset. Behind the secret because the error ring quotes request variables, which
+reveal which providers users pick. The response also embeds
+`upstreamCircuit` (see [cache-layers.md](cache-layers.md)).
+
+Everything is process-local and resets on restart: a container that just
+restarted reports a clean slate, not a healthy one — check `uptimeS` first.

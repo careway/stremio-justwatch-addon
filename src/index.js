@@ -5,6 +5,7 @@ const { router } = require("./http/router");
 const { log, logError, LOG_FILE, rawConsoleLog } = require("./http/logger");
 const { respond } = require("./http/responses");
 const { PORT } = require("./http/request");
+const stats = require("./infra/stats");
 
 // ─── Handler (exported so any Node host can mount it) ──────────────────────
 
@@ -12,6 +13,7 @@ async function handler(req, res) {
   const start = Date.now();
   try {
     await router(req, res);
+    stats.bump(`responses.${res.statusCode}`);
     log(
       `${req.method} ${req.url} → ${res.statusCode} (${Date.now() - start}ms)`,
     );
@@ -20,6 +22,7 @@ async function handler(req, res) {
       `[server] Unhandled error on ${req.method} ${req.url}:`,
       err.stack || err.message,
     );
+    stats.bump("responses.500");
     if (!res.headersSent) respond(res, { error: "Internal server error" }, 500);
   }
 }

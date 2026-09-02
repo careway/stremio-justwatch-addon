@@ -3,7 +3,43 @@
 
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta id="viewport" name="viewport" content="width=device-width, initial-scale=1.0" />
+  <script>
+    // The layout has a hard floor (.app-wrapper min-width 570px + 12px padding
+    // either side = 594). With a plain `width=device-width`, a 390px phone gets
+    // a 390px layout viewport, the content overflows it, and the browser offers
+    // sideways scrolling instead of fitting the page — you have to pinch-zoom
+    // out by hand to see it.
+    //
+    // Handing it a fixed width instead makes the browser do the arithmetic:
+    // it scales the page so 594 CSS px fill the screen. Only when the device is
+    // actually narrower, so anything roomier keeps 1:1 and stays crisp.
+    //
+    // Inline and in <head> on purpose — it has to run before first paint, or
+    // the page renders once at the wrong scale and visibly reflows.
+    (function () {
+      var MIN_WIDTH = 594;
+      var meta = document.getElementById("viewport");
+      function fit() {
+        // screen.width, not innerWidth: innerWidth is itself a product of the
+        // viewport we are setting, so reading it here feeds back on itself.
+        var w = Math.min(screen.width, screen.height);
+        var landscape =
+          typeof screen.orientation === "object" && screen.orientation
+            ? screen.orientation.type.indexOf("landscape") === 0
+            : screen.width > screen.height;
+        var available = landscape ? Math.max(screen.width, screen.height) : w;
+        meta.setAttribute(
+          "content",
+          available < MIN_WIDTH
+            ? "width=" + MIN_WIDTH
+            : "width=device-width, initial-scale=1.0",
+        );
+      }
+      fit();
+      window.addEventListener("orientationchange", fit);
+    })();
+  </script>
   <title>OmniCatalog · Stremio Addon</title>
   <link rel="apple-touch-icon" sizes="180x180" href="/static/apple-touch-icon.png" />
   <link rel="icon" type="image/png" sizes="32x32" href="/static/favicon-32x32.png" />

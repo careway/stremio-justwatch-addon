@@ -1,6 +1,7 @@
 "use strict";
 const fs = require("fs");
 const path = require("path");
+const stats = require("../infra/stats");
 
 const isProduction = process.env.NODE_ENV === "production";
 
@@ -32,24 +33,62 @@ function formatArg(a) {
   return String(a);
 }
 
-function log(...args) {
-  const line = `[${new Date().toISOString()}] ${args.map(formatArg).join(" ")}\n`;
-  process.stdout.write(line);
+// ─── Levels ───────────────────────────────────────────────────────────────────
+// In production only warnings and errors reach stdout. The informational
+// chatter — every request line, every cache hit and miss — is what makes a
+// cyclic log buffer roll over before you can read the one line that mattered,
+// and it is exactly the traffic the counters in ../infra/stats already
+// summarise. Nothing is lost: `info` still goes to the dev log file, and the
+// numbers survive in the snapshot.
+//
+// Override with LOG_LEVEL=debug|info|warn|error to get the chatter back on a
+// production host while diagnosing something.
+const LEVELS = { debug: 10, info: 20, warn: 30, error: 40 };
+const threshold =
+  LEVELS[process.env.LOG_LEVEL] ?? (isProduction ? LEVELS.warn : LEVELS.debug);
+
+function emit(level, prefix, stream, args) {
+  const line = `[${new Date().toISOString()}] ${prefix}${args.map(formatArg).join(" ")}\n`;
+  // The dev file gets everything regardless of level — it is not the thing
+  // that scrolls away, and grepping it is how local debugging works.
   if (logStream) logStream.write(line);
+  if (LEVELS[level] < threshold) return;
+  stream.write(line);
+}
+
+function debug(...args) {
+  emit("debug", "", process.stdout, args);
+}
+
+function log(...args) {
+  emit("info", "", process.stdout, args);
+}
+
+function logWarn(...args) {
+  stats.recordError(args.map(formatArg).join(" "), "warn");
+  emit("warn", "WARN ", process.stdout, args);
 }
 
 function logError(...args) {
-  const line = `[${new Date().toISOString()}] ERROR ${args.map(formatArg).join(" ")}\n`;
-  process.stderr.write(line);
-  if (logStream) logStream.write(line);
+  // Counted and ringed *before* the level check: an error must land in the
+  // snapshot even if something later silences the output.
+  stats.recordError(args.map(formatArg).join(" "), "error");
+  emit("error", "ERROR ", process.stderr, args);
 }
 
-// Redirect console so module-level logs also go to file
+// Redirect console so module-level logs also go to the file and the counters.
 const rawConsoleLog = console.log.bind(console);
-const _consoleError = console.error.bind(console);
-const _consoleWarn = console.warn.bind(console);
 console.log = (...a) => log(...a);
 console.error = (...a) => logError(...a);
-console.warn = (...a) => log("[WARN]", ...a);
+console.warn = (...a) => logWarn(...a);
 
-module.exports = { log, logError, LOG_FILE, rawConsoleLog };
+module.exports = {
+  log,
+  debug,
+  logWarn,
+  logError,
+  LOG_FILE,
+  rawConsoleLog,
+  LEVELS,
+  threshold,
+};

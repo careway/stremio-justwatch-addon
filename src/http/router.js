@@ -4,6 +4,8 @@ const path = require("path");
 const { L1Cache, L2Cache } = require("../infra/cache");
 
 const { trackCatalogRequest } = require("../infra/analytics");
+const stats = require("../infra/stats");
+const { breaker } = require("../infra/justwatch");
 
 const { decodeConfig } = require("../domain/userConfig");
 const {
@@ -218,6 +220,23 @@ async function router(req, res) {
       console.error("[api/packages] Error:", err);
       return respond(res, [], 200, "no-store");
     }
+  }
+
+  // ── /api/stats/{INV_KEY} ─────────────────────────────────RUNTIME COUNTERS ─────
+  // The reason this endpoint exists: the host's log buffer is cyclic, so
+  // "what has been failing?" cannot be answered from log lines — they scroll
+  // away. Counters and a ring of recent errors do not.
+  //
+  // Behind the same secret as the invalidation route, and closed when it is
+  // unset, for the same reason: the error ring quotes request variables, which
+  // reveal which providers users pick.
+  if (process.env.INV_KEY && rawPath === `/api/stats/${process.env.INV_KEY}`) {
+    return respond(
+      res,
+      { ...stats.snapshot(), upstreamCircuit: breaker.state() },
+      200,
+      "no-store",
+    );
   }
 
   // ── /api/inv/$env:{key}?key=xxxxxx ───────────────────────INVALIDATE CACHE ─────────────────────

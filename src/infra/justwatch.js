@@ -214,16 +214,23 @@ async function gql(query, variables) {
       }
       return data.data;
     } catch (err) {
-      console.error("GQL Request Query:", JSON.stringify(query, null, 2));
+      // One line, and the **HTTP status first**. Twice now an incident has
+      // turned on whether JustWatch replied 403 (edge/WAF IP block), 429
+      // (throttle) or nothing at all (timeout), and the old logging dumped the
+      // body without ever printing the status — on a WAF block that body is a
+      // full HTML page, JSON.stringify'd across dozens of log lines, burying
+      // the one fact that mattered. The query and variables went to two more
+      // multi-line dumps per failure, which at fan-out is a lot of noise.
+      const status = err.response?.status;
+      const body =
+        typeof err.response?.data === "string"
+          ? err.response.data.replace(/\s+/g, " ").slice(0, 200)
+          : JSON.stringify(err.response?.data ?? "").slice(0, 200);
       console.error(
-        "GQL Request Variables:",
-        JSON.stringify(variables, null, 2),
-      );
-      console.error(
-        "GQL Request failed:",
-        err.response
-          ? JSON.stringify(err.response.data, null, 2)
-          : err.message,
+        `[justwatch] ${status ? `HTTP ${status}` : err.code || "no response"}` +
+          ` — ${err.message}` +
+          ` | vars: ${JSON.stringify(variables).slice(0, 200)}` +
+          (err.response ? ` | body: ${body}` : ""),
       );
       throw err;
     }

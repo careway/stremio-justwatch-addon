@@ -47,9 +47,26 @@ const GET_POPULAR_TITLES_QUERY = `
   }
 `;
 
+// includeAddons pulls in the channel/add-on packages — the "X Amazon Channel"
+// and "X Roku Premium Channel" entries. Without it JustWatch simply omits them
+// from `packages`, even though they are real, filterable providers: a title
+// query with packages:["asb"] returns Screambox's catalogue correctly, and
+// justwatch.com/us/provider/screambox-amazon-channel exists. They were
+// invisible in /configure purely because the grid is built from this query.
+// Impact when it was added (2026-09-02): US 348 -> 422, DE 160 -> 268,
+// ES 99 -> 125, and it brings in HBO Max / Crunchyroll / AMC+ / Shudder /
+// MUBI / Discovery+ Amazon Channels among others.
 const GET_PACKAGES_QUERY = `
-  query GetPackages($country: Country!, $platform: Platform! = WEB) {
-    packages(country: $country, platform: $platform) {
+  query GetPackages(
+    $country: Country!
+    $platform: Platform! = WEB
+    $includeAddons: Boolean! = true
+  ) {
+    packages(
+      country: $country
+      platform: $platform
+      includeAddons: $includeAddons
+    ) {
       id
       packageId
       clearName
@@ -59,6 +76,10 @@ const GET_PACKAGES_QUERY = `
       hasTitles(country: $country, platform: $platform)
       hasSport(country: $country, platform: $platform)
       icon(profile: S100)
+      addonParent(country: $country, platform: $platform) {
+        shortName
+        clearName
+      }
     }
   }
 `;
@@ -269,17 +290,26 @@ async function searchTitles({
 
 /**
  * Get available streaming packages for a country.
- * Excludes cinema-only packages (monetizationTypes = ["CINEMA"]) and\n * sports/live-only providers (hasTitles = false).
+ * Includes add-on/channel packages (see GET_PACKAGES_QUERY).
+ * Excludes cinema-only packages (monetizationTypes = ["CINEMA"]) and
+ * sports/live-only providers (hasTitles = false).
  *
  * @param {string} country - ISO country code (e.g. 'ES')
  * @returns {Promise<Array>} Array of package objects with iconUrl resolved
  */
 async function getPackages(country = "US") {
-  const cacheKey = `packages:${country}`;
+  // Versioned: the value shape/contents change when the query does, and the
+  // old entry would otherwise keep serving the pre-addons list for up to
+  // PACKAGES_TTL_S (24 h) after a deploy. Bump on any query change.
+  const cacheKey = `packages:v3:${country}`;
   const cached = await cacheGet(cacheKey, PACKAGES_TTL_S);
   if (cached) return cached;
 
-  const rawData = await gql(GET_PACKAGES_QUERY, { country, platform: "WEB" });
+  const rawData = await gql(GET_PACKAGES_QUERY, {
+    country,
+    platform: "WEB",
+    includeAddons: true,
+  });
   const pkgs = (rawData?.packages || [])
     .filter((pkg) => {
       const types = pkg.monetizationTypes || [];
@@ -294,6 +324,16 @@ async function getPackages(country = "US") {
       iconUrl: pkg.icon
         ? `https://images.justwatch.com${pkg.icon.replace("{format}", "webp")}`
         : null,
+      // A channel/add-on is a service watched *through* another subscription
+      // ("HBO Max Amazon Channel" rides on Amazon Prime Video). JustWatch's own
+      // addonParent is the classifier — don't pattern-match the clearName, the
+      // two disagree: "Cinemax Apple TV channel" has no addonParent and is a
+      // plain provider here. /configure splits the grid on this flag, because a
+      // channel's catalogue duplicates the parent service's and the direct
+      // provider is almost always the one a user wants.
+      isAddon: Boolean(pkg.addonParent),
+      addonParentName: pkg.addonParent?.clearName || null,
+      addonParentShortName: pkg.addonParent?.shortName || null,
     }));
 
   await cacheSet(cacheKey, pkgs, PACKAGES_TTL_S);

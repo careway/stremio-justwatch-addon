@@ -123,6 +123,13 @@ on `--dump-dom` against the dev server. What works instead:
   port, so no stale-process risk. Assert on what should be **absent** too — it
   is what caught that the old checkmark SVG and the replaced `change` listener
   were really gone.
+- **The pane logic has its own DOM model.** `scratchpad/panes-check.js`
+  (throwaway) extracts the real `PANES`/`growPane`/`renderPackages` block and
+  runs it against a ~40-line fake grid that keeps parsed items in an array, so
+  `checked` persists like a real node's would. That's what confirmed the two
+  selection bugs were fixed: a pre-selected package at index 35 renders and
+  stays checked, and "load more" appends without resetting manual picks or
+  duplicating rows.
 - `node --check` on the extracted inline `<script>` catches syntax errors in
   the page's 800-line script, which nothing else in the suite does.
 

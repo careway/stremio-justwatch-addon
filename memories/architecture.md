@@ -31,6 +31,8 @@ src/
 api/index.js        Vercel entry — one line, re-exports src/index
 test/               node:test suites (two of them extract source text out of
                     src/http/configure.html — see testing.md)
+scripts/jw-query.js standalone JustWatch query runner (no cache, no queue,
+                    no deps) — for probing the API by hand, see justwatch-api.md
 contrib/aiostreams/ upstream AIOStreams preset (see aiostreams-preset.md)
 ```
 

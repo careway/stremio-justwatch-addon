@@ -21,6 +21,12 @@ const UI_STRINGS = {
     globalCatalogs: "Catálogos globales",
     globalCatalogsHint: "(opcional — todo el país, sin filtrar por plataforma)",
     providerCatalogs: "Catálogos de proveedores",
+    tabProviders: "Proveedores",
+    tabChannels: "Canales",
+    filterByService: "Filtrar por servicio",
+    filterAll: "Todos",
+    channelsHint:
+      "Canales que se ven dentro de otra suscripción. Si tienes el servicio contratado directamente, elige el proveedor de la otra pestaña: el catálogo es el mismo.",
     typeCycleHint:
       "Pulsa una plataforma para elegir qué importa: películas y series → solo películas → solo series → ninguna.",
     clear: "LIMPIAR",
@@ -68,6 +74,12 @@ const UI_STRINGS = {
     globalCatalogs: "Global catalogs",
     globalCatalogsHint: "(optional — whole country, no platform filter)",
     providerCatalogs: "Provider catalogs",
+    tabProviders: "Providers",
+    tabChannels: "Channels",
+    filterByService: "Filter by service",
+    filterAll: "All",
+    channelsHint:
+      "Channels you watch inside another subscription. If you subscribe to the service directly, pick the provider in the other tab — the catalog is the same.",
     typeCycleHint:
       "Click a platform to choose what it imports: movies and series → movies only → series only → none.",
     clear: "CLEAR",
@@ -115,6 +127,12 @@ const UI_STRINGS = {
     globalCatalogs: "Globale Kataloge",
     globalCatalogsHint: "(optional — ganzes Land, ohne Plattformfilter)",
     providerCatalogs: "Anbieter-Kataloge",
+    tabProviders: "Anbieter",
+    tabChannels: "Kanäle",
+    filterByService: "Nach Dienst filtern",
+    filterAll: "Alle",
+    channelsHint:
+      "Kanäle, die du über ein anderes Abo siehst. Wenn du den Dienst direkt abonniert hast, wähle den Anbieter im anderen Tab — der Katalog ist derselbe.",
     typeCycleHint:
       "Klicke auf eine Plattform, um zu wählen, was importiert wird: Filme und Serien → nur Filme → nur Serien → nichts.",
     clear: "LEEREN",
@@ -161,6 +179,12 @@ const UI_STRINGS = {
     globalCatalogs: "Catalogues globaux",
     globalCatalogsHint: "(optionnel — tout le pays, sans filtre de plateforme)",
     providerCatalogs: "Catalogues des fournisseurs",
+    tabProviders: "Fournisseurs",
+    tabChannels: "Chaînes",
+    filterByService: "Filtrer par service",
+    filterAll: "Tous",
+    channelsHint:
+      "Chaînes regardées via un autre abonnement. Si vous êtes abonné au service directement, choisissez le fournisseur dans l'autre onglet : le catalogue est identique.",
     typeCycleHint:
       "Cliquez sur une plateforme pour choisir ce qu'elle importe : films et séries → films seulement → séries seulement → aucun.",
     clear: "EFFACER",
@@ -208,6 +232,12 @@ const UI_STRINGS = {
     globalCatalogsHint:
       "(opzionale — tutto il paese, senza filtro piattaforma)",
     providerCatalogs: "Cataloghi dei provider",
+    tabProviders: "Provider",
+    tabChannels: "Canali",
+    filterByService: "Filtra per servizio",
+    filterAll: "Tutti",
+    channelsHint:
+      "Canali che guardi tramite un altro abbonamento. Se sei abbonato al servizio direttamente, scegli il provider nell'altra scheda: il catalogo è lo stesso.",
     typeCycleHint:
       "Clicca su una piattaforma per scegliere cosa importa: film e serie → solo film → solo serie → nessuno.",
     clear: "PULISCI",
@@ -254,6 +284,12 @@ const UI_STRINGS = {
     globalCatalogs: "Catálogos globais",
     globalCatalogsHint: "(opcional — todo o país, sem filtrar por plataforma)",
     providerCatalogs: "Catálogos dos fornecedores",
+    tabProviders: "Fornecedores",
+    tabChannels: "Canais",
+    filterByService: "Filtrar por serviço",
+    filterAll: "Todos",
+    channelsHint:
+      "Canais que vês dentro de outra subscrição. Se tens o serviço subscrito diretamente, escolhe o fornecedor no outro separador — o catálogo é o mesmo.",
     typeCycleHint:
       "Clica numa plataforma para escolher o que importa: filmes e séries → só filmes → só séries → nenhum.",
     clear: "LIMPAR",
@@ -300,6 +336,12 @@ const UI_STRINGS = {
     globalCatalogs: "Globale catalogi",
     globalCatalogsHint: "(optioneel — het hele land, zonder platformfilter)",
     providerCatalogs: "Catalogi van aanbieders",
+    tabProviders: "Aanbieders",
+    tabChannels: "Kanalen",
+    filterByService: "Filter op dienst",
+    filterAll: "Alle",
+    channelsHint:
+      "Kanalen die je via een ander abonnement bekijkt. Heb je de dienst rechtstreeks, kies dan de aanbieder op het andere tabblad — de catalogus is dezelfde.",
     typeCycleHint:
       "Klik op een platform om te kiezen wat het importeert: films en series → alleen films → alleen series → geen.",
     clear: "WISSEN",
@@ -346,6 +388,12 @@ const UI_STRINGS = {
     globalCatalogs: "Globala kataloger",
     globalCatalogsHint: "(valfritt — hela landet, utan plattformsfilter)",
     providerCatalogs: "Leverantörernas kataloger",
+    tabProviders: "Leverantörer",
+    tabChannels: "Kanaler",
+    filterByService: "Filtrera efter tjänst",
+    filterAll: "Alla",
+    channelsHint:
+      "Kanaler du ser via en annan prenumeration. Har du tjänsten direkt, välj leverantören i den andra fliken — katalogen är densamma.",
     typeCycleHint:
       "Klicka på en plattform för att välja vad den importerar: filmer och serier → bara filmer → bara serier → inget.",
     clear: "RENSA",
@@ -392,6 +440,12 @@ const UI_STRINGS = {
     globalCatalogs: "Globale kataloger",
     globalCatalogsHint: "(valgfritt — hele landet, uten plattformfilter)",
     providerCatalogs: "Leverandørkataloger",
+    tabProviders: "Leverandører",
+    tabChannels: "Kanaler",
+    filterByService: "Filtrer etter tjeneste",
+    filterAll: "Alle",
+    channelsHint:
+      "Kanaler du ser via et annet abonnement. Har du tjenesten direkte, velg leverandøren i den andre fanen — katalogen er den samme.",
     typeCycleHint:
       "Klikk på en plattform for å velge hva den importerer: filmer og serier → bare filmer → bare serier → ingen.",
     clear: "TØM",
@@ -438,6 +492,12 @@ const UI_STRINGS = {
     globalCatalogs: "Globale kataloger",
     globalCatalogsHint: "(valgfrit — hele landet, uden platformsfilter)",
     providerCatalogs: "Udbyderkataloger",
+    tabProviders: "Udbydere",
+    tabChannels: "Kanaler",
+    filterByService: "Filtrer efter tjeneste",
+    filterAll: "Alle",
+    channelsHint:
+      "Kanaler du ser via et andet abonnement. Har du tjenesten direkte, så vælg udbyderen i den anden fane — kataloget er det samme.",
     typeCycleHint:
       "Klik på en platform for at vælge, hvad den importerer: film og serier → kun film → kun serier → ingen.",
     clear: "RYD",
@@ -484,6 +544,12 @@ const UI_STRINGS = {
     globalCatalogs: "Yleiset luettelot",
     globalCatalogsHint: "(valinnainen — koko maa, ilman alustasuodatusta)",
     providerCatalogs: "Palveluntarjoajien luettelot",
+    tabProviders: "Palvelut",
+    tabChannels: "Kanavat",
+    filterByService: "Suodata palvelun mukaan",
+    filterAll: "Kaikki",
+    channelsHint:
+      "Kanavat, joita katsot toisen tilauksen kautta. Jos tilaat palvelun suoraan, valitse palveluntarjoaja toiselta välilehdeltä — luettelo on sama.",
     typeCycleHint:
       "Napsauta palvelua valitaksesi mitä se tuo: elokuvat ja sarjat → vain elokuvat → vain sarjat → ei mitään.",
     clear: "TYHJENNÄ",
@@ -531,6 +597,12 @@ const UI_STRINGS = {
     globalCatalogsHint:
       "(opcjonalnie — cały kraj, bez filtrowania po platformie)",
     providerCatalogs: "Katalogi dostawców",
+    tabProviders: "Dostawcy",
+    tabChannels: "Kanały",
+    filterByService: "Filtruj według usługi",
+    filterAll: "Wszystkie",
+    channelsHint:
+      "Kanały oglądane w ramach innej subskrypcji. Jeśli masz usługę bezpośrednio, wybierz dostawcę w drugiej zakładce — katalog jest ten sam.",
     typeCycleHint:
       "Kliknij platformę, aby wybrać, co importuje: filmy i seriale → tylko filmy → tylko seriale → nic.",
     clear: "WYCZYŚĆ",
@@ -577,6 +649,12 @@ const UI_STRINGS = {
     globalCatalogs: "グローバルカタログ",
     globalCatalogsHint: "（任意 — 国全体、プラットフォームで絞り込まない）",
     providerCatalogs: "プロバイダーのカタログ",
+    tabProviders: "プロバイダー",
+    tabChannels: "チャンネル",
+    filterByService: "サービスで絞り込み",
+    filterAll: "すべて",
+    channelsHint:
+      "他のサブスクリプション経由で視聴するチャンネルです。サービスに直接加入している場合は、もう一方のタブでプロバイダーを選んでください。カタログは同じです。",
     typeCycleHint:
       "プラットフォームをクリックして取り込む内容を選択：映画とシリーズ → 映画のみ → シリーズのみ → なし。",
     clear: "クリア",
@@ -623,6 +701,12 @@ const UI_STRINGS = {
     globalCatalogs: "글로벌 카탈로그",
     globalCatalogsHint: "(선택 사항 — 국가 전체, 플랫폼 필터 없음)",
     providerCatalogs: "제공자 카탈로그",
+    tabProviders: "제공자",
+    tabChannels: "채널",
+    filterByService: "서비스로 필터",
+    filterAll: "전체",
+    channelsHint:
+      "다른 구독을 통해 시청하는 채널입니다. 서비스를 직접 구독 중이라면 다른 탭에서 제공자를 선택하세요 — 카탈로그는 동일합니다.",
     typeCycleHint:
       "플랫폼을 클릭해 가져올 항목을 선택하세요: 영화와 시리즈 → 영화만 → 시리즈만 → 없음.",
     clear: "지우기",
@@ -669,6 +753,12 @@ const UI_STRINGS = {
     globalCatalogs: "القوائم العامة",
     globalCatalogsHint: "(اختياري — البلد بأكمله، دون تصفية حسب المنصة)",
     providerCatalogs: "قوائم المزوّدين",
+    tabProviders: "المزوّدون",
+    tabChannels: "القنوات",
+    filterByService: "تصفية حسب الخدمة",
+    filterAll: "الكل",
+    channelsHint:
+      "قنوات تُشاهد ضمن اشتراك آخر. إذا كنت مشتركًا في الخدمة مباشرة، فاختر المزوّد من التبويب الآخر — المحتوى نفسه.",
     typeCycleHint:
       "انقر على منصة لاختيار ما تستورده: الأفلام والمسلسلات ← الأفلام فقط ← المسلسلات فقط ← لا شيء.",
     clear: "مسح",
@@ -715,6 +805,12 @@ const UI_STRINGS = {
     globalCatalogs: "वैश्विक कैटलॉग",
     globalCatalogsHint: "(वैकल्पिक — पूरा देश, प्लेटफ़ॉर्म फ़िल्टर के बिना)",
     providerCatalogs: "प्रदाताओं के कैटलॉग",
+    tabProviders: "प्रदाता",
+    tabChannels: "चैनल",
+    filterByService: "सेवा से फ़िल्टर करें",
+    filterAll: "सभी",
+    channelsHint:
+      "ऐसे चैनल जो किसी दूसरी सदस्यता के अंदर देखे जाते हैं। अगर आपने सेवा सीधे ली है, तो दूसरे टैब से प्रदाता चुनें — कैटलॉग वही है।",
     typeCycleHint:
       "कोई प्लेटफ़ॉर्म चुनने के लिए क्लिक करें कि वह क्या आयात करे: फ़िल्में और सीरीज़ → केवल फ़िल्में → केवल सीरीज़ → कुछ नहीं।",
     clear: "साफ़ करें",
@@ -761,6 +857,12 @@ const UI_STRINGS = {
     globalCatalogs: "గ్లోబల్ కేటలాగ్‌లు",
     globalCatalogsHint: "(ఐచ్ఛికం — మొత్తం దేశం, ప్లాట్‌ఫారమ్ ఫిల్టర్ లేకుండా)",
     providerCatalogs: "ప్రొవైడర్ల కేటలాగ్‌లు",
+    tabProviders: "ప్రొవైడర్లు",
+    tabChannels: "ఛానెల్‌లు",
+    filterByService: "సేవ ద్వారా వడపోత",
+    filterAll: "అన్నీ",
+    channelsHint:
+      "మరొక సబ్‌స్క్రిప్షన్ ద్వారా చూసే ఛానెల్‌లు. మీరు సేవను నేరుగా తీసుకుంటే, రెండో ట్యాబ్‌లో ప్రొవైడర్‌ను ఎంచుకోండి — కేటలాగ్ ఒకటే.",
     typeCycleHint:
       "ఏమి దిగుమతి చేయాలో ఎంచుకోవడానికి ప్లాట్‌ఫారమ్‌పై క్లిక్ చేయండి: సినిమాలు మరియు సిరీస్‌లు → సినిమాలు మాత్రమే → సిరీస్‌లు మాత్రమే → ఏదీ లేదు.",
     clear: "తొలగించు",
@@ -808,6 +910,12 @@ const UI_STRINGS = {
     globalCatalogsHint:
       "(ഐച്ഛികം — രാജ്യം മുഴുവൻ, പ്ലാറ്റ്ഫോം ഫിൽട്ടർ ഇല്ലാതെ)",
     providerCatalogs: "ദാതാക്കളുടെ കാറ്റലോഗുകൾ",
+    tabProviders: "ദാതാക്കൾ",
+    tabChannels: "ചാനലുകൾ",
+    filterByService: "സേവനം അനുസരിച്ച് ഫിൽട്ടർ",
+    filterAll: "എല്ലാം",
+    channelsHint:
+      "മറ്റൊരു സബ്‌സ്‌ക്രിപ്ഷനിലൂടെ കാണുന്ന ചാനലുകൾ. സേവനം നേരിട്ട് എടുത്തിട്ടുണ്ടെങ്കിൽ മറ്റേ ടാബിലെ ദാതാവിനെ തിരഞ്ഞെടുക്കുക — കാറ്റലോഗ് ഒന്നുതന്നെ.",
     typeCycleHint:
       "എന്ത് ഇറക്കുമതി ചെയ്യണമെന്ന് തിരഞ്ഞെടുക്കാൻ ഒരു പ്ലാറ്റ്‌ഫോമിൽ ക്ലിക്ക് ചെയ്യുക: സിനിമകളും സീരീസുകളും → സിനിമകൾ മാത്രം → സീരീസുകൾ മാത്രം → ഒന്നുമില്ല.",
     clear: "മായ്ക്കുക",
@@ -854,6 +962,12 @@ const UI_STRINGS = {
     globalCatalogs: "ಜಾಗತಿಕ ಕ್ಯಾಟಲಾಗ್‌ಗಳು",
     globalCatalogsHint: "(ಐಚ್ಛಿಕ — ಇಡೀ ದೇಶ, ಪ್ಲಾಟ್‌ಫಾರ್ಮ್ ಫಿಲ್ಟರ್ ಇಲ್ಲದೆ)",
     providerCatalogs: "ಪೂರೈಕೆದಾರರ ಕ್ಯಾಟಲಾಗ್‌ಗಳು",
+    tabProviders: "ಪೂರೈಕೆದಾರರು",
+    tabChannels: "ಚಾನೆಲ್‌ಗಳು",
+    filterByService: "ಸೇವೆಯ ಮೂಲಕ ಫಿಲ್ಟರ್",
+    filterAll: "ಎಲ್ಲಾ",
+    channelsHint:
+      "ಮತ್ತೊಂದು ಚಂದಾದಾರಿಕೆಯ ಮೂಲಕ ನೋಡುವ ಚಾನೆಲ್‌ಗಳು. ಸೇವೆಯನ್ನು ನೇರವಾಗಿ ಪಡೆದಿದ್ದರೆ, ಇನ್ನೊಂದು ಟ್ಯಾಬ್‌ನಲ್ಲಿ ಪೂರೈಕೆದಾರರನ್ನು ಆಯ್ಕೆಮಾಡಿ — ಕ್ಯಾಟಲಾಗ್ ಒಂದೇ.",
     typeCycleHint:
       "ಏನನ್ನು ಆಮದು ಮಾಡಬೇಕೆಂದು ಆಯ್ಕೆ ಮಾಡಲು ವೇದಿಕೆಯ ಮೇಲೆ ಕ್ಲಿಕ್ ಮಾಡಿ: ಚಲನಚಿತ್ರಗಳು ಮತ್ತು ಸರಣಿಗಳು → ಚಲನಚಿತ್ರಗಳು ಮಾತ್ರ → ಸರಣಿಗಳು ಮಾತ್ರ → ಯಾವುದೂ ಇಲ್ಲ.",
     clear: "ತೆರವುಗೊಳಿಸಿ",
@@ -899,6 +1013,12 @@ const UI_STRINGS = {
     globalCatalogs: "Genel kataloglar",
     globalCatalogsHint: "(isteğe bağlı — tüm ülke, platform filtresi olmadan)",
     providerCatalogs: "Sağlayıcı katalogları",
+    tabProviders: "Sağlayıcılar",
+    tabChannels: "Kanallar",
+    filterByService: "Hizmete göre filtrele",
+    filterAll: "Tümü",
+    channelsHint:
+      "Başka bir abonelik üzerinden izlenen kanallar. Hizmete doğrudan aboneyseniz diğer sekmedeki sağlayıcıyı seçin — katalog aynı.",
     typeCycleHint:
       "Neyi içe aktaracağını seçmek için bir platforma tıkla: film ve dizi → yalnızca film → yalnızca dizi → hiçbiri.",
     clear: "TEMİZLE",

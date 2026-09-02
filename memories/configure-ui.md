@@ -132,6 +132,86 @@ and the legend.
 - `.pkg-check-inline` must stay **after** `.pkg-check` in the stylesheet: same
   specificity, so source order is what beats `display: none`.
 
+## Provider grid — two panes, Proveedores / Canales (2026-09-02)
+
+A **channel** is a service watched through another subscription ("HBO Max
+Amazon Channel" rides on Amazon Prime Video). Its catalogue duplicates the
+direct provider's, so mixing both in one grid buries the entry people actually
+want. They're split into two tabs, classified by `pkg.isAddon`, which comes from
+JustWatch's own `addonParent` — **not** from pattern-matching the name; the two
+disagree (see [justwatch-api.md](justwatch-api.md)).
+
+Structure: `.pkg-tabs` (two `.pkg-tab` buttons) → `#pkg-panes`
+(the `.grid-container`) → `#pkg-grid` + `#channel-grid`, plus `#channels-hint`
+and `#channel-filter`, both shown only on the channels tab.
+
+### The `[hidden]` trap that made both tabs look identical
+
+`#pkg-grid, #channel-grid { display: grid }` is an **ID** selector (1,0,0), so
+it outranks the browser's own `[hidden] { display: none }` — the attribute did
+nothing and **both panes rendered at once, stacked**, which is why the two tabs
+appeared to show the same thing. Fixed with an explicit
+`#pkg-grid[hidden], #channel-grid[hidden], .pkg-item[hidden] { display: none }`
+at (1,1,0). Never rely on the bare `hidden` attribute against an id-scoped
+`display` rule.
+
+### Browser-style tabs
+
+`.pkg-tabs` has no baseline of its own; the baseline is `.grid-container`'s
+`border-top`. The active tab sits at `bottom: -1px` so it overlaps that line,
+paints over its slice with its own `var(--glass)` fill (85% opaque, enough to
+hide the 0.1-alpha border under it) and sets `border-bottom-color: transparent`
+so it draws no line of its own. That seam is the whole illusion — remove any of
+those three and it goes back to looking like two buttons.
+
+### Parent filter (channels tab)
+
+`#channel-parents` holds one `.chan-chip` per parent service plus an "All" chip,
+built from the channels actually present in the country. Real data is thin:
+usually **one** parent (Amazon Prime Video), occasionally two (US adds The Roku
+Channel with 4; GB adds Now TV with 1).
+
+- Styled **deliberately unlike** `.pkg-item`: dashed outline, pill shape, and
+  the secondary purple rather than the selection pink, under an uppercase
+  "FILTRAR POR SERVICIO" label — so it can't read as another thing you're
+  picking.
+- `applyParentFilter()` **hides** non-matching items (`item.hidden`) instead of
+  re-rendering. A channel that is selected and then filtered out stays checked
+  and stays in the generated URL; the tab badge is what tells the user it's
+  still there.
+- **The channels pane renders in full** (no expander), unlike providers. A
+  parent filter over a lazily-drawn list would silently show nothing whenever
+  the matches sat past the undrawn tail. The pane is at most ~105 entries.
+
+- **Both panes stay in the DOM**, one `hidden`. Selections survive a tab switch
+  for free, with no state model to keep in sync. Everything that reads the grid
+  — `generateUrl`, LIMPIAR, the cycle click handler — is bound to `#pkg-panes`,
+  **not** `#pkg-grid`, so it never misses the pane that isn't showing. Binding
+  any of them back to `#pkg-grid` silently drops every channel selection.
+- `.pkg-tab-count` shows how many items are selected **per pane**. Without it a
+  selection in the hidden tab is invisible and the generated URL looks wrong for
+  no apparent reason. `updateTabCounts()` must be called after anything that
+  changes a checkbox (the cycle handler, LIMPIAR, a re-render).
+
+### Two bugs this rework fixed — don't reintroduce them
+
+Both came from the old `renderPackages`, which re-rendered via `innerHTML` and
+recomputed every checkbox from the *pre-fill*:
+
+1. **"Cargar proveedores restantes" wiped manual selections.** `draw(count)`
+   replaced the whole grid, so anything the user had clicked came back
+   unchecked. Now `growPane()` **appends** with `insertAdjacentHTML("beforeend")`
+   and never re-renders an existing item.
+2. **A pre-selected provider outside the first 10 vanished on reconfigure.**
+   Only `INITIAL_ITEMS` are drawn, and `generateUrl` reads selections out of the
+   DOM — so a package at index 35 in a `?config=` pre-fill was simply not there
+   and silently dropped from the regenerated URL. `renderPackages` now sorts
+   pre-selected entries to the front of their pane and draws
+   `Math.max(INITIAL_ITEMS, picked.length)`.
+
+Verified by extracting the real pane block and running it against a DOM model —
+see [testing.md](testing.md).
+
 ## Provider grid
 
 `PINNED = [nfx, prv, atp, dnp, mxx, cru, sst, nfk, fil]` are sorted to the front

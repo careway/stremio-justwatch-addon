@@ -318,6 +318,134 @@
         font-weight: 700;
       }
 
+      /* PESTAÑAS PROVEEDORES / CANALES — estilo navegador */
+      /* The active tab is joined to the panel below it: it overlaps the
+         panel's top border by 1px and paints over that segment with its own
+         --glass fill (85% opaque, so the line underneath disappears), while
+         its own bottom border stays transparent. That seam is what makes it
+         read as a browser tab rather than a button. */
+      .pkg-tabs {
+        display: flex;
+        align-items: flex-end;
+        gap: 2px;
+        padding: 0 4px;
+        flex-shrink: 0;
+      }
+      .pkg-tab {
+        position: relative;
+        bottom: -1px;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        padding: 0.45rem 0.95rem;
+        font-family: inherit;
+        font-size: 0.68rem;
+        font-weight: 600;
+        color: var(--muted);
+        background: transparent;
+        border: 1px solid transparent;
+        border-radius: 10px 10px 0 0;
+        cursor: pointer;
+        transition:
+          background 0.15s ease,
+          color 0.15s ease;
+        -webkit-user-select: none;
+        user-select: none;
+      }
+      .pkg-tab:hover {
+        color: var(--text);
+        background: rgba(255, 255, 255, 0.05);
+      }
+      .pkg-tab.active {
+        color: var(--text);
+        background: var(--glass);
+        border-color: var(--border);
+        border-bottom-color: transparent;
+      }
+      /* How many are selected in the pane you can't see — without it a
+         selection in the hidden tab is invisible and the URL looks wrong for
+         no apparent reason. */
+      .pkg-tab-count {
+        min-width: 16px;
+        height: 16px;
+        padding: 0 4px;
+        border-radius: 999px;
+        background: var(--accent);
+        color: #000;
+        font-size: 0.6rem;
+        line-height: 16px;
+        text-align: center;
+      }
+      .pkg-tab-hint {
+        color: var(--muted);
+        font-size: 0.6rem;
+        line-height: 1.5;
+        margin: 0.6rem 0;
+      }
+
+      /* FILTRO POR SERVICIO PADRE (solo pestaña Canales) */
+      /* Deliberately styled unlike .pkg-item: dashed outline, pill shape and
+         the secondary purple rather than the pink used for real selection, so
+         it can't be mistaken for another thing you're picking. */
+      .chan-filter {
+        margin: 0.6rem 0;
+        flex-shrink: 0;
+      }
+      .chan-filter-label {
+        display: block;
+        color: var(--muted);
+        font-size: 0.56rem;
+        font-weight: 700;
+        letter-spacing: 0.09em;
+        text-transform: uppercase;
+        margin-bottom: 0.35rem;
+      }
+      .chan-filter-row {
+        display: flex;
+        gap: 0.4rem;
+        overflow-x: auto;
+        padding-bottom: 3px;
+      }
+      .chan-filter-row::-webkit-scrollbar {
+        height: 3px;
+      }
+      .chan-filter-row::-webkit-scrollbar-thumb {
+        background: var(--secondary);
+        border-radius: 10px;
+      }
+      .chan-chip {
+        flex: 0 0 auto;
+        display: flex;
+        align-items: center;
+        gap: 5px;
+        padding: 0.3rem 0.7rem;
+        font-family: inherit;
+        font-size: 0.64rem;
+        font-weight: 600;
+        color: var(--muted);
+        background: transparent;
+        border: 1px dashed var(--border);
+        border-radius: 999px;
+        cursor: pointer;
+        transition: all 0.15s ease;
+        -webkit-user-select: none;
+        user-select: none;
+      }
+      .chan-chip:hover {
+        color: var(--text);
+        border-color: var(--secondary);
+      }
+      .chan-chip.active {
+        color: var(--text);
+        border-style: solid;
+        border-color: var(--secondary);
+        background: rgba(189, 147, 249, 0.15);
+      }
+      .chan-chip-n {
+        color: var(--muted);
+        font-weight: 500;
+      }
+
       /* GRID CON SCROLL */
       .grid-container {
         flex: 1;
@@ -326,7 +454,25 @@
         margin: 1rem 0;
         padding-right: 12px;
       }
-      #pkg-grid {
+      /* The panel the tabs sit on. Its top border is the tab strip's baseline;
+         the active tab overlaps and covers its own slice of it. */
+      .grid-container {
+        border-top: 1px solid var(--border);
+      }
+
+      /* `display: grid` below is an ID selector, so it outranks the browser's
+         own `[hidden] { display: none }` and BOTH panes rendered at once —
+         which is why the two tabs looked identical. Never rely on the bare
+         attribute against an id-scoped display rule. Same for a channel
+         filtered out of view. */
+      #pkg-grid[hidden],
+      #channel-grid[hidden],
+      .pkg-item[hidden] {
+        display: none;
+      }
+
+      #pkg-grid,
+      #channel-grid {
         display: grid;
         grid-template-columns: repeat(auto-fill, minmax(105px, 1fr));
         gap: 0.6rem;
@@ -1175,8 +1321,33 @@
           </div>
         </div>
 
-        <div class="grid-container">
+        <div class="pkg-tabs">
+          <button type="button" class="pkg-tab active" data-pane="providers">
+            <span data-i18n="tabProviders">Proveedores</span>
+            <span class="pkg-tab-count" hidden></span>
+          </button>
+          <button type="button" class="pkg-tab" data-pane="channels">
+            <span data-i18n="tabChannels">Canales</span>
+            <span class="pkg-tab-count" hidden></span>
+          </button>
+        </div>
+
+        <div class="chan-filter" id="channel-filter" hidden>
+          <span class="chan-filter-label" data-i18n="filterByService"
+            >Filtrar por servicio</span
+          >
+          <div class="chan-filter-row" id="channel-parents"></div>
+        </div>
+
+        <div class="pkg-tab-hint" id="channels-hint" hidden data-i18n="channelsHint">
+          Canales que se ven dentro de otra suscripción. Si tienes el servicio
+          contratado directamente, elige el proveedor de la otra pestaña: el
+          catálogo es el mismo.
+        </div>
+
+        <div class="grid-container" id="pkg-panes">
           <div id="pkg-grid"></div>
+          <div id="channel-grid" hidden></div>
         </div>
 
         <div
@@ -1979,6 +2150,12 @@
       })();
 
       const pkgGrid = document.getElementById("pkg-grid");
+      const channelGrid = document.getElementById("channel-grid");
+      // Both panes live in the DOM at once, one hidden. Selections therefore
+      // survive a tab switch for free, and everything that reads the grid —
+      // generateUrl, LIMPIAR, the cycle handler — queries this shared root so
+      // it never misses the pane that isn't showing.
+      const pkgPanes = document.getElementById("pkg-panes");
       // const btnAll = document.getElementById("btn-all");
       const btnNone = document.getElementById("btn-none");
       const btnGenerate = document.getElementById("btn-generate");
@@ -2012,6 +2189,9 @@
         preTypes = null,
       ) {
         pkgGrid.innerHTML = `<div style="grid-column: 1/-1; text-align: center; padding: 2rem; color: var(--secondary); font-size: 0.8rem;" data-i18n="loadingSystem">${t("loadingSystem") || "Iniciando sistema..."}</div>`;
+        channelGrid.innerHTML = "";
+        loadMoreSlot.innerHTML = "";
+        showPane("providers");
         try {
           const res = await fetch(
             `/api/packages?country=${encodeURIComponent(country)}`,
@@ -2020,6 +2200,7 @@
           renderPackages(sortPackages(pkgs), preSelected, preTypes);
         } catch (e) {
           pkgGrid.innerHTML = `<div style="color: var(--accent)" data-i18n="errConnection">${t("errConnection") || "Error de conexión"}</div>`;
+          showPane("providers");
         }
       }
 
@@ -2088,7 +2269,7 @@
           ? `<img class="pkg-icon" src="${pkg.iconUrl}" loading="lazy" onerror="this.style.opacity=0">`
           : `<div class="pkg-icon" style="opacity:0"></div>`;
         return `
-          <div class="pkg-item" data-types="${types || "all"}">
+          <div class="pkg-item" data-types="${types || "all"}" data-parent="${pkg.addonParentShortName || ""}">
             <input type="checkbox" id="pkg-${pkg.shortName}" value="${pkg.shortName}" ${isChecked ? "checked" : ""} style="display:none">
             <label class="pkg-label" for="pkg-${pkg.shortName}" title="${pkg.clearName}">
               ${icon}
@@ -2099,28 +2280,166 @@
       }
 
       const loadMoreSlot = document.getElementById("load-more-slot");
+      const channelsHint = document.getElementById("channels-hint");
+      const channelFilter = document.getElementById("channel-filter");
+      const channelParents = document.getElementById("channel-parents");
+
+      // Providers and channels are the same widget over two lists. A channel
+      // ("HBO Max Amazon Channel") is a service watched through another
+      // subscription, and its catalogue duplicates the direct provider's, so
+      // mixing them in one grid buries the entry most people actually want.
+      // isAddon comes from JustWatch's own addonParent — see infra/justwatch.js.
+      const PANES = {
+        providers: { grid: pkgGrid, all: [], shown: 0, pre: null, preTypes: null },
+        channels: { grid: channelGrid, all: [], shown: 0, pre: null, preTypes: null },
+      };
+      const INITIAL_ITEMS = 10;
+      let activePane = "providers";
+      // Which parent service the channels pane is narrowed to; null = all.
+      let activeParent = null;
+
+      function renderPackageItemFor(pane, pkg) {
+        return renderPackageItem(
+          pkg,
+          pane.pre ? pane.pre.includes(pkg.shortName) : false,
+          (pane.preTypes && pane.preTypes[pkg.shortName]) || "all",
+        );
+      }
+
+      // Appends, never replaces. Re-rendering a pane would recompute every
+      // checkbox from the pre-fill and silently wipe whatever the user had
+      // picked — which is exactly what "load more" used to do.
+      function growPane(name, upTo) {
+        const pane = PANES[name];
+        const next = pane.all.slice(pane.shown, upTo);
+        if (!next.length) return;
+        pane.grid.insertAdjacentHTML(
+          "beforeend",
+          next.map((p) => renderPackageItemFor(pane, p)).join(""),
+        );
+        pane.shown = upTo;
+      }
+
+      function renderLoadMore() {
+        const pane = PANES[activePane];
+        const remaining = pane.all.length - pane.shown;
+        if (remaining <= 0) {
+          loadMoreSlot.innerHTML = "";
+          return;
+        }
+        loadMoreSlot.innerHTML = `<button class="btn-show-more" data-i18n="loadMore" data-i18n-count="${remaining}">${t("loadMore", { n: remaining })}</button>`;
+        loadMoreSlot.firstChild.onclick = () => {
+          growPane(activePane, PANES[activePane].all.length);
+          renderLoadMore();
+        };
+      }
+
+      function updateTabCounts() {
+        for (const [name, pane] of Object.entries(PANES)) {
+          const n = pane.grid.querySelectorAll(
+            'input[type="checkbox"]:checked',
+          ).length;
+          const badge = document.querySelector(
+            `.pkg-tab[data-pane="${name}"] .pkg-tab-count`,
+          );
+          badge.textContent = n;
+          badge.hidden = n === 0;
+        }
+      }
+
+      function showPane(name) {
+        activePane = name;
+        for (const [key, pane] of Object.entries(PANES)) {
+          pane.grid.hidden = key !== name;
+        }
+        for (const tab of document.querySelectorAll(".pkg-tab")) {
+          tab.classList.toggle("active", tab.dataset.pane === name);
+        }
+        channelsHint.hidden = name !== "channels";
+        channelFilter.hidden =
+          name !== "channels" || PANES.channels.all.length === 0;
+        renderLoadMore();
+      }
+
+      for (const tab of document.querySelectorAll(".pkg-tab")) {
+        tab.onclick = () => showPane(tab.dataset.pane);
+      }
 
       function renderPackages(pkgs, preSelected, preTypes) {
-        const draw = (count) => {
-          pkgGrid.innerHTML = pkgs
-            .slice(0, count)
-            .map((p) =>
-              renderPackageItem(
-                p,
-                preSelected && preSelected.includes(p.shortName),
-                (preTypes && preTypes[p.shortName]) || "all",
-              ),
-            )
-            .join("");
-          if (count < pkgs.length) {
-            const remaining = pkgs.length - count;
-            loadMoreSlot.innerHTML = `<button class="btn-show-more" data-i18n="loadMore" data-i18n-count="${remaining}">${t("loadMore", { n: remaining })}</button>`;
-            loadMoreSlot.firstChild.onclick = () => draw(pkgs.length);
-          } else {
-            loadMoreSlot.innerHTML = "";
+        const selected = preSelected || [];
+        for (const [name, pane] of Object.entries(PANES)) {
+          const wanted = name === "channels";
+          // Pre-selected entries are pulled to the front of their pane. The
+          // grid only renders INITIAL_ITEMS up front, and generateUrl reads
+          // selections out of the DOM — so anything selected but unrendered
+          // would vanish from the regenerated URL. Ordering them first makes
+          // that impossible, and also shows people their own picks first.
+          const inPane = pkgs.filter((p) => Boolean(p.isAddon) === wanted);
+          const picked = inPane.filter((p) => selected.includes(p.shortName));
+          const rest = inPane.filter((p) => !selected.includes(p.shortName));
+          pane.all = [...picked, ...rest];
+          pane.pre = preSelected;
+          pane.preTypes = preTypes;
+          pane.shown = 0;
+          pane.grid.innerHTML = "";
+          // Channels render in full: the pane is at most ~105 entries, and a
+          // parent filter over a lazily-drawn list would silently show nothing
+          // whenever the matches sat past the undrawn tail. Providers (up to
+          // ~290) keep the expander.
+          growPane(
+            name,
+            wanted ? pane.all.length : Math.max(INITIAL_ITEMS, picked.length),
+          );
+        }
+        buildParentFilter();
+        showPane(activePane);
+        updateTabCounts();
+      }
+
+      // One chip per parent service, built from the channels actually present
+      // in this country — usually just Amazon Prime Video, sometimes a second.
+      function buildParentFilter() {
+        const byParent = new Map();
+        for (const pkg of PANES.channels.all) {
+          const key = pkg.addonParentShortName || "";
+          if (!byParent.has(key)) {
+            byParent.set(key, { name: pkg.addonParentName || key, n: 0 });
           }
-        };
-        draw(10);
+          byParent.get(key).n++;
+        }
+        const parents = [...byParent].sort((a, b) => b[1].n - a[1].n);
+        if (!parents.length) {
+          channelParents.innerHTML = "";
+          activeParent = null;
+          return;
+        }
+        const chip = (value, label, n, on) =>
+          `<button type="button" class="chan-chip${on ? " active" : ""}" data-parent="${value}">${label}<span class="chan-chip-n">${n}</span></button>`;
+        const total = PANES.channels.all.length;
+        channelParents.innerHTML =
+          chip("", t("filterAll") || "Todos", total, activeParent === null) +
+          parents
+            .map(([key, v]) => chip(key, v.name, v.n, activeParent === key))
+            .join("");
+        for (const btn of channelParents.querySelectorAll(".chan-chip")) {
+          btn.onclick = () => applyParentFilter(btn.dataset.parent || null);
+        }
+      }
+
+      // Hides non-matching items rather than re-rendering them, so a channel
+      // that is selected but filtered out stays checked and stays in the URL —
+      // the tab badge is what tells the user it's still there.
+      function applyParentFilter(parent) {
+        activeParent = parent;
+        for (const item of PANES.channels.grid.querySelectorAll(".pkg-item")) {
+          item.hidden = parent !== null && item.dataset.parent !== parent;
+        }
+        for (const btn of channelParents.querySelectorAll(".chan-chip")) {
+          btn.classList.toggle(
+            "active",
+            (btn.dataset.parent || null) === parent,
+          );
+        }
       }
 
       const ALL_SORT_KEYS = ["pop", "tnd", "new"];
@@ -2185,13 +2504,13 @@
 
       function generateUrl() {
         const providerPkgs = [
-          ...pkgGrid.querySelectorAll('input[type="checkbox"]:checked'),
+          ...pkgPanes.querySelectorAll('input[type="checkbox"]:checked'),
         ].map((i) => i.value);
 
         // Only the packages narrowed away from the "all" default land here;
         // everything else is left out so it encodes as nothing.
         const pkgTypes = {};
-        for (const item of pkgGrid.querySelectorAll(".pkg-item")) {
+        for (const item of pkgPanes.querySelectorAll(".pkg-item")) {
           const input = item.querySelector('input[type="checkbox"]');
           if (input.checked && item.dataset.types !== "all") {
             pkgTypes[input.value] = item.dataset.types;
@@ -2285,10 +2604,11 @@
 
       // btnAll removed
       btnNone.onclick = () => {
-        for (const item of pkgGrid.querySelectorAll(".pkg-item")) {
+        for (const item of pkgPanes.querySelectorAll(".pkg-item")) {
           item.querySelector('input[type="checkbox"]').checked = false;
           setPkgTypes(item, PKG_TYPE_CYCLE[0]);
         }
+        updateTabCounts();
         if (resultEl.classList.contains("visible")) generateUrl();
       };
 
@@ -2296,11 +2616,12 @@
       // advances it through PKG_TYPE_CYCLE and then off the end. preventDefault
       // is what stops the <label for=…> from running its own checked/unchecked
       // toggle underneath this, which would fight the cycle.
-      pkgGrid.addEventListener("click", (e) => {
+      pkgPanes.addEventListener("click", (e) => {
         const label = e.target.closest(".pkg-label");
         if (!label) return;
         e.preventDefault();
         advanceTypeCycle(label.closest(".pkg-item"));
+        updateTabCounts();
         if (resultEl.classList.contains("visible")) generateUrl();
       });
 

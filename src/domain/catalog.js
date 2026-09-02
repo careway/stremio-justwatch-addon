@@ -267,7 +267,17 @@ async function handleCatalog({ type, id, extra }, config) {
     // If there's only 1 request, titles2 will safely default to an empty array []
     const [titles1, titles2 = []] = await Promise.all(requests);
 
-    const metas = buildMetas([...titles1, ...titles2]);
+    // Slice back to the window that was actually asked for. The two batches
+    // start at batchStart1, not at `offset`, so without this a misaligned skip
+    // returns the wrong titles *and* twice the page size — skip=44 fetched
+    // ranks 0-99 and returned all 100 of them, when the request was for 44-93.
+    // (Indices are taken on the deduped/filtered array rather than raw ranks,
+    // the same approximation the aligned single-batch path already makes.)
+    const offsetInBatch = offset - batchStart1;
+    const metas = buildMetas([...titles1, ...titles2]).slice(
+      offsetInBatch,
+      offsetInBatch + batchSize,
+    );
     if (metas.length == 0) {
       return {
         ok: true,

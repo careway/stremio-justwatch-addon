@@ -23,6 +23,7 @@ const UI_STRINGS = {
     providerCatalogs: "Catálogos de proveedores",
     tabProviders: "Proveedores",
     tabChannels: "Canales",
+    maxProviders: "Máximo {n} plataformas. Deselecciona alguna para elegir otra.",
     filterByService: "Filtrar por servicio",
     filterAll: "Todos",
     channelsHint:
@@ -81,6 +82,7 @@ const UI_STRINGS = {
     providerCatalogs: "Provider catalogs",
     tabProviders: "Providers",
     tabChannels: "Channels",
+    maxProviders: "Maximum {n} platforms. Deselect one to pick another.",
     filterByService: "Filter by service",
     filterAll: "All",
     channelsHint:
@@ -139,6 +141,7 @@ const UI_STRINGS = {
     providerCatalogs: "Anbieter-Kataloge",
     tabProviders: "Anbieter",
     tabChannels: "Kanäle",
+    maxProviders: "Maximal {n} Plattformen. Wähle eine ab, um eine andere zu wählen.",
     filterByService: "Nach Dienst filtern",
     filterAll: "Alle",
     channelsHint:
@@ -196,6 +199,7 @@ const UI_STRINGS = {
     providerCatalogs: "Catalogues des fournisseurs",
     tabProviders: "Fournisseurs",
     tabChannels: "Chaînes",
+    maxProviders: "Maximum {n} plateformes. Désélectionnez-en une pour en choisir une autre.",
     filterByService: "Filtrer par service",
     filterAll: "Tous",
     channelsHint:
@@ -254,6 +258,7 @@ const UI_STRINGS = {
     providerCatalogs: "Cataloghi dei provider",
     tabProviders: "Provider",
     tabChannels: "Canali",
+    maxProviders: "Massimo {n} piattaforme. Deselezionane una per sceglierne un'altra.",
     filterByService: "Filtra per servizio",
     filterAll: "Tutti",
     channelsHint:
@@ -311,6 +316,7 @@ const UI_STRINGS = {
     providerCatalogs: "Catálogos dos fornecedores",
     tabProviders: "Fornecedores",
     tabChannels: "Canais",
+    maxProviders: "Máximo {n} plataformas. Desmarca uma para escolher outra.",
     filterByService: "Filtrar por serviço",
     filterAll: "Todos",
     channelsHint:
@@ -368,6 +374,7 @@ const UI_STRINGS = {
     providerCatalogs: "Catalogi van aanbieders",
     tabProviders: "Aanbieders",
     tabChannels: "Kanalen",
+    maxProviders: "Maximaal {n} platforms. Deselecteer er een om een andere te kiezen.",
     filterByService: "Filter op dienst",
     filterAll: "Alle",
     channelsHint:
@@ -425,6 +432,7 @@ const UI_STRINGS = {
     providerCatalogs: "Leverantörernas kataloger",
     tabProviders: "Leverantörer",
     tabChannels: "Kanaler",
+    maxProviders: "Max {n} plattformar. Avmarkera en för att välja en annan.",
     filterByService: "Filtrera efter tjänst",
     filterAll: "Alla",
     channelsHint:
@@ -482,6 +490,7 @@ const UI_STRINGS = {
     providerCatalogs: "Leverandørkataloger",
     tabProviders: "Leverandører",
     tabChannels: "Kanaler",
+    maxProviders: "Maks {n} plattformer. Fjern én for å velge en annen.",
     filterByService: "Filtrer etter tjeneste",
     filterAll: "Alle",
     channelsHint:
@@ -539,6 +548,7 @@ const UI_STRINGS = {
     providerCatalogs: "Udbyderkataloger",
     tabProviders: "Udbydere",
     tabChannels: "Kanaler",
+    maxProviders: "Maks {n} platforme. Fravælg én for at vælge en anden.",
     filterByService: "Filtrer efter tjeneste",
     filterAll: "Alle",
     channelsHint:
@@ -596,6 +606,7 @@ const UI_STRINGS = {
     providerCatalogs: "Palveluntarjoajien luettelot",
     tabProviders: "Palvelut",
     tabChannels: "Kanavat",
+    maxProviders: "Enintään {n} palvelua. Poista valinta yhdestä valitaksesi toisen.",
     filterByService: "Suodata palvelun mukaan",
     filterAll: "Kaikki",
     channelsHint:
@@ -654,6 +665,7 @@ const UI_STRINGS = {
     providerCatalogs: "Katalogi dostawców",
     tabProviders: "Dostawcy",
     tabChannels: "Kanały",
+    maxProviders: "Maksymalnie {n} platform. Odznacz jedną, aby wybrać inną.",
     filterByService: "Filtruj według usługi",
     filterAll: "Wszystkie",
     channelsHint:
@@ -711,6 +723,7 @@ const UI_STRINGS = {
     providerCatalogs: "プロバイダーのカタログ",
     tabProviders: "プロバイダー",
     tabChannels: "チャンネル",
+    maxProviders: "最大{n}個のプラットフォームです。別のものを選ぶには、いずれかの選択を解除してください。",
     filterByService: "サービスで絞り込み",
     filterAll: "すべて",
     channelsHint:
@@ -768,6 +781,7 @@ const UI_STRINGS = {
     providerCatalogs: "제공자 카탈로그",
     tabProviders: "제공자",
     tabChannels: "채널",
+    maxProviders: "최대 {n}개 플랫폼입니다. 다른 것을 선택하려면 하나를 해제하세요.",
     filterByService: "서비스로 필터",
     filterAll: "전체",
     channelsHint:
@@ -825,6 +839,7 @@ const UI_STRINGS = {
     providerCatalogs: "قوائم المزوّدين",
     tabProviders: "المزوّدون",
     tabChannels: "القنوات",
+    maxProviders: "بحد أقصى {n} منصة. ألغِ تحديد إحداها لاختيار أخرى.",
     filterByService: "تصفية حسب الخدمة",
     filterAll: "الكل",
     channelsHint:
@@ -882,6 +897,7 @@ const UI_STRINGS = {
     providerCatalogs: "प्रदाताओं के कैटलॉग",
     tabProviders: "प्रदाता",
     tabChannels: "चैनल",
+    maxProviders: "अधिकतम {n} प्लेटफ़ॉर्म। दूसरा चुनने के लिए किसी एक को हटाएँ।",
     filterByService: "सेवा से फ़िल्टर करें",
     filterAll: "सभी",
     channelsHint:
@@ -939,6 +955,7 @@ const UI_STRINGS = {
     providerCatalogs: "ప్రొవైడర్ల కేటలాగ్‌లు",
     tabProviders: "ప్రొవైడర్లు",
     tabChannels: "ఛానెల్‌లు",
+    maxProviders: "గరిష్టంగా {n} ప్లాట్‌ఫారమ్‌లు. మరొకటి ఎంచుకోవడానికి ఒకదాన్ని తీసివేయండి.",
     filterByService: "సేవ ద్వారా వడపోత",
     filterAll: "అన్నీ",
     channelsHint:
@@ -997,6 +1014,7 @@ const UI_STRINGS = {
     providerCatalogs: "ദാതാക്കളുടെ കാറ്റലോഗുകൾ",
     tabProviders: "ദാതാക്കൾ",
     tabChannels: "ചാനലുകൾ",
+    maxProviders: "പരമാവധി {n} പ്ലാറ്റ്‌ഫോമുകൾ. മറ്റൊന്ന് തിരഞ്ഞെടുക്കാൻ ഒന്ന് ഒഴിവാക്കുക.",
     filterByService: "സേവനം അനുസരിച്ച് ഫിൽട്ടർ",
     filterAll: "എല്ലാം",
     channelsHint:
@@ -1054,6 +1072,7 @@ const UI_STRINGS = {
     providerCatalogs: "ಪೂರೈಕೆದಾರರ ಕ್ಯಾಟಲಾಗ್‌ಗಳು",
     tabProviders: "ಪೂರೈಕೆದಾರರು",
     tabChannels: "ಚಾನೆಲ್‌ಗಳು",
+    maxProviders: "ಗರಿಷ್ಠ {n} ವೇದಿಕೆಗಳು. ಇನ್ನೊಂದನ್ನು ಆಯ್ಕೆಮಾಡಲು ಒಂದನ್ನು ತೆಗೆದುಹಾಕಿ.",
     filterByService: "ಸೇವೆಯ ಮೂಲಕ ಫಿಲ್ಟರ್",
     filterAll: "ಎಲ್ಲಾ",
     channelsHint:
@@ -1110,6 +1129,7 @@ const UI_STRINGS = {
     providerCatalogs: "Sağlayıcı katalogları",
     tabProviders: "Sağlayıcılar",
     tabChannels: "Kanallar",
+    maxProviders: "En fazla {n} platform. Başka birini seçmek için birini kaldırın.",
     filterByService: "Hizmete göre filtrele",
     filterAll: "Tümü",
     channelsHint:

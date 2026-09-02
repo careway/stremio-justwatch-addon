@@ -9,6 +9,8 @@ const { decodeConfig } = require("../domain/userConfig");
 const {
   fetchCountriesFromJustWatch,
   getSupportedLanguages,
+  MAX_PACKAGES,
+  GLOBAL_PACKAGE_ID,
 } = require("../data/catalogMeta");
 const { getUiStrings, RTL_UI_LANGUAGES } = require("../data/uiStrings");
 const { buildManifest } = require("../domain/manifest");
@@ -261,6 +263,36 @@ async function router(req, res) {
     return redirect(
       res,
       `/configure?config=${encodeURIComponent(encodedConfig)}`,
+    );
+  }
+
+  // Over the package ceiling → refuse everything except the way out.
+  //
+  // Deliberately placed **after** the /configure redirect above, so a user in
+  // this state can still reach the page that fixes it. Refusing rather than
+  // silently truncating is the point: a truncated manifest looks like it
+  // worked while quietly dropping providers the user picked.
+  // "global" is excluded from the count: it is a pseudo-package, not something
+  // picked from the provider grid, so counting it would make 35 grid selections
+  // plus global fail a limit the UI says they are within. It still generates
+  // catalogs, so the true worst case is 35 × 3 × 2 + 6 = 216.
+  const selectedPackages = config.packages.filter(
+    (p) => p !== GLOBAL_PACKAGE_ID,
+  ).length;
+  if (selectedPackages > MAX_PACKAGES) {
+    return respond(
+      res,
+      {
+        error:
+          `Too many providers selected: ${selectedPackages}. ` +
+          `The maximum is ${MAX_PACKAGES}. Reconfigure the addon at ` +
+          `${getAddonBaseUrl(req)}/${encodedConfig}/configure and install it again.`,
+        selected: selectedPackages,
+        max: MAX_PACKAGES,
+        configure: `${getAddonBaseUrl(req)}/${encodedConfig}/configure`,
+      },
+      400,
+      "no-store",
     );
   }
 

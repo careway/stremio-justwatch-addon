@@ -185,6 +185,22 @@ Structure: `.pkg-tabs` (two `.pkg-tab` buttons) → `#pkg-panes`
 (the `.grid-container`) → `#pkg-grid` + `#channel-grid`, plus `#channels-hint`
 and `#channel-filter`, both shown only on the channels tab.
 
+### The 35-selection cap
+
+`MAX_PACKAGES = 35` mirrors `data/catalogMeta.js`; the server refuses anything
+above it, so this cap is what stops a user building a config that only fails at
+install time. `selectedPackageCount()` counts `:checked` across **`#pkg-panes`**,
+so channels count the same as providers.
+
+The click handler blocks **only the selection that would exceed the cap**.
+Cycling the content type of something already picked, and deselecting, must keep
+working — block those and a user at the ceiling can't get back down.
+
+`#pkg-limit-alert` appears **only once 35 are selected**, per explicit request;
+an always-visible "max 35" would be noise for configs nowhere near it.
+`updateLimitAlert()` has to run after anything that changes a checkbox — the
+cycle handler, LIMPIAR and the initial render all call it.
+
 ### The `[hidden]` trap that made both tabs look identical
 
 `#pkg-grid, #channel-grid { display: grid }` is an **ID** selector (1,0,0), so

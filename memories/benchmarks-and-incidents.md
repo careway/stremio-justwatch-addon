@@ -107,6 +107,42 @@ count on manifest load. Before adding upstream calls to a catalog path, multiply
 by ~24 and ask whether that burst is acceptable — and remember the queue that
 would have absorbed it is currently off.
 
+## Incident — JustWatch 403-blocked the BeamUp IP (2026-09-02)
+
+**Symptom**: catalogs returning the joke-titles error placeholder. Confirmed
+from the deploy's own logs:
+
+```
+GQL Request failed: "<!doctype html>…<title>403</title>403 Forbidden"
+[catalog] Error: AxiosError: Request failed with status code 403
+```
+
+HTML body, no JSON, no GraphQL `errors` array — the same edge/WAF signature as
+the devcontainer block above, not a 429. Diagnosable from outside by timing:
+cached responses came back in ~0.05 s, anything needing a live call in
+~0.25–0.33 s (one round trip to a refusal, not a timeout).
+
+**What caused it**: a production config with **200 packages → 1200 catalogs**.
+Stremio requests page 1 of every catalog on manifest load, and the concurrency
+queue has been disabled since 2026-08-24, so that is 1200 outbound calls in one
+burst. Fixed by the 35-package ceiling — see
+[catalogs-and-manifest.md](catalogs-and-manifest.md).
+
+**What kept it going**: a failed `getPackages` made the manifest respond
+`no-store`, so nothing cached it, every client retried, and every retry was
+another live call into the block. Logs showed the same manifest ~5×/second, each
+one a `packages:v2:BR` miss. **The addon was holding its own block open.** Fixed
+by the circuit breaker — see [cache-layers.md](cache-layers.md).
+
+**The general lesson**: an error path that refuses to cache is a retry
+amplifier. `no-store` on failure is right for a blip and catastrophic under a
+sustained outage; pair it with a breaker or a negative cache before shipping it.
+
+Note the log window BeamUp's `logs` command returns is **partial and rolling** —
+asking for 4000 lines returned 337, spread over three non-contiguous minutes,
+and a burst visible in one dump was absent from the next. Good enough to sample,
+useless as a census.
+
 ## Production incidents index
 
 Both Cloudflare staleness incidents and the BeamUp Host-header quirk are

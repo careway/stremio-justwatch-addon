@@ -3,6 +3,7 @@
 const assert = require("node:assert/strict");
 const { test, describe } = require("node:test");
 const http = require("node:http");
+const fs = require("node:fs");
 const path = require("node:path");
 
 const handler = require("../src/index");
@@ -134,6 +135,104 @@ describe("Config segment injection", () => {
     } finally {
       server.close();
     }
+  });
+});
+
+describe("Package ceiling", () => {
+  // Stremio requests page 1 of every catalog when a manifest loads, so the
+  // package count times (sorts × types) is the burst this addon fires at
+  // JustWatch at once. A 200-package config produced 1200 catalogs and that
+  // fan-out got the deploy's IP 403-blocked on 2026-09-02.
+  const { MAX_PACKAGES } = require("../src/data/catalogMeta");
+  const pkgs = (n) =>
+    Array.from({ length: n }, (_, i) => `p${String(i).padStart(2, "0")}`).join("_");
+
+  test("the ceiling is 35", () => {
+    assert.equal(MAX_PACKAGES, 35);
+  });
+
+  test(`${35} packages is accepted`, async () => {
+    const server = await startServer();
+    try {
+      const r = await req(server, `/ES_es_${pkgs(35)}/manifest.json`);
+      assert.equal(r.status, 200);
+      assert.equal(JSON.parse(r.body).catalogs.length, 35 * 3 * 2);
+    } finally {
+      server.close();
+    }
+  });
+
+  test("the global pseudo-package does not count toward it", async () => {
+    // Otherwise 35 grid selections plus global would fail a limit the UI says
+    // the user is within.
+    const server = await startServer();
+    try {
+      const r = await req(server, `/ES_es_${pkgs(35)}_global/manifest.json`);
+      assert.equal(r.status, 200);
+    } finally {
+      server.close();
+    }
+  });
+
+  for (const [n, what] of [[36, "one over"], [200, "the old cap"]]) {
+    test(`${n} packages is refused (${what})`, async () => {
+      const server = await startServer();
+      try {
+        const r = await req(server, `/ES_es_${pkgs(n)}/manifest.json`);
+        assert.equal(r.status, 400);
+        const body = JSON.parse(r.body);
+        assert.equal(body.selected, n);
+        assert.equal(body.max, 35);
+        assert.match(body.error, /Reconfigure/);
+        assert.ok(body.configure.endsWith("/configure"));
+      } finally {
+        server.close();
+      }
+    });
+  }
+
+  test("catalog requests are refused too, not just the manifest", async () => {
+    const server = await startServer();
+    try {
+      const r = await req(
+        server,
+        `/ES_es_${pkgs(36)}/catalog/movie/jw_pop_p00.json`,
+      );
+      assert.equal(r.status, 400);
+    } finally {
+      server.close();
+    }
+  });
+
+  test("but /configure stays reachable, or there's no way out", async () => {
+    const server = await startServer();
+    try {
+      const r = await req(server, `/ES_es_${pkgs(200)}/configure`);
+      assert.equal(r.status, 302);
+      assert.match(r.headers.location, /^\/configure\?config=/);
+    } finally {
+      server.close();
+    }
+  });
+
+  test("the refusal is never cached", async () => {
+    const server = await startServer();
+    try {
+      const r = await req(server, `/ES_es_${pkgs(36)}/manifest.json`);
+      assert.match(r.headers["cache-control"] || "", /no-store/);
+    } finally {
+      server.close();
+    }
+  });
+
+  test("configure.html mirrors the same number", () => {
+    const html = fs.readFileSync(
+      path.join(__dirname, "..", "src", "http", "configure.html"),
+      "utf8",
+    );
+    const m = html.match(/const MAX_PACKAGES = (\d+);/);
+    assert.ok(m, "configure.html must declare MAX_PACKAGES");
+    assert.equal(Number(m[1]), MAX_PACKAGES);
   });
 });
 

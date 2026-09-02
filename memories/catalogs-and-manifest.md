@@ -87,6 +87,40 @@ installs of different countries in Stremio. The `/configure` hint says so.
 A config with no country at all never had the suffix, so the flag is a no-op
 there.
 
+## The 35-package ceiling (2026-09-02)
+
+`MAX_PACKAGES = 35` in `data/catalogMeta.js`. `http/router.js` refuses any
+config above it with **400 and `no-store`**, naming the count, the limit and a
+`/configure` URL to fix it.
+
+Why a ceiling exists at all: Stremio asks for page 1 of **every** catalog when a
+manifest loads, so package count × sorts × content types *is* the burst this
+addon fires at JustWatch in one go. A production config with 200 packages
+produced **1200 catalogs**, and that fan-out is what got the deploy's IP
+403-blocked by JustWatch's WAF — see
+[benchmarks-and-incidents.md](benchmarks-and-incidents.md). 35 caps the worst
+case at 210 catalogs (216 with global) and sits far above real usage: the
+largest genuine config in the logs had 18 packages.
+
+Three things that are easy to get wrong here:
+
+- **Channels count the same as providers.** A channel is a package and
+  generates its own catalogs; the two tabs in `/configure` are presentation
+  only.
+- **`global` is excluded from the count.** It is a pseudo-package, not a grid
+  selection, so counting it would fail 35 grid picks plus global — a config the
+  UI says is fine.
+- **The check sits after the `/configure` redirect**, deliberately. Refuse the
+  manifest and the catalogs, but never the route that lets the user fix it.
+
+It **refuses rather than truncates**. `decodeConfig` still slices at 200 as a
+parse-level guard, but silently dropping providers past a limit produces a
+manifest that looks like it worked while quietly discarding the user's picks.
+
+`configure.html` mirrors the constant and blocks the 36th selection, showing
+`#pkg-limit-alert` only once the ceiling is actually reached — see
+[configure-ui.md](configure-ui.md). A test asserts the two numbers match.
+
 ## Manifest shape
 
 `resources: ["catalog"]` only — **no stream resource**. `types: ["movie", "series"]`.

@@ -3,7 +3,13 @@
 const axios = require("axios");
 const { trackCacheHit, trackCacheMiss } = require("./analytics");
 const { L1Cache, L2Cache } = require("./cache");
-const { TTL_S, PACKAGES_TTL_S } = require("../ttl");
+const {
+  TTL_S,
+  PACKAGES_TTL_S,
+  UPSTREAM_FAIL_THRESHOLD,
+  UPSTREAM_COOLDOWN_S,
+} = require("../ttl");
+const { createCircuitBreaker } = require("./circuitBreaker");
 const {
   keepPackage,
   annotateChannels,
@@ -186,7 +192,25 @@ function enqueue(task) {
 
 // ─── HTTP helper ──────────────────────────────────────────────────────────────
 
+// Shared by every outbound call — see ./circuitBreaker for why it's one gate
+// and not a negative cache per key.
+const breaker = createCircuitBreaker({
+  threshold: UPSTREAM_FAIL_THRESHOLD,
+  cooldownMs: UPSTREAM_COOLDOWN_S * 1000,
+});
+
 async function gql(query, variables) {
+  // Fail fast without touching the network. The caller's own fallback still
+  // runs, so a manifest degrades and a catalog serves its placeholder — the
+  // difference is that JustWatch stops hearing from us while it's refusing.
+  if (breaker.isOpen()) {
+    const err = new Error(
+      `[justwatch] upstream circuit open, ${Math.ceil(breaker.remainingMs() / 1000)}s left`,
+    );
+    err.circuitOpen = true;
+    throw err;
+  }
+
   return enqueue(async () => {
     try {
       const { data } = await axios.post(
@@ -203,6 +227,7 @@ async function gql(query, variables) {
           timeout: 10_000,
         },
       );
+      breaker.recordSuccess();
       if (data.errors) {
         console.error("GQL Request Query:", JSON.stringify(query, null, 2));
         console.error(
@@ -226,6 +251,13 @@ async function gql(query, variables) {
         typeof err.response?.data === "string"
           ? err.response.data.replace(/\s+/g, " ").slice(0, 200)
           : JSON.stringify(err.response?.data ?? "").slice(0, 200);
+      const justOpened = breaker.recordFailure();
+      if (justOpened) {
+        console.error(
+          `[justwatch] ${UPSTREAM_FAIL_THRESHOLD} consecutive failures — ` +
+            `pausing all upstream calls for ${UPSTREAM_COOLDOWN_S}s`,
+        );
+      }
       console.error(
         `[justwatch] ${status ? `HTTP ${status}` : err.code || "no response"}` +
           ` — ${err.message}` +
@@ -338,4 +370,9 @@ async function getPackages(country = "US") {
   return pkgs;
 }
 
-module.exports = { searchTitles, getPackages };
+module.exports = {
+  searchTitles,
+  getPackages,
+  // Exported for tests and for anyone wanting to inspect/reset upstream state.
+  breaker,
+};

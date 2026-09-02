@@ -11,4 +11,19 @@ const TTL_S = TTL_H * 3600;
 const PACKAGES_TTL_H = TTL_H * 6; // 24h
 const PACKAGES_TTL_S = PACKAGES_TTL_H * 3600;
 
-module.exports = { TTL_H, TTL_S, PACKAGES_TTL_H, PACKAGES_TTL_S };
+// How long to stop calling JustWatch after it starts refusing us, and how many
+// consecutive failures it takes to decide that. Not derived from TTL_H: this is
+// a backoff, not a freshness window. 60s is long enough to stop being a
+// nuisance to an edge that just blocked us, short enough that a transient blip
+// costs one minute of degraded catalogs rather than an outage.
+const UPSTREAM_FAIL_THRESHOLD = 5;
+const UPSTREAM_COOLDOWN_S = 60;
+
+module.exports = {
+  TTL_H,
+  TTL_S,
+  PACKAGES_TTL_H,
+  PACKAGES_TTL_S,
+  UPSTREAM_FAIL_THRESHOLD,
+  UPSTREAM_COOLDOWN_S,
+};

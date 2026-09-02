@@ -885,6 +885,20 @@
       margin-top: 0.5rem;
     }
 
+    /* Only shown once the ceiling is actually reached — an always-visible
+       "max 35" would be noise for the 99% of configs nowhere near it. */
+    .pkg-limit-alert {
+      margin: 0.6rem 0;
+      padding: 0.5rem 0.7rem;
+      border: 1px solid var(--accent);
+      border-radius: 10px;
+      background: rgba(255, 121, 198, 0.12);
+      color: var(--text);
+      font-size: 0.62rem;
+      line-height: 1.45;
+      flex-shrink: 0;
+    }
+
     /* Breathing room between the expander and "Opciones adicionales".
        `:not(:empty)` matters: the slot is emptied whenever there is no button
        (a short list, or the channels tab), and a plain margin would leave a
@@ -1328,6 +1342,11 @@
         Canales que se ven dentro de otra suscripción. Si tienes el servicio
         contratado directamente, elige el proveedor de la otra pestaña: el
         catálogo es el mismo.
+      </div>
+
+      <div class="pkg-limit-alert" id="pkg-limit-alert" hidden
+        data-i18n="maxProviders" data-i18n-count="35">
+        Máximo 35 plataformas. Deselecciona alguna para elegir otra.
       </div>
 
       <div class="grid-container" id="pkg-panes">
@@ -2280,6 +2299,11 @@
         preTypes: null,
       },
     };
+    // Mirrors MAX_PACKAGES in ../data/catalogMeta.js. The server refuses a
+    // config above it outright, so this cap is what stops a user from building
+    // one that only fails at install time. Channels count the same as
+    // providers — both are packages, and the two tabs are presentation only.
+    const MAX_PACKAGES = 35;
     const INITIAL_ITEMS = 10;
     let activePane = "providers";
     // Which parent service the channels pane is narrowed to; null = all.
@@ -2373,6 +2397,17 @@
       };
     }
 
+    const limitAlert = document.getElementById("pkg-limit-alert");
+
+    // Across BOTH panes: a channel counts the same as a provider.
+    function selectedPackageCount() {
+      return pkgPanes.querySelectorAll('input[type="checkbox"]:checked').length;
+    }
+
+    function updateLimitAlert() {
+      limitAlert.hidden = selectedPackageCount() < MAX_PACKAGES;
+    }
+
     function updateTabCounts() {
       for (const [name, pane] of Object.entries(PANES)) {
         const n = pane.grid.querySelectorAll(
@@ -2436,6 +2471,7 @@
       buildParentFilter();
       showPane(activePane);
       updateTabCounts();
+      updateLimitAlert();
     }
 
     // One chip per parent service, built from the channels actually present
@@ -2652,6 +2688,7 @@
         setPkgTypes(item, PKG_TYPE_CYCLE[0]);
       }
       updateTabCounts();
+      updateLimitAlert();
       if (resultEl.classList.contains("visible")) generateUrl();
     };
 
@@ -2663,8 +2700,19 @@
       const label = e.target.closest(".pkg-label");
       if (!label) return;
       e.preventDefault();
-      advanceTypeCycle(label.closest(".pkg-item"));
+      const item = label.closest(".pkg-item");
+      const input = item.querySelector('input[type="checkbox"]');
+      // Block only the selection that would exceed the cap. Cycling the content
+      // type of something already picked, and deselecting, must keep working —
+      // otherwise the user hits the ceiling and can't get back down.
+      if (!input.checked && selectedPackageCount() >= MAX_PACKAGES) {
+        updateLimitAlert();
+        limitAlert.scrollIntoView({ block: "nearest", behavior: "smooth" });
+        return;
+      }
+      advanceTypeCycle(item);
       updateTabCounts();
+      updateLimitAlert();
       if (resultEl.classList.contains("visible")) generateUrl();
     });
 

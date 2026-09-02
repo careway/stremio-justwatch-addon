@@ -467,6 +467,22 @@ const SORT_MAP = {
 // (see ../domain/manifest.js and ../domain/catalog.js), but isn't one.
 const GLOBAL_PACKAGE_ID = "global";
 
+// Hard ceiling on how many packages one config may select.
+//
+// Stremio asks for page 1 of **every** catalog in a manifest when it loads it,
+// so this number multiplied by (sorts × content types) is the size of the burst
+// this addon fires at JustWatch in one go. A config with 200 packages produced
+// 1200 catalogs and that fan-out is what got the deploy's IP 403-blocked by
+// JustWatch's WAF on 2026-09-02 (see memories/benchmarks-and-incidents.md).
+//
+// 35 keeps the worst case at 35 × 3 sorts × 2 types = 210 catalogs, while
+// sitting far above real usage: the largest genuine config seen in production
+// logs had 18 packages.
+//
+// Channels count the same as providers — a channel is a package and generates
+// its own catalogs, so the split in /configure is presentation only.
+const MAX_PACKAGES = 35;
+
 // ─── Language mapping ──────────────────────────────────────────────────────────
 const LANGUAGE_NAMES = {
   es: "Español",
@@ -835,6 +851,7 @@ async function fetchCountriesFromJustWatch(lang = "es") {
 const COUNTRIES = FALLBACK_COUNTRIES;
 
 module.exports = {
+  MAX_PACKAGES,
   GENRES,
   getGenreNames,
   getGenreCode,

@@ -328,6 +328,33 @@ recomputed every checkbox from the *pre-fill*:
 Verified by extracting the real pane block and running it against a DOM model —
 see [testing.md](testing.md).
 
+## Channels parent filter — `activeParent` must be revalidated per country
+
+Parent shortNames are **per-country and barely overlap**. Measured 2026-09-03:
+
+| Country | Parents |
+|---|---|
+| US | `amp` (154), `atp` (23), `rkc` (4) |
+| ES | `prv` (22), `amazonprime` (3), `atp` (2) |
+
+Amazon is `amp` in US and `prv` in ES; only `atp` is common. `activeParent` is
+module-level state that survives a country change, and `buildParentFilter()`
+originally reset it only when the new country had *no* parents at all. So:
+filter by Amazon in US → switch country → **every channel hidden, and no chip
+rendered as active**, because nothing matched `amp` any more. The tab looked
+empty and the only fix was a reload, which is what reset the variable.
+
+`buildParentFilter()` now drops `activeParent` when the rebuilt map doesn't
+contain it, and calls `applyVisibility("channels")` afterwards — `renderPackages()`
+lays the panes out *before* calling it, so a reset there has to be pushed back
+onto the items or the DOM keeps the stale hidden flags.
+
+A filter that still exists in the new country is deliberately kept (`atp` →
+`atp`), so switching country doesn't throw away a still-valid choice.
+
+Pinned by `test/channelFilter.test.js`, which extracts the two real functions
+out of the page with `vm` rather than restating them.
+
 ## Provider grid
 
 `PINNED = [nfx, prv, atp, dnp, mxx, cru, sst, nfk, fil]` are sorted to the front

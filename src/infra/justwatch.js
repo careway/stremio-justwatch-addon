@@ -200,6 +200,36 @@ const breaker = createCircuitBreaker({
   cooldownMs: UPSTREAM_COOLDOWN_S * 1000,
 });
 
+/**
+ * True when a GraphQL payload still carries something worth returning.
+ *
+ * Null propagation is all-or-nothing per field: a failed non-nullable resolver
+ * nulls its nearest nullable ancestor, so a partial response is either "one
+ * top-level field is null, the rest are fine" or "data is null". Anything with
+ * a non-null top-level field is worth serving.
+ */
+function usablePayload(payload) {
+  return (
+    payload != null &&
+    typeof payload === "object" &&
+    Object.values(payload).some((v) => v != null)
+  );
+}
+
+/**
+ * Count a failed call and open the breaker if this was the one that tips it.
+ * Both failure paths go through here so they can't drift apart.
+ */
+function noteFailure(kind) {
+  stats.bump(`upstream.fail.${kind}`);
+  if (breaker.recordFailure()) {
+    console.error(
+      `[justwatch] ${UPSTREAM_FAIL_THRESHOLD} consecutive failures — ` +
+        `pausing all upstream calls for ${UPSTREAM_COOLDOWN_S}s`,
+    );
+  }
+}
+
 async function gql(query, variables) {
   // Fail fast without touching the network. The caller's own fallback still
   // runs, so a manifest degrades and a catalog serves its placeholder — the
@@ -229,19 +259,50 @@ async function gql(query, variables) {
           timeout: 10_000,
         },
       );
+      if (data.errors) {
+        // GraphQL answers partially on purpose: one resolver can fail and the
+        // response still carries every field that resolved. Seen in production
+        // as a single `edges[n].node.content` coming back INTERNAL_ERROR out of
+        // a 50-title page — throwing there discarded 49 good titles and served
+        // the error placeholder for the whole catalog.
+        //
+        // So the question is not "were there errors" but "is there anything
+        // usable". Only when null propagation has eaten the payload is this a
+        // real failure. Note this is still an HTTP 200: it must not feed the
+        // breaker, which exists to detect an upstream that is refusing us.
+        const messages = data.errors.map((e) => e.message).join("; ");
+        if (usablePayload(data.data)) {
+          breaker.recordSuccess();
+          stats.bump("upstream.ok");
+          stats.bump("upstream.partial");
+          console.warn(
+            `[justwatch] partial response, serving what resolved` +
+              ` — ${data.errors.length} field error(s): ${messages.slice(0, 200)}` +
+              ` | vars: ${JSON.stringify(variables).slice(0, 200)}`,
+          );
+          return data.data;
+        }
+        // A 200 whose payload is entirely null is still an upstream that
+        // cannot answer, so it feeds the breaker like a 403 or a timeout —
+        // the breaker deliberately does not classify failures.
+        noteFailure("graphql");
+        console.error(
+          `[justwatch] HTTP 200 but no usable data` +
+            ` — ${data.errors.length} field error(s): ${messages.slice(0, 200)}` +
+            ` | vars: ${JSON.stringify(variables).slice(0, 200)}`,
+        );
+        const err = new Error(`GraphQL errors: ${messages}`);
+        err.graphqlErrors = true;
+        throw err;
+      }
       breaker.recordSuccess();
       stats.bump("upstream.ok");
-      if (data.errors) {
-        console.error("GQL Request Query:", JSON.stringify(query, null, 2));
-        console.error(
-          "GQL Request Variables:",
-          JSON.stringify(variables, null, 2),
-        );
-        console.error("GQL Errors:", JSON.stringify(data.errors, null, 2));
-        throw new Error(`GraphQL errors: ${JSON.stringify(data.errors)}`);
-      }
       return data.data;
     } catch (err) {
+      // Already logged and counted in the errors branch; re-reporting it here
+      // would print "no response" for a call that answered 200.
+      if (err.graphqlErrors) throw err;
+
       // One line, and the **HTTP status first**. Twice now an incident has
       // turned on whether JustWatch replied 403 (edge/WAF IP block), 429
       // (throttle) or nothing at all (timeout), and the old logging dumped the
@@ -254,14 +315,7 @@ async function gql(query, variables) {
         typeof err.response?.data === "string"
           ? err.response.data.replace(/\s+/g, " ").slice(0, 200)
           : JSON.stringify(err.response?.data ?? "").slice(0, 200);
-      stats.bump(`upstream.fail.${status || err.code || "unknown"}`);
-      const justOpened = breaker.recordFailure();
-      if (justOpened) {
-        console.error(
-          `[justwatch] ${UPSTREAM_FAIL_THRESHOLD} consecutive failures — ` +
-            `pausing all upstream calls for ${UPSTREAM_COOLDOWN_S}s`,
-        );
-      }
+      noteFailure(status || err.code || "unknown");
       console.error(
         `[justwatch] ${status ? `HTTP ${status}` : err.code || "no response"}` +
           ` — ${err.message}` +
@@ -330,7 +384,11 @@ async function searchTitles({
     platform: "WEB",
   });
 
-  const nodes = (data?.popularTitles?.edges || []).map((e) => e.node);
+  // `|| []` is not enough on a partial response: null propagation from a failed
+  // field leaves a null *entry* in an otherwise fine list, so drop those too.
+  const nodes = (data?.popularTitles?.edges || [])
+    .map((e) => e?.node)
+    .filter(Boolean);
   await cacheSet(cacheKey, nodes, TTL_S);
   return nodes;
 }

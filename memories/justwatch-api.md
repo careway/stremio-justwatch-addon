@@ -218,7 +218,52 @@ several in parallel and there's no cross-instance coordination point.
 
 ## Error handling
 
-`gql()` logs the query, the variables and the response body on failure, then
-rethrows. `handleCatalog` catches and returns the `ok: false` placeholder;
+`gql()` logs **one line, HTTP status first**, then rethrows. The status is the
+fact that has decided two incidents (403 = WAF/IP block, 429 = throttle, no
+status = timeout), and it used to be buried under three multi-line dumps of the
+query, the variables and the body — on a WAF block that body is a whole HTML
+page. `handleCatalog` catches and returns the `ok: false` placeholder;
 `/{config}/manifest.json` catches a failed `getPackages` and serves a degraded
 manifest with `no-store` so it retries next request.
+
+### Partial responses are normal and must not be treated as failures
+
+GraphQL answers partially by design: `errors` and `data` coexist, and a single
+resolver failing does not invalidate the rest. Production sent exactly this on
+2026-09-03 (DK/`da`, `popularTitles`) — one `edges[39].node.content` came back
+`INTERNAL_ERROR` / "connection reset by peer" out of a 50-title page.
+
+The old code threw on `data.errors` being present at all, so **49 good titles
+were discarded and the catalog served its error placeholder**. Three separate
+bugs in one log line:
+
+1. a usable page was thrown away;
+2. the request was counted as `upstream.ok` **and** as a failure, because
+   `recordSuccess()` ran before the `data.errors` check and the throw then
+   landed in the `catch` that calls `recordFailure()` — so field-level upstream
+   hiccups were pushing the breaker towards opening;
+3. the log line read `no response` for a call that answered **HTTP 200**,
+   because `status` is undefined on a self-thrown error.
+
+The rule now: the question is not *"were there errors"* but *"is there anything
+usable"*. `usablePayload()` asks whether any top-level field survived — null
+propagation is all-or-nothing per field, so a partial response is either "one
+top-level field is null" or "`data` is null".
+
+- **Usable** → log a `warn`, count `upstream.partial` *and* `upstream.ok`,
+  return the payload. Does **not** touch the breaker: a 200 is not a refusal.
+- **Not usable** → log the 200-with-no-data explicitly (never let the `catch`
+  print `no response` for it) and feed the breaker like any other failure. The
+  breaker deliberately does not classify failures, and an upstream that keeps
+  returning a null payload is one worth backing off from.
+
+`err.graphqlErrors` marks the error as already logged and counted so the
+`catch` doesn't do it twice; both failure paths go through `noteFailure()` so
+the stats key, the breaker call and the "threshold reached" line can't drift.
+
+Callers must assume holes: `searchTitles` does `.map((e) => e?.node)` followed
+by `.filter(Boolean)`, because null propagation leaves a null **entry** in an
+otherwise fine list — `|| []` alone does not cover that.
+
+Pinned by `test/partialResponse.test.js` (8 tests, axios stubbed through the
+require cache).

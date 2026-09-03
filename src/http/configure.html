@@ -2521,10 +2521,19 @@
         }
         byParent.get(key).n++;
       }
+      // Parent ids are per-country and barely overlap — Amazon is `amp` in US
+      // but `prv` in ES — so a filter carried over from the previous country
+      // usually matches nothing. Left alone it hid every channel while no chip
+      // showed as active: the tab looked empty and only a reload fixed it,
+      // because that is what reset this variable.
+      if (activeParent !== null && !byParent.has(activeParent)) {
+        activeParent = null;
+      }
       const parents = [...byParent].sort((a, b) => b[1].n - a[1].n);
       if (!parents.length) {
         channelParents.innerHTML = "";
         activeParent = null;
+        applyVisibility("channels");
         return;
       }
       const chip = (value, label, n, on) =>
@@ -2538,6 +2547,9 @@
       for (const btn of channelParents.querySelectorAll(".chan-chip")) {
         btn.onclick = () => applyParentFilter(btn.dataset.parent || null);
       }
+      // renderPackages() lays the panes out *before* calling this, so a reset
+      // here has to be pushed back onto the items.
+      applyVisibility("channels");
     }
 
     // Hides non-matching items rather than re-rendering them, so a channel

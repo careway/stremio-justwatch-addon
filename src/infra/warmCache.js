@@ -239,6 +239,7 @@ async function prune() {
  * @param {object}   deps.breaker  - upstream circuit breaker (optional)
  */
 async function start({ L1Cache, refetch, breaker }) {
+  if (process.env.NODE_ENV === "test") return; // never open a pool under the runner
   if (!ENABLED) {
     console.log("[warmCache] disabled (no DATABASE_URL)");
     return;

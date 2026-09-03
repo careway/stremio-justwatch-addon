@@ -129,7 +129,7 @@ describe("buildManifest — randomized catalog ids", () => {
       packages: ["nfx"],
       sorts: ["pop"],
     });
-    assert.ok(ids.every((id) => id.startsWith("jw_")));
+    assert.ok(ids.every((id) => id.startsWith("ES_es_jw_")));
   });
 
   test("every id gets an r_ prefix when randomize is on", () => {
@@ -140,7 +140,7 @@ describe("buildManifest — randomized catalog ids", () => {
       sorts: ["pop"],
       randomize: true,
     });
-    assert.ok(ids.every((id) => id.startsWith("r_jw_")));
+    assert.ok(ids.every((id) => id.startsWith("r_ES_es_jw_")));
   });
 });
 

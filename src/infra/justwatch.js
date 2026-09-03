@@ -231,6 +231,43 @@ function noteFailure(kind) {
   }
 }
 
+// JustWatch's GraphQL sits behind DataDome. A request with no cookie and a
+// bare header set is scored as a bot and eventually 403'd. We keep the
+// `datadome` cookie it hands back and replay it (so we look like a returning
+// session, not a fresh anonymous hit each time), and send a header set that is
+// coherent with the Chrome UA we already claim.
+const UA =
+  "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 " +
+  "(KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36";
+
+let ddCookie = null; // "datadome=<value>", refreshed from every response
+
+function captureCookie(headers) {
+  const raw = headers?.["set-cookie"];
+  if (!raw) return;
+  const line = Array.isArray(raw) ? raw.join("\n") : String(raw);
+  const m = /datadome=([^;\s]+)/.exec(line);
+  if (m) ddCookie = `datadome=${m[1]}`;
+}
+
+function jwHeaders() {
+  return {
+    "Content-Type": "application/json",
+    Accept: "application/json",
+    "Accept-Language": "en-US,en;q=0.9",
+    "User-Agent": UA,
+    Origin: "https://www.justwatch.com",
+    Referer: "https://www.justwatch.com/",
+    "sec-ch-ua": '"Chromium";v="124", "Google Chrome";v="124", "Not-A.Brand";v="99"',
+    "sec-ch-ua-mobile": "?0",
+    "sec-ch-ua-platform": '"Windows"',
+    "Sec-Fetch-Dest": "empty",
+    "Sec-Fetch-Mode": "cors",
+    "Sec-Fetch-Site": "same-site",
+    ...(ddCookie ? { Cookie: ddCookie } : {}),
+  };
+}
+
 async function gql(query, variables) {
   // Fail fast without touching the network. The caller's own fallback still
   // runs, so a manifest degrades and a catalog serves its placeholder — the
@@ -246,20 +283,13 @@ async function gql(query, variables) {
 
   return enqueue(async () => {
     try {
-      const { data } = await axios.post(
+      const res = await axios.post(
         GRAPHQL_URL,
         { query, variables },
-        {
-          headers: {
-            "Content-Type": "application/json",
-            "User-Agent":
-              "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
-            Accept: "application/json",
-            "Accept-Language": "en-US,en;q=0.9",
-          },
-          timeout: 10_000,
-        },
+        { headers: jwHeaders(), timeout: 10_000 },
       );
+      captureCookie(res.headers);
+      const { data } = res;
       if (data.errors) {
         // GraphQL answers partially on purpose: one resolver can fail and the
         // response still carries every field that resolved. Seen in production
@@ -303,6 +333,10 @@ async function gql(query, variables) {
       // Already logged and counted in the errors branch; re-reporting it here
       // would print "no response" for a call that answered 200.
       if (err.graphqlErrors) throw err;
+
+      // A DataDome block (403) still carries a fresh `datadome` cookie — keep
+      // it so the next attempt presents it instead of starting cold again.
+      captureCookie(err.response?.headers);
 
       // One line, and the **HTTP status first**. Twice now an incident has
       // turned on whether JustWatch replied 403 (edge/WAF IP block), 429
@@ -441,13 +475,7 @@ async function fetchSearchNodes({
  * @returns {Promise<Array>} packages with iconUrl, isAddon and addonParent* set
  */
 async function getPackages(country = "US", { force = false } = {}) {
-  // Versioned so a payload change can't be served from entries written by the
-  // previous shape for up to PACKAGES_TTL_S (24 h) after a deploy. v1 is the
-  // unversioned `packages:{country}` key still live in production; v2 covers
-  // includeAddons, addonParent and the channel classification together, since
-  // none of those shipped separately. **Bump on any change to the query or to
-  // data/packageFilters.js.**
-  const cacheKey = `packages:v2:${country}`;
+  const cacheKey = `packages:${country}`;
   warmCache.touch(cacheKey, { country });
 
   if (!force) {

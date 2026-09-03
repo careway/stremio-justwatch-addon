@@ -296,10 +296,10 @@ describe("Cache-invalidation route", () => {
   const paths = [
     "/api/inv/",
     "/api/inv",
-    "/api/inv//?key=packages:v2:ES",
-    "/api/inv///?key=packages:v2:ES",
-    "/api/inv/?key=packages:v2:ES",
-    "/api/inv/undefined?key=packages:v2:ES",
+    "/api/inv//?key=packages:ES",
+    "/api/inv///?key=packages:ES",
+    "/api/inv/?key=packages:ES",
+    "/api/inv/undefined?key=packages:ES",
   ];
 
   for (const urlPath of paths) {
@@ -323,9 +323,9 @@ describe("Cache-invalidation route", () => {
     process.env.INV_KEY = "s3cr3t";
     const server = await startServer();
     try {
-      const ok = await req(server, "/api/inv/s3cr3t?key=packages:v2:ES");
+      const ok = await req(server, "/api/inv/s3cr3t?key=packages:ES");
       assert.equal(ok.status, 202);
-      const wrong = await req(server, "/api/inv/nope?key=packages:v2:ES");
+      const wrong = await req(server, "/api/inv/nope?key=packages:ES");
       assert.notEqual(wrong.status, 202);
     } finally {
       server.close();

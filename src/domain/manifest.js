@@ -85,11 +85,20 @@ function getSortLabel(key, language) {
 /**
  * Build a Stremio manifest dynamically for a given user config.
  *
- * Catalog ID format: jw_{sortKey}_{shortName}
+ * Catalog ID format: {COUNTRY}_{language}_jw_{sortKey}_{shortName}
+ *   COUNTRY   = ISO country code, uppercase (e.g. ES) — omitted only when the
+ *               manifest has no config at all (/manifest.json)
+ *   language  = BCP47 primary tag (e.g. es)
  *   sortKey   = 'pop' | 'tnd' | 'new'
  *   shortName = JustWatch package shortName (e.g. nfx, dnp, prv), or the
  *               GLOBAL_PACKAGE_ID pseudo-package for whole-country catalogs
  *               with no provider filter (see ../data/catalogMeta)
+ *
+ * The country/language live in the id (not just the config URL segment) so a
+ * single addon install can serve catalogs for several countries — handy in
+ * front-ends like AIOStreams that let you pick catalogs across addons.
+ * ../domain/catalog.js parses them back out, and falls back to the config
+ * segment for the older bare `jw_{sortKey}_{shortName}` ids.
  *
  * Up to 6 catalogs are generated per selected provider/pseudo-package (one
  * per selected sort type × content type) — which sorts are included is itself
@@ -125,8 +134,11 @@ function buildManifest(config, encodedConfig, pkgInfoMap, addonBaseUrl) {
   const globalTypes = config?.globalTypes || {};
   // A randomized config serves every catalog shuffled; the "r_" id prefix
   // both tells domain/catalog.js to shuffle and keeps Stremio's per-id cache
-  // separate from the un-shuffled version of the same catalog.
+  // separate from the un-shuffled version of the same catalog. It stays the
+  // outermost segment: r_{COUNTRY}_{language}_jw_...
   const idPrefix = config?.randomize ? "r_" : "";
+  // Country/language segment baked into every catalog id (see the doc comment).
+  const geoPrefix = country ? `${country}_${language}_` : "";
 
   const catalogs = [];
 
@@ -161,7 +173,7 @@ function buildManifest(config, encodedConfig, pkgInfoMap, addonBaseUrl) {
       for (const type of types) {
         catalogs.push({
           type,
-          id: `${idPrefix}jw_${sortKey}_${shortName}`,
+          id: `${idPrefix}${geoPrefix}jw_${sortKey}_${shortName}`,
           // Global catalogs drop the provider-name segment entirely — just
           // the sort type and country, e.g. "Popular · ES" — instead of
           // naming it after the pseudo-package.

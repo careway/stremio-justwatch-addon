@@ -167,9 +167,23 @@ async function handleCatalog({ type, id, extra }, config) {
   let offset = Math.max(0, parseInt(skip, 10) || 0);
   const jwType = TYPE_TO_JW[type];
   // An "r_" prefix (set by buildManifest for a randomized config) means this
-  // catalog is served shuffled — strip it before parsing sort key / package.
+  // catalog is served shuffled — strip it before parsing anything else.
   const randomize = id.startsWith("r_");
-  const coreId = randomize ? id.slice(2) : id;
+  let coreId = randomize ? id.slice(2) : id;
+
+  // Newer ids carry the country + language: "ES_es_jw_pop_dnp". When present
+  // they override the config URL segment — that's what lets one install serve
+  // catalogs for several countries (e.g. picked across addons in AIOStreams).
+  // Older bare "jw_pop_dnp" ids fall back to the config, unchanged.
+  let country = config.country;
+  let language = config.language;
+  const geo = coreId.match(/^([A-Za-z]{2})_([A-Za-z]{2,3})_(jw_.+)$/);
+  if (geo) {
+    country = geo[1].toUpperCase();
+    language = geo[2].toLowerCase();
+    coreId = geo[3];
+  }
+
   const parts = coreId.split("_");
   const sortKey = parts[1] || "pop";
   const pkgName = parts.slice(2).join("_");
@@ -177,7 +191,7 @@ async function handleCatalog({ type, id, extra }, config) {
   const packageFilter =
     pkgName && pkgName !== GLOBAL_PACKAGE_ID ? [pkgName] : [];
   const sortBy = SORT_MAP[sortKey] || "POPULAR";
-  const genreCode = resolveGenre(genre, config.language);
+  const genreCode = resolveGenre(genre, language);
   // Still unresolved after the double-decode fallback. Deliberately lenient —
   // it drops the filter and serves the full catalog rather than an empty one,
   // because the realistic remaining cause is a manifest Stremio cached in
@@ -186,7 +200,7 @@ async function handleCatalog({ type, id, extra }, config) {
   if (genre && !genreCode) {
     console.warn(
       `[catalog] Unrecognised genre ${JSON.stringify(genre)} for language ` +
-        `"${config.language}" — serving unfiltered.`,
+        `"${language}" — serving unfiltered.`,
     );
   }
 
@@ -197,8 +211,8 @@ async function handleCatalog({ type, id, extra }, config) {
       packages: packageFilter,
       genres: genreCode ? [genreCode] : [],
       sortBy,
-      country: config.country,
-      language: config.language,
+      country,
+      language,
       first: 50,
       offset: pageOffset,
     });
@@ -208,7 +222,7 @@ async function handleCatalog({ type, id, extra }, config) {
     return nodes
       .filter((n) => !jwType || n.objectType === jwType)
       .filter((n) => !isUnreleased(n))
-      .map((n) => nodeToMeta(n, config.language, config))
+      .map((n) => nodeToMeta(n, language, config))
       .filter((meta) => {
         if (!meta || !meta.id || seen.has(meta.id)) return false;
         seen.add(meta.id);
@@ -231,6 +245,7 @@ async function handleCatalog({ type, id, extra }, config) {
       );
       const seed = seedFromString(
         [
+          country,
           coreId,
           type,
           genreCode || "",

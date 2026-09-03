@@ -9,7 +9,7 @@
   "scripts": {
     "start": "node src/index.js",
     "dev": "nodemon --env-file=.env.development.local src/index.js",
-    "test": "node --test test/**/*.test.js"
+    "test": "NODE_ENV=test node --test test/**/*.test.js"
   },
   "dependencies": {
     "@upstash/redis": "^1.37.0",

@@ -238,10 +238,10 @@ describe("buildManifest — global per-sort content types", () => {
         globalTypes: { pop: "movie", new: "series" },
       }),
       [
-        "movie jw_pop_global",
-        "movie jw_tnd_global",
-        "series jw_tnd_global",
-        "series jw_new_global",
+        "movie ES_es_jw_pop_global",
+        "movie ES_es_jw_tnd_global",
+        "series ES_es_jw_tnd_global",
+        "series ES_es_jw_new_global",
       ],
     );
   });
@@ -257,7 +257,7 @@ describe("buildManifest — global per-sort content types", () => {
         globalTypes: { pop: "series" },
       }),
       // pop follows globalTypes; tnd falls back to the package-level "movie".
-      ["series jw_pop_global", "movie jw_tnd_global"],
+      ["series ES_es_jw_pop_global", "movie ES_es_jw_tnd_global"],
     );
   });
 
@@ -270,7 +270,7 @@ describe("buildManifest — global per-sort content types", () => {
         sorts: ["pop"],
         globalTypes: { pop: "movie" },
       }),
-      ["movie jw_pop_nfx", "series jw_pop_nfx"],
+      ["movie ES_es_jw_pop_nfx", "series ES_es_jw_pop_nfx"],
     );
   });
 
@@ -283,7 +283,7 @@ describe("buildManifest — global per-sort content types", () => {
         globalSorts: ["pop"],
         globalTypes: { pop: "bogus" },
       }),
-      ["movie jw_pop_global", "series jw_pop_global"],
+      ["movie ES_es_jw_pop_global", "series ES_es_jw_pop_global"],
     );
   });
 });
@@ -302,7 +302,7 @@ describe("buildManifest — per-package content types", () => {
         packages: ["nfx"],
         sorts: ["pop"],
       }),
-      ["movie jw_pop_nfx", "series jw_pop_nfx"],
+      ["movie ES_es_jw_pop_nfx", "series ES_es_jw_pop_nfx"],
     );
   });
 
@@ -316,10 +316,10 @@ describe("buildManifest — per-package content types", () => {
         packageTypes: { nfx: "movie", prv: "series" },
       }),
       [
-        "movie jw_pop_nfx",
-        "movie jw_pop_dnp",
-        "series jw_pop_dnp",
-        "series jw_pop_prv",
+        "movie ES_es_jw_pop_nfx",
+        "movie ES_es_jw_pop_dnp",
+        "series ES_es_jw_pop_dnp",
+        "series ES_es_jw_pop_prv",
       ],
     );
   });
@@ -333,7 +333,7 @@ describe("buildManifest — per-package content types", () => {
         sorts: ["pop", "tnd", "new"],
         packageTypes: { nfx: "series" },
       }),
-      ["series jw_pop_nfx", "series jw_tnd_nfx", "series jw_new_nfx"],
+      ["series ES_es_jw_pop_nfx", "series ES_es_jw_tnd_nfx", "series ES_es_jw_new_nfx"],
     );
   });
 
@@ -365,7 +365,7 @@ describe("buildManifest — per-package content types", () => {
         sorts: ["pop"],
         packageTypes: { nfx: "bogus" },
       }),
-      ["movie jw_pop_nfx", "series jw_pop_nfx"],
+      ["movie ES_es_jw_pop_nfx", "series ES_es_jw_pop_nfx"],
     );
   });
 });

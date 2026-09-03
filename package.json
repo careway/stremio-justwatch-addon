@@ -1,6 +1,6 @@
 {
   "name": "omnicatalogs",
-  "version": "1.6.0",
+  "version": "1.7.0",
   "description": "Every service catalog from a good bunch of countries. Select the catalogs you want and enjoy searching and filtering through them. You can install it as many times as catalogs from different countries you want.",
   "main": "src/index.js",
   "engines": {

@@ -11,6 +11,7 @@ const {
 } = require("../ttl");
 const { createCircuitBreaker } = require("./circuitBreaker");
 const stats = require("./stats");
+const warmCache = require("./warmCache");
 const {
   keepPackage,
   annotateChannels,
@@ -343,7 +344,49 @@ async function gql(query, variables) {
  * @param {number}   opts.first       - Results per page (max 50)
  * @param {number}   opts.offset      - Pagination offset (0, 50, 100, ...)
  */
-async function searchTitles({
+async function searchTitles(opts = {}) {
+  const {
+    query = "",
+    objectTypes = [],
+    packages = [],
+    genres = [],
+    sortBy = "POPULAR",
+    country = "US",
+    language = "en",
+    first = 50,
+    offset = 0,
+    // Set by the cache warmer: skip the L1/L2 read and go straight to the
+    // network, so it can refresh an entry that is technically still cached.
+    force = false,
+  } = opts;
+  const cacheKey = `search:${query}:${objectTypes.join(",")}:${packages.join(",")}:${genres.join(",")}:${sortBy}:${country}:${language}:${first}:${offset}`;
+  const vars = {
+    query,
+    objectTypes,
+    packages,
+    genres,
+    sortBy,
+    country,
+    language,
+    first,
+    offset,
+  };
+  warmCache.touch(cacheKey, vars);
+
+  if (!force) {
+    const cached = await cacheGet(cacheKey, TTL_S);
+    if (cached) return cached;
+  }
+
+  const nodes = await fetchSearchNodes(vars);
+  await cacheSet(cacheKey, nodes, TTL_S);
+  warmCache.store(cacheKey, nodes);
+  return nodes;
+}
+
+// Just the network + shaping half of searchTitles — no cache, no registry.
+// Shared by the live path above and by the warmer's replay (_warmRefetch).
+async function fetchSearchNodes({
   query = "",
   objectTypes = [],
   packages = [],
@@ -354,10 +397,6 @@ async function searchTitles({
   first = 50,
   offset = 0,
 } = {}) {
-  const cacheKey = `search:${query}:${objectTypes.join(",")}:${packages.join(",")}:${genres.join(",")}:${sortBy}:${country}:${language}:${first}:${offset}`;
-  const cached = await cacheGet(cacheKey, TTL_S);
-  if (cached) return cached;
-
   const filter = {};
   if (query) filter.searchQuery = query;
   if (objectTypes.length) filter.objectTypes = objectTypes;
@@ -386,11 +425,9 @@ async function searchTitles({
 
   // `|| []` is not enough on a partial response: null propagation from a failed
   // field leaves a null *entry* in an otherwise fine list, so drop those too.
-  const nodes = (data?.popularTitles?.edges || [])
+  return (data?.popularTitles?.edges || [])
     .map((e) => e?.node)
     .filter(Boolean);
-  await cacheSet(cacheKey, nodes, TTL_S);
-  return nodes;
 }
 
 /**
@@ -403,7 +440,7 @@ async function searchTitles({
  * @param {string} country - ISO country code (e.g. 'ES')
  * @returns {Promise<Array>} packages with iconUrl, isAddon and addonParent* set
  */
-async function getPackages(country = "US") {
+async function getPackages(country = "US", { force = false } = {}) {
   // Versioned so a payload change can't be served from entries written by the
   // previous shape for up to PACKAGES_TTL_S (24 h) after a deploy. v1 is the
   // unversioned `packages:{country}` key still live in production; v2 covers
@@ -411,15 +448,27 @@ async function getPackages(country = "US") {
   // none of those shipped separately. **Bump on any change to the query or to
   // data/packageFilters.js.**
   const cacheKey = `packages:v2:${country}`;
-  const cached = await cacheGet(cacheKey, PACKAGES_TTL_S);
-  if (cached) return cached;
+  warmCache.touch(cacheKey, { country });
 
+  if (!force) {
+    const cached = await cacheGet(cacheKey, PACKAGES_TTL_S);
+    if (cached) return cached;
+  }
+
+  const pkgs = await fetchPackages(country);
+  await cacheSet(cacheKey, pkgs, PACKAGES_TTL_S);
+  warmCache.store(cacheKey, pkgs);
+  return pkgs;
+}
+
+// Network + shaping half of getPackages — shared with the warmer's replay.
+async function fetchPackages(country = "US") {
   const rawData = await gql(GET_PACKAGES_QUERY, {
     country,
     platform: "WEB",
     includeAddons: true,
   });
-  const pkgs = annotateChannels(
+  return annotateChannels(
     (rawData?.packages || []).filter(keepPackage).map((pkg) => ({
       ...pkg,
       iconUrl: pkg.icon
@@ -427,14 +476,21 @@ async function getPackages(country = "US") {
         : null,
     })),
   );
+}
 
-  await cacheSet(cacheKey, pkgs, PACKAGES_TTL_S);
-  return pkgs;
+// (key, vars) => Promise<payload>, handed to warmCache.start(). Replays the
+// stored query straight against the network, bypassing the cache entirely.
+function _warmRefetch(key, vars) {
+  return key.startsWith("packages:")
+    ? fetchPackages(vars.country)
+    : fetchSearchNodes(vars);
 }
 
 module.exports = {
   searchTitles,
   getPackages,
+  // Handed to warmCache.start() in index.js so the warmer can replay queries.
+  _warmRefetch,
   // Exported for tests and for anyone wanting to inspect/reset upstream state.
   breaker,
 };

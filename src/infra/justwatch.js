@@ -113,6 +113,9 @@ async function cacheGet(key, ttl_s) {
   let data = await L1Cache.get(key);
   if (data) {
     trackCacheHit("L1", key);
+    // Distinguishes "served from something the warmer pre-fetched" from an
+    // ordinary L1 hit off a live miss — see warmCache.markWarm()'s comment.
+    if (warmCache.isWarm(key)) stats.bump("cache.warmHit");
     return data;
   }
 
@@ -466,9 +469,13 @@ async function searchTitles(opts = {}) {
     const { payload, sibling } = await fetchSearchBlock(vars);
     await cacheSet(cacheKey, payload, TTL_S);
     warmCache.store(cacheKey, payload);
-    warmCache.touch(sibling.key, sibling.vars);
+    warmCache.registerRow(sibling.key, sibling.vars);
     await cacheSet(sibling.key, sibling.payload, TTL_S);
     warmCache.store(sibling.key, sibling.payload);
+    // Nobody asked for this page — it just came back "free" alongside the one
+    // that did — so it counts as warmed, same as anything the background
+    // tick() pre-fetches, for the cache.warmHit stat.
+    warmCache.markWarm(sibling.key);
     return payload;
   }
 

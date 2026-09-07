@@ -103,7 +103,7 @@ function searchEntry({ shortName, type, sortKey, country, language }) {
     sortBy,
     country,
     language,
-    first: 50,
+    first: 100,
     offset: 0,
   };
   const key = `search:${vars.query}:${objectTypes.join(",")}:${packages.join(",")}:${vars.genres.join(",")}:${sortBy}:${country}:${language}:${vars.first}:${vars.offset}`;

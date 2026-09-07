@@ -5,6 +5,7 @@ const { L1Cache, L2Cache } = require("../infra/cache");
 
 const { trackCatalogRequest } = require("../infra/analytics");
 const stats = require("../infra/stats");
+const visitors = require("../infra/visitors");
 const { breaker } = require("../infra/justwatch");
 
 const { decodeConfig } = require("../domain/userConfig");
@@ -231,9 +232,10 @@ async function router(req, res) {
   // unset, for the same reason: the error ring quotes request variables, which
   // reveal which providers users pick.
   if (process.env.INV_KEY && rawPath === `/api/stats/${process.env.INV_KEY}`) {
+    const clientsByHour = await visitors.hourlySeries();
     return respond(
       res,
-      { ...stats.snapshot(), upstreamCircuit: breaker.state() },
+      { ...stats.snapshot(), upstreamCircuit: breaker.state(), clientsByHour },
       200,
       "no-store",
     );

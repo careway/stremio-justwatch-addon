@@ -7,6 +7,7 @@ const { respond } = require("./http/responses");
 const { PORT } = require("./http/request");
 const stats = require("./infra/stats");
 const warmCache = require("./infra/warmCache");
+const visitors = require("./infra/visitors");
 const justwatch = require("./infra/justwatch");
 const { L1Cache } = require("./infra/cache");
 
@@ -21,10 +22,16 @@ warmCache
   })
   .catch((err) => logError("[warmCache] start error:", err.stack || err.message));
 
+// Same graceful-no-op-without-DATABASE_URL deal as warmCache above.
+visitors
+  .start()
+  .catch((err) => logError("[visitors] start error:", err.stack || err.message));
+
 // ─── Handler (exported so any Node host can mount it) ──────────────────────
 
 async function handler(req, res) {
   const start = Date.now();
+  visitors.track(req); // fire-and-forget, never blocks the response
   try {
     await router(req, res);
     stats.bump(`responses.${res.statusCode}`);

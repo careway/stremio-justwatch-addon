@@ -79,6 +79,22 @@ let pruneTimer = null;
 let tickRunning = false;
 const lastTouch = new Map(); // key -> ms, in-process debounce for touch()
 
+// Keys currently in L1 because the warmer put them there (bulk seed at
+// startup, or a background tick() refresh) rather than because a live
+// request's own cache miss fetched and stored them. Lets cacheGet() in
+// ../infra/justwatch tell "served from a cold-fetched entry" apart from
+// "served from something we kept warm ahead of time" for the cache.warmHit
+// stat — same L1 Map either way, this is just provenance for that one
+// counter. Unbounded growth guarded the same way as lastTouch above.
+const warmKeys = new Set();
+function markWarm(key) {
+  warmKeys.add(key);
+  if (warmKeys.size > 5000) warmKeys.clear();
+}
+function isWarm(key) {
+  return warmKeys.has(key);
+}
+
 // `packages:*` keys refresh on the slower cadence; everything else is a catalog.
 const ttlFor = (key) => (key.startsWith("packages:") ? PACKAGES_TTL_S : TTL_S);
 
@@ -121,6 +137,29 @@ function touch(key, vars) {
     )
     .then(() => stats.bump("warm.touch"))
     .catch((err) => console.warn("[warmCache] touch failed:", err.message));
+}
+
+/**
+ * Register `key` exists (creating the row if needed) WITHOUT counting it as
+ * demand. For the adjacent 50-page a 100-item block fetch produces for free
+ * (see fetchSearchBlock in ../infra/justwatch) — nobody asked for it yet, it
+ * just happened to come back alongside a page that did, so it must not bump
+ * request_count or the demand filter in scripts/seed-warm-cache.js would
+ * treat every provider the warmer merely *touches* as "real demand", which
+ * defeats the point of that filter. A real request for this exact key still
+ * goes through touch() as normal and starts counting genuinely from there.
+ */
+function registerRow(key, vars) {
+  if (!pool) return Promise.resolve();
+  if (vars?.country && !VALID_COUNTRIES.has(vars.country)) return Promise.resolve();
+  return pool
+    .query(
+      `INSERT INTO query_cache (key, vars, last_requested_at, request_count)
+       VALUES ($1, $2::jsonb, now(), 0)
+       ON CONFLICT (key) DO UPDATE SET vars = EXCLUDED.vars`,
+      [key, JSON.stringify(vars)],
+    )
+    .catch((err) => console.warn("[warmCache] registerRow failed:", err.message));
 }
 
 /**
@@ -179,6 +218,7 @@ async function seedL1(L1Cache) {
       ttlFor(row.key) - (Date.now() / 1000 - Number(row.payload_epoch));
     if (remaining > 30) {
       await L1Cache.set(row.key, row.payload, Math.floor(remaining));
+      markWarm(row.key);
       seeded++;
     }
   }
@@ -228,6 +268,7 @@ async function tick(refetch, L1Cache, breaker) {
     );
     await client.query("COMMIT");
     await L1Cache.set(key, payload, ttlFor(key));
+    markWarm(key);
     stats.bump("warm.refresh.ok");
 
     // The block fetch above already paid for the adjacent 50-page — persist
@@ -235,9 +276,10 @@ async function tick(refetch, L1Cache, breaker) {
     // comes up. Outside the transaction and best-effort: a failure here just
     // leaves the sibling due for its own tick later.
     if (sibling) {
-      await touch(sibling.key, sibling.vars);
+      await registerRow(sibling.key, sibling.vars);
       store(sibling.key, sibling.payload);
       L1Cache.set(sibling.key, sibling.payload, ttlFor(sibling.key));
+      markWarm(sibling.key);
       stats.bump("warm.refresh.sibling");
     }
   } catch (err) {
@@ -323,4 +365,4 @@ async function stop() {
   pool = null;
 }
 
-module.exports = { start, stop, touch, store };
+module.exports = { start, stop, touch, store, registerRow, markWarm, isWarm };

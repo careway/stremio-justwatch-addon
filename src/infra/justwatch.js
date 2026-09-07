@@ -364,6 +364,46 @@ async function gql(query, variables) {
 
 // ─── Public API ───────────────────────────────────────────────────────────────
 
+// External page size: every caller (catalog.js's Stremio-facing pagination,
+// the seed script, cache keys) works in units of this. BLOCK_SIZE is
+// JustWatch's real per-request cap on `first` — empirically confirmed
+// 2026-09-07: first:100 succeeds, first:101+ answers `"page too large"`
+// (code TOO_BIG). Since BLOCK_SIZE is exactly 2×PAGE_SIZE, one upstream call
+// can fill two adjacent pages instead of one, halving upstream calls for the
+// common case (pages requested in order, which is how Stremio scrolls and
+// how the warmer/seed script walk a catalog).
+const PAGE_SIZE = 50;
+const BLOCK_SIZE = 100;
+
+function buildSearchKey({ query, objectTypes, packages, genres, sortBy, country, language }, first, offset) {
+  return `search:${query}:${objectTypes.join(",")}:${packages.join(",")}:${genres.join(",")}:${sortBy}:${country}:${language}:${first}:${offset}`;
+}
+
+/**
+ * Fetch the 100-item block containing a 50-aligned `vars.offset`, and split
+ * it into the requested half plus its sibling half. The sibling comes back
+ * alongside so a caller that already paid for the network call can persist
+ * it too, warming the adjacent page before anyone asks for it.
+ */
+async function fetchSearchBlock(vars) {
+  const blockOffset = Math.floor(vars.offset / BLOCK_SIZE) * BLOCK_SIZE;
+  const block = await fetchSearchNodes({ ...vars, first: BLOCK_SIZE, offset: blockOffset });
+  const firstHalf = block.slice(0, PAGE_SIZE);
+  const secondHalf = block.slice(PAGE_SIZE, BLOCK_SIZE);
+  const wantsFirstHalf = vars.offset === blockOffset;
+  const own = wantsFirstHalf ? firstHalf : secondHalf;
+  const sibOffset = wantsFirstHalf ? blockOffset + PAGE_SIZE : blockOffset;
+  const sibPayload = wantsFirstHalf ? secondHalf : firstHalf;
+  return {
+    payload: own,
+    sibling: {
+      key: buildSearchKey(vars, PAGE_SIZE, sibOffset),
+      vars: { ...vars, first: PAGE_SIZE, offset: sibOffset },
+      payload: sibPayload,
+    },
+  };
+}
+
 /**
  * Search (or browse) titles on JustWatch.
  *
@@ -375,7 +415,7 @@ async function gql(query, variables) {
  * @param {string}   opts.sortBy      - 'POPULAR' | 'NEWLY_ADDED'
  * @param {string}   opts.country     - ISO country code (e.g. 'ES')
  * @param {string}   opts.language    - BCP47 language code (e.g. 'es')
- * @param {number}   opts.first       - Results per page (max 50)
+ * @param {number}   opts.first       - Results per page (max 100 upstream; see BLOCK_SIZE)
  * @param {number}   opts.offset      - Pagination offset (0, 50, 100, ...)
  */
 async function searchTitles(opts = {}) {
@@ -393,7 +433,7 @@ async function searchTitles(opts = {}) {
     // network, so it can refresh an entry that is technically still cached.
     force = false,
   } = opts;
-  const cacheKey = `search:${query}:${objectTypes.join(",")}:${packages.join(",")}:${genres.join(",")}:${sortBy}:${country}:${language}:${first}:${offset}`;
+  const cacheKey = buildSearchKey({ query, objectTypes, packages, genres, sortBy, country, language }, first, offset);
   const vars = {
     query,
     objectTypes,
@@ -410,6 +450,19 @@ async function searchTitles(opts = {}) {
   if (!force) {
     const cached = await cacheGet(cacheKey, TTL_S);
     if (cached) return cached;
+  }
+
+  // The standard, 50-aligned page (every real caller — catalog.js, the seed
+  // script — asks this way): fetch the containing 100-block and cache both
+  // halves, so the adjacent page is already warm for the next request.
+  if (first === PAGE_SIZE && offset % PAGE_SIZE === 0) {
+    const { payload, sibling } = await fetchSearchBlock(vars);
+    await cacheSet(cacheKey, payload, TTL_S);
+    warmCache.store(cacheKey, payload);
+    warmCache.touch(sibling.key, sibling.vars);
+    await cacheSet(sibling.key, sibling.payload, TTL_S);
+    warmCache.store(sibling.key, sibling.payload);
+    return payload;
   }
 
   const nodes = await fetchSearchNodes(vars);
@@ -449,7 +502,7 @@ async function fetchSearchNodes({
   const data = await gql(GET_POPULAR_TITLES_QUERY, {
     popularTitlesFilter: filter,
     country,
-    first: Math.min(first, 50),
+    first: Math.min(first, BLOCK_SIZE),
     offset,
     popularTitlesSortBy: sortBy,
     language,
@@ -506,12 +559,19 @@ async function fetchPackages(country = "US") {
   );
 }
 
-// (key, vars) => Promise<payload>, handed to warmCache.start(). Replays the
-// stored query straight against the network, bypassing the cache entirely.
+// (key, vars) => Promise<{ payload, sibling }>, handed to warmCache.start().
+// Replays the stored query straight against the network, bypassing the cache
+// entirely. `sibling` is the adjacent 50-page a 100-block fetch produced for
+// free (see fetchSearchBlock) — null for anything that doesn't page in 50s
+// (packages:*) — so the caller can persist it too and skip fetching it later.
 function _warmRefetch(key, vars) {
-  return key.startsWith("packages:")
-    ? fetchPackages(vars.country)
-    : fetchSearchNodes(vars);
+  if (key.startsWith("packages:")) {
+    return fetchPackages(vars.country).then((payload) => ({ payload, sibling: null }));
+  }
+  if (vars.first === PAGE_SIZE && vars.offset % PAGE_SIZE === 0) {
+    return fetchSearchBlock(vars);
+  }
+  return fetchSearchNodes(vars).then((payload) => ({ payload, sibling: null }));
 }
 
 module.exports = {

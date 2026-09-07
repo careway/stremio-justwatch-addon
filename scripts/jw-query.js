@@ -136,7 +136,7 @@ function usage() {
   -g, --genre <sn>       Genre shortName, repeatable (e.g. act)
   -t, --type <t>         movie | series       (default: both)
   -s, --sort <s>         pop | tnd | new, or a raw JW value (default pop)
-  -n, --first <n>        Page size, max 50    (default 50)
+  -n, --first <n>        Page size, max 100   (default 50)
   -o, --offset <n>       Pagination offset    (default 0)
   -q, --query <text>     Text search          (default: browse)
       --repeat <n>       Fire the same query n times, report each timing
@@ -202,7 +202,9 @@ async function main() {
     variables = {
       popularTitlesFilter: filter,
       country: opts.country,
-      first: Math.min(opts.first, 50),
+      // 100 is JustWatch's real per-request cap, confirmed live 2026-09-07:
+      // first:101+ answers "page too large" (TOO_BIG).
+      first: Math.min(opts.first, 100),
       offset: opts.offset,
       popularTitlesSortBy: SORT_MAP[opts.sort] || opts.sort.toUpperCase(),
       language: opts.language,

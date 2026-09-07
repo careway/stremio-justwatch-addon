@@ -22,7 +22,18 @@
 
 const { Pool } = require("pg");
 const { TTL_S, PACKAGES_TTL_S } = require("../ttl");
+const { COUNTRIES } = require("../data/catalogMeta");
 const stats = require("./stats");
+
+// JustWatch rejects a request for a country it doesn't recognize with a
+// GraphQL error, not a normal empty result — and that's a *permanent*
+// failure, not a transient one. A garbage/typo'd country ending up in
+// query_cache (e.g. from a malformed user config) would otherwise sit there
+// forever: every tick() retries it, it always fails, and repeated failures
+// trip the *shared* upstream circuit breaker — which then blocks every
+// other country's traffic too for UPSTREAM_COOLDOWN_S. Rejecting it here, at
+// the only place new rows get queued, keeps it from ever being scheduled.
+const VALID_COUNTRIES = new Set(COUNTRIES.map((c) => c.code));
 
 // Strip sslmode/channel_binding from the URL — TLS is forced by the `ssl`
 // option below, and leaving sslmode in triggers a pg deprecation warning on
@@ -87,14 +98,18 @@ function dueClause() {
  * the caller.
  */
 function touch(key, vars) {
-  if (!pool) return;
+  if (!pool) return Promise.resolve();
+  if (vars?.country && !VALID_COUNTRIES.has(vars.country)) {
+    stats.bump("warm.touch.rejected");
+    return Promise.resolve();
+  }
   const now = Date.now();
   const prev = lastTouch.get(key);
-  if (prev && now - prev < TOUCH_DEBOUNCE_MS) return;
+  if (prev && now - prev < TOUCH_DEBOUNCE_MS) return Promise.resolve();
   lastTouch.set(key, now);
   if (lastTouch.size > 5000) lastTouch.clear(); // cheap unbounded-growth guard
 
-  pool
+  return pool
     .query(
       `INSERT INTO query_cache (key, vars, last_requested_at, request_count)
        VALUES ($1, $2::jsonb, now(), 1)
@@ -136,6 +151,13 @@ async function ensureSchema() {
       last_requested_at timestamptz NOT NULL DEFAULT now(),
       request_count     bigint NOT NULL DEFAULT 1
     )`);
+  // Seed ordering lives here, separate from request_count — see
+  // scripts/seed-warm-cache.js's register(). Keeping them apart means
+  // request_count stays a clean organic-traffic signal (bumped only by
+  // touch() below), safe to rank real per-provider demand on.
+  await pool.query(
+    `ALTER TABLE query_cache ADD COLUMN IF NOT EXISTS seed_priority bigint NOT NULL DEFAULT 0`,
+  );
   await pool.query(
     `CREATE INDEX IF NOT EXISTS query_cache_last_requested
        ON query_cache (last_requested_at)`,
@@ -186,9 +208,9 @@ async function tick(refetch, L1Cache, breaker) {
       return;
     }
     const { key, vars } = rows[0];
-    let payload;
+    let payload, sibling;
     try {
-      payload = await refetch(key, vars); // network; may throw
+      ({ payload, sibling } = await refetch(key, vars)); // network; may throw
     } catch (err) {
       await client.query("ROLLBACK"); // release the row for a later retry
       stats.bump("warm.refresh.fail");
@@ -203,6 +225,17 @@ async function tick(refetch, L1Cache, breaker) {
     await client.query("COMMIT");
     await L1Cache.set(key, payload, ttlFor(key));
     stats.bump("warm.refresh.ok");
+
+    // The block fetch above already paid for the adjacent 50-page — persist
+    // it too (registers the row if new) so it's warm before its own turn
+    // comes up. Outside the transaction and best-effort: a failure here just
+    // leaves the sibling due for its own tick later.
+    if (sibling) {
+      await touch(sibling.key, sibling.vars);
+      store(sibling.key, sibling.payload);
+      L1Cache.set(sibling.key, sibling.payload, ttlFor(sibling.key));
+      stats.bump("warm.refresh.sibling");
+    }
   } catch (err) {
     try {
       await client.query("ROLLBACK");

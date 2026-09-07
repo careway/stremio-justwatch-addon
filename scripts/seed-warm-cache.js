@@ -7,8 +7,16 @@
  *   node --env-file=.env.development.local scripts/seed-warm-cache.js [options]
  *
  * By default it only REGISTERS the query keys (rows with a NULL payload and a
- * seeded request_count). The addon's background warmer then fills them at its
- * own trickle — nothing here hammers JustWatch.
+ * seeded priority). The addon's background warmer then fills them at its own
+ * trickle — nothing here hammers JustWatch.
+ *
+ * By default only seeds providers that real traffic has actually asked for —
+ * request_count (bumped by warmCache.touch() on live requests, see
+ * src/infra/justwatch.js) summed per provider shortName, for that country.
+ * A provider nobody has requested yet just isn't pre-warmed: the first real
+ * request for it still falls straight through to JustWatch and gets cached
+ * normally, same as before this ever existed. Use --all-providers to seed
+ * every provider JustWatch lists (the old, blanket behavior).
  *
  * Options
  *   --countries ES,US,DE   explicit priority order (highest first).
@@ -16,6 +24,8 @@
  *                          table, then fall back to a built-in list.
  *   --providers-limit N    only the first N providers per country (JustWatch
  *                          returns them roughly by relevance). Default: all.
+ *   --all-providers        skip the real-demand filter, seed every provider
+ *                          JustWatch lists for the country (old behavior).
  *   --sorts pop,tnd,new    which sorts to seed. Default: all three.
  *   --types movie,series   which content types. Default: both.
  *   --fetch                also call JustWatch now, spaced by --delay, and
@@ -26,7 +36,9 @@
  *   --dry-run              print what would be inserted, touch nothing.
  *
  * One provider-catalog costs sorts × types keys (default 6), plus one "global"
- * set and one packages entry per country. ES ≈ 125 providers ≈ 756 keys.
+ * set and one packages entry per country. With --all-providers, ES ≈ 125
+ * providers ≈ 756 keys; with the demand filter, only providers with real
+ * traffic count toward that.
  */
 const { Pool } = require("pg");
 const { getPackages, _warmRefetch, breaker } = require("../src/infra/justwatch");
@@ -45,11 +57,13 @@ function parseArgs(argv) {
     fetch: false,
     delay: 3000,
     dryRun: false,
+    allProviders: false,
   };
   for (let i = 2; i < argv.length; i++) {
     const a = argv[i];
     if (a === "--fetch") o.fetch = true;
     else if (a === "--dry-run") o.dryRun = true;
+    else if (a === "--all-providers") o.allProviders = true;
     else if (a === "--countries") o.countries = argv[++i].split(",").map((s) => s.trim().toUpperCase());
     else if (a === "--providers-limit") o.providersLimit = Number(argv[++i]);
     else if (a === "--sorts") o.sorts = argv[++i].split(",").map((s) => s.trim());
@@ -111,6 +125,25 @@ async function rankCountries(pool, explicit) {
   return [...ranked, ...DEFAULT_COUNTRIES.filter((c) => !seen.has(c))];
 }
 
+// Providers real traffic has actually asked for in `country`: request_count
+// (organic-only — see register()'s comment) summed per shortName found in
+// search keys' vars.packages. A provider with no rows yet, or whose rows
+// never had a live hit, just doesn't show up here.
+async function demandedProviders(pool, country) {
+  const { rows } = await pool.query(
+    `SELECT jsonb_array_elements_text(vars->'packages') AS short_name,
+            sum(request_count) AS n
+       FROM query_cache
+      WHERE key LIKE 'search:%'
+        AND vars->>'country' = $1
+        AND jsonb_array_length(vars->'packages') > 0
+      GROUP BY 1
+     HAVING sum(request_count) > 0`,
+    [country],
+  );
+  return new Set(rows.map((r) => r.short_name));
+}
+
 async function buildPlan(pool, opt) {
   const countries = await rankCountries(pool, opt.countries);
   const plan = []; // { key, vars, priority, label, kind }
@@ -135,13 +168,18 @@ async function buildPlan(pool, opt) {
       console.warn(`  ${country}: getPackages failed (${err.message}) — skipping providers`);
       providers = [];
     }
-    const shortNames = [
-      GLOBAL_PACKAGE_ID,
-      ...providers
-        .map((p) => p.shortName)
-        .filter(Boolean)
-        .slice(0, opt.providersLimit),
-    ];
+
+    const demand = opt.allProviders ? null : await demandedProviders(pool, country);
+    const withDemand = providers.map((p) => p.shortName).filter(Boolean);
+    const filtered = demand ? withDemand.filter((sn) => demand.has(sn)) : withDemand;
+    if (demand) {
+      console.log(
+        `  ${country}: ${filtered.length}/${withDemand.length} providers have real demand` +
+          (filtered.length === 0 ? " — nothing seeded yet for this country, run with --all-providers to bootstrap" : ""),
+      );
+    }
+
+    const shortNames = [GLOBAL_PACKAGE_ID, ...filtered.slice(0, opt.providersLimit)];
 
     shortNames.forEach((shortName, pi) => {
       // global first, then providers in JustWatch's own order
@@ -166,12 +204,17 @@ async function buildPlan(pool, opt) {
 
 // ─── apply ──────────────────────────────────────────────────────────────────
 
+// seed_priority orders the backfill queue; request_count is left alone here
+// so it stays a clean organic-traffic signal (bumped only by warmCache's
+// touch(), from real requests) — see buildPlan()'s demand filter, which
+// reads request_count to decide which providers actually have users asking
+// for them.
 async function register(pool, entry) {
   await pool.query(
-    `INSERT INTO query_cache (key, vars, last_requested_at, request_count)
+    `INSERT INTO query_cache (key, vars, last_requested_at, seed_priority)
      VALUES ($1, $2::jsonb, now(), $3)
      ON CONFLICT (key) DO UPDATE SET
-       request_count     = GREATEST(query_cache.request_count, EXCLUDED.request_count),
+       seed_priority     = GREATEST(query_cache.seed_priority, EXCLUDED.seed_priority),
        last_requested_at = now(),
        vars              = EXCLUDED.vars`,
     [entry.key, JSON.stringify(entry.vars), entry.priority],
@@ -190,11 +233,20 @@ async function isFresh(pool, key) {
 }
 
 async function fillPayload(pool, entry) {
-  const payload = await _warmRefetch(entry.key, entry.vars);
+  const { payload, sibling } = await _warmRefetch(entry.key, entry.vars);
   await pool.query(
     `UPDATE query_cache SET payload = $2::jsonb, payload_at = now() WHERE key = $1`,
     [entry.key, JSON.stringify(payload)],
   );
+  // One 100-item upstream call also produced the adjacent 50-page — register
+  // and fill it too, so the plan never has to fetch it separately.
+  if (sibling) {
+    await register(pool, { key: sibling.key, vars: sibling.vars, priority: entry.priority });
+    await pool.query(
+      `UPDATE query_cache SET payload = $2::jsonb, payload_at = now() WHERE key = $1`,
+      [sibling.key, JSON.stringify(sibling.payload)],
+    );
+  }
   return Array.isArray(payload) ? payload.length : 0;
 }
 

@@ -19,6 +19,15 @@ const PACKAGES_TTL_S = PACKAGES_TTL_H * 3600;
 const UPSTREAM_FAIL_THRESHOLD = 5;
 const UPSTREAM_COOLDOWN_S = 60;
 
+// A 403 from JustWatch is DataDome (bot-detection) blocking the IP, not a
+// transient blip — its real penalty runs closer to an hour. Retrying every
+// UPSTREAM_COOLDOWN_S during that window is pure noise: every attempt fails
+// anyway, and repeatedly knocking on a door that just blocked you is exactly
+// the pattern anti-bot systems key off of. This is deliberately still well
+// under the observed ~1h penalty — long enough to stop hammering, short
+// enough that a shorter-than-expected block doesn't cost extra downtime.
+const UPSTREAM_BLOCK_COOLDOWN_S = 5 * 60;
+
 module.exports = {
   TTL_H,
   TTL_S,
@@ -26,4 +35,5 @@ module.exports = {
   PACKAGES_TTL_S,
   UPSTREAM_FAIL_THRESHOLD,
   UPSTREAM_COOLDOWN_S,
+  UPSTREAM_BLOCK_COOLDOWN_S,
 };

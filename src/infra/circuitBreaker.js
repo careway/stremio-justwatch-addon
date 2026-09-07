@@ -16,6 +16,13 @@
 // deserves a backoff is how you end up hammering through the one case you
 // didn't enumerate.
 //
+// One targeted exception: recordFailure() takes an optional cooldown override.
+// A 403 specifically is a known, named case (DataDome blocking the IP) with a
+// penalty that runs much longer than a transient blip — see
+// UPSTREAM_BLOCK_COOLDOWN_S in ../ttl. That's a fact about JustWatch's bot
+// detection, not a guess about failure severity, so it doesn't reopen the
+// "classify everything" trap this comment warns against.
+//
 // Scope is one process. On a single-instance host that's the whole fleet; with
 // several instances each learns independently. Sharing it through L2 was
 // considered and skipped — it would add a Redis round trip to every upstream
@@ -47,14 +54,18 @@ function createCircuitBreaker({ threshold, cooldownMs, now = Date.now }) {
       openUntil = 0;
     },
 
-    /** @returns {boolean} true when this failure is the one that opened it */
-    recordFailure() {
+    /**
+     * @param {number} [cooldownMsOverride] - use this cooldown instead of the
+     *   default (e.g. a longer one for a known-lengthy block like a 403).
+     * @returns {boolean} true when this failure is the one that opened it
+     */
+    recordFailure(cooldownMsOverride) {
       consecutiveFailures++;
       if (consecutiveFailures < threshold) return false;
       // Re-arm on every failure at or past the threshold, so the half-open
       // probe that fails puts us straight back into a full cooldown rather
       // than letting one request through per tick.
-      openUntil = now() + cooldownMs;
+      openUntil = now() + (cooldownMsOverride ?? cooldownMs);
       return true;
     },
 

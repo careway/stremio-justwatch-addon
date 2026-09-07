@@ -8,6 +8,7 @@ const {
   PACKAGES_TTL_S,
   UPSTREAM_FAIL_THRESHOLD,
   UPSTREAM_COOLDOWN_S,
+  UPSTREAM_BLOCK_COOLDOWN_S,
 } = require("../ttl");
 const { createCircuitBreaker } = require("./circuitBreaker");
 const stats = require("./stats");
@@ -220,13 +221,19 @@ function usablePayload(payload) {
 /**
  * Count a failed call and open the breaker if this was the one that tips it.
  * Both failure paths go through here so they can't drift apart.
+ *
+ * A 403 is DataDome blocking the IP — a real penalty that runs much longer
+ * than the default cooldown (see UPSTREAM_BLOCK_COOLDOWN_S in ../ttl), so it
+ * gets its own, longer one. Everything else keeps the blunt default.
  */
 function noteFailure(kind) {
   stats.bump(`upstream.fail.${kind}`);
-  if (breaker.recordFailure()) {
+  const isBlock = kind === 403;
+  const cooldownMs = isBlock ? UPSTREAM_BLOCK_COOLDOWN_S * 1000 : undefined;
+  if (breaker.recordFailure(cooldownMs)) {
     console.error(
       `[justwatch] ${UPSTREAM_FAIL_THRESHOLD} consecutive failures — ` +
-        `pausing all upstream calls for ${UPSTREAM_COOLDOWN_S}s`,
+        `pausing all upstream calls for ${isBlock ? UPSTREAM_BLOCK_COOLDOWN_S : UPSTREAM_COOLDOWN_S}s`,
     );
   }
 }

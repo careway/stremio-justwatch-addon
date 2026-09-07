@@ -196,10 +196,14 @@ async function tick(refetch, L1Cache, breaker) {
   try {
     await client.query("BEGIN");
     const { rows } = await client.query(
+      // request_count (real traffic) decides once there's any; seed_priority
+      // (the backfill script's country/provider ranking — see register() in
+      // scripts/seed-warm-cache.js) breaks ties among rows nobody has asked
+      // for yet, so a fresh backlog isn't processed in arbitrary order.
       `SELECT key, vars FROM query_cache
         WHERE last_requested_at > now() - interval '${RETENTION_DAYS} days'
           AND ${dueClause()}
-        ORDER BY (payload IS NOT NULL), request_count DESC
+        ORDER BY (payload IS NOT NULL), request_count DESC, seed_priority DESC
         LIMIT 1
         FOR UPDATE SKIP LOCKED`,
     );

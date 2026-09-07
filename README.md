@@ -1,6 +1,6 @@
-# JustWatch · Stremio Addon
+# Omnicatalogs · Stremio Addon
 
-Discover where to watch movies and series on your favourite streaming platforms, powered by the [JustWatch](https://www.justwatch.com) API.
+Discover where to watch movies and series on your favourite streaming platforms, powered by the API.
 
 ## Features
 
@@ -13,10 +13,10 @@ Discover where to watch movies and series on your favourite streaming platforms,
 - **Randomized catalogs** (opt-in) — daily-seeded shuffle instead of straight ranking, paging indefinitely without repeats or gaps
 - **Three-tier caching**:
   1. **L1** in-memory, **L2** [Upstash Redis](https://upstash.com/) (REST/HTTPS) — catalog/search results refresh every 4h, provider package lists every 24h.
-  2. **Hot cache warming** (optional, Postgres-backed) — a background loop refreshes popular queries *before* they expire (stale-while-revalidate) and keeps L1 warm across restarts, so real user traffic rarely has to wait on a live JustWatch call. See [`DATA.md`](DATA.md).
-  3. Every catalog fetch pulls a 100-item block from JustWatch in one call and splits it into two 50-item pages — the second page is cached for free, roughly halving upstream calls for anyone paging through a catalog in order.
+  2. **Hot cache warming** (optional, Postgres-backed) — a background loop refreshes popular queries *before* they expire (stale-while-revalidate) and keeps L1 warm across restarts, so real user traffic rarely has to wait on a live server call. See [`DATA.md`](DATA.md).
+  3. Every catalog fetch pulls a 100-item block from server in one call and splits it into two 50-item pages — the second page is cached for free, roughly halving upstream calls for anyone paging through a catalog in order.
   - A failed/degraded fetch is served as a fallback but never cached (`Cache-Control: no-store`), so the next request retries instead of getting stuck on stale placeholder data.
-- **Resilient upstream client** — a circuit breaker stops hammering JustWatch during an outage or a DataDome block (403s get a longer, dedicated cooldown — see `src/infra/circuitBreaker.js`), and partial GraphQL responses are served instead of discarded outright.
+- **Resilient upstream client** — a circuit breaker stops hammering server during an outage or a DataDome block (403s get a longer, dedicated cooldown — see `src/infra/circuitBreaker.js`), and partial GraphQL responses are served instead of discarded outright.
 
 ## Quick start (local)
 
@@ -95,7 +95,7 @@ Config is encoded directly in the manifest URL path — no base64, fully human-r
 | ---------- | --------------------------------------------- | -------------------- |
 | `COUNTRY`  | ISO 3166-1 alpha-2 country code               | `ES`, `US`, `BR`     |
 | `LANGUAGE` | BCP 47 language tag for descriptions          | `es`, `en`, `pt`      |
-| `pkg…`     | JustWatch provider `shortName` (one or more), or `global` for the no-filter catalog | `nfx`, `dnp`, `global` |
+| `pkg…`     | provider `shortName` (one or more), or `global` for the no-filter catalog | `nfx`, `dnp`, `global` |
 
 A few extra segments toggle optional behavior when present — `r` for randomized catalogs, `sorts-…`/`gsorts-…` to narrow which sort types are generated, `m-…`/`s-…` to restrict a provider to movies/series only. All are omitted for an untouched config, so a plain `{COUNTRY}_{LANGUAGE}_{pkg…}` URL is always valid. See `src/domain/userConfig.js` for the full encoding.
 
@@ -114,7 +114,7 @@ Each generated catalog's own `id` additionally carries its country and language 
 | `REDIS_KV_REST_API_TOKEN`     | —             | Alternative to `UPSTASH_REDIS_REST_TOKEN`                       |
 | `DATABASE_URL_POOLED`         | —             | Postgres connection string (pooled — preferred). Enables hot cache warming and per-hour client stats; both are fully optional and off without it. |
 | `DATABASE_URL`                | —             | Direct (non-pooled) Postgres connection string — fallback if `_POOLED` isn't set. |
-| `WARM_TICK_MS`                | `4000`        | Gap between background cache-warming replays against JustWatch |
+| `WARM_TICK_MS`                | `4000`        | Gap between background cache-warming replays against web info |
 | `WARM_RETENTION_DAYS`         | `14`          | Stop replaying / prune a cache-warming query unrequested this long |
 | `WARM_SEED_LIMIT`             | `500`         | Max rows to bulk-seed into L1 from Postgres on startup          |
 | `WARM_POOL_MAX`                | `4`           | Max Postgres connections for the cache-warming pool             |
@@ -141,7 +141,7 @@ src/
     userConfig.js       — config URL encode/decode
     random.js           — seeded shuffle for randomized catalogs
   infra/                — outside world
-    justwatch.js        — JustWatch GraphQL client, block-fetch pagination, circuit breaker wiring
+    {webservers}.js        — GraphQL client, block-fetch pagination, circuit breaker wiring
     circuitBreaker.js   — generic consecutive-failure breaker (per-kind cooldown override)
     warmCache.js         — Postgres-backed hot cache warming (optional)
     visitors.js          — Postgres-backed unique-clients-per-hour tracking (optional)
@@ -154,7 +154,7 @@ src/
     uiStrings.js         — /configure translations (20 languages)
     packageFilters.js    — which packages are offered + provider/channel split
 scripts/
-  jw-query.js            — run a JustWatch query by hand (no cache, no deps)
+  jw-query.js            — run a query by hand (no cache, no deps)
   seed-warm-cache.js      — pre-fill the cache-warming backlog for chosen countries
   preview-warm-queue.js   — read-only preview of the warmer's next-up queue, in order
   watch-and-warm.js       — tail production logs and replay failing queries from here

@@ -20,7 +20,7 @@ const { getPackages, searchTitles } = require("../src/infra/justwatch");
 
 // Space out our own calls to JustWatch so this doesn't become the next IP
 // DataDome flags — see ttl.js's UPSTREAM_BLOCK_COOLDOWN_S for why that matters.
-const WARM_DELAY_MS = 2000;
+const WARM_DELAY_MS = 200;
 
 // Don't re-warm the same failing key more than once per this window — a
 // blocked production instance will log the same failure repeatedly.

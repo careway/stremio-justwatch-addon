@@ -69,6 +69,18 @@ const RETENTION_DAYS = Number(process.env.WARM_RETENTION_DAYS || 14);
 // Bulk-seed L1 from at most this many rows (most-requested first) on startup.
 const SEED_LIMIT = Number(process.env.WARM_SEED_LIMIT || 500);
 
+// The background tick() only keeps the top N *search* catalogs warm, ranked
+// by request_count (real demand) then seed_priority — everything past that
+// cutoff falls back to a normal live fetch on the rare request that actually
+// wants it, same as before any of this warming existed. Without a cap the
+// warmer eventually cycles through every catalog anyone has ever touched
+// within RETENTION_DAYS, most of which get one hit a year — that's cache
+// warming for a long tail nobody's waiting on, at the cost of the upstream
+// calls that keeps the *actually* popular catalogs fresh. `packages:*` rows
+// are exempt (one per country, small and fixed in number, and every one of
+// them is load-bearing for that country's manifest to work at all).
+const WARM_TOP_N = Number(process.env.WARM_TOP_N || 400);
+
 // A request only bumps its registry row at most once per this window — a busy
 // catalog would otherwise write on every hit for no ordering benefit.
 const TOUCH_DEBOUNCE_MS = 5 * 60 * 1000;
@@ -240,9 +252,23 @@ async function tick(refetch, L1Cache, breaker) {
       // (the backfill script's country/provider ranking — see register() in
       // scripts/seed-warm-cache.js) breaks ties among rows nobody has asked
       // for yet, so a fresh backlog isn't processed in arbitrary order.
+      //
+      // The inner subquery caps eligible *search* rows to the top WARM_TOP_N
+      // by that same ranking — see its comment above for why. `packages:*`
+      // rows skip the cap entirely.
       `SELECT key, vars FROM query_cache
         WHERE last_requested_at > now() - interval '${RETENTION_DAYS} days'
           AND ${dueClause()}
+          AND (
+            key LIKE 'packages:%'
+            OR key IN (
+              SELECT key FROM query_cache
+               WHERE key NOT LIKE 'packages:%'
+                 AND last_requested_at > now() - interval '${RETENTION_DAYS} days'
+               ORDER BY request_count DESC, seed_priority DESC
+               LIMIT ${WARM_TOP_N}
+            )
+          )
         ORDER BY (payload IS NOT NULL), request_count DESC, seed_priority DESC
         LIMIT 1
         FOR UPDATE SKIP LOCKED`,

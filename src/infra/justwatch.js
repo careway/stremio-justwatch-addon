@@ -284,9 +284,13 @@ async function gql(query, variables) {
   // difference is that JustWatch stops hearing from us while it's refusing.
   if (breaker.isOpen()) {
     stats.bump("upstream.shortCircuited");
-    const err = new Error(
-      `[justwatch] upstream circuit open, ${Math.ceil(breaker.remainingMs() / 1000)}s left`,
-    );
+    const message = `[justwatch] upstream circuit open, ${Math.ceil(breaker.remainingMs() / 1000)}s left`;
+    // Same `| vars: …` shape as every other failure log below — without it,
+    // this line says a catalog was cut off but not which one, and nothing
+    // downstream (this file's own error branches, scripts/watch-and-warm.js)
+    // can tell what to route around or replay.
+    console.error(`${message} | vars: ${JSON.stringify(variables).slice(0, 200)}`);
+    const err = new Error(message);
     err.circuitOpen = true;
     throw err;
   }

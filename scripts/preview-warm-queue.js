@@ -7,9 +7,12 @@
  *
  * Mirrors tick()'s selection exactly (see src/infra/warmCache.js):
  *   - "due" = never fetched, or fetched more than REFRESH_AHEAD × its TTL ago
- *   - order = rows with no payload yet first, then by request_count DESC
- *     (seed_priority never orders live processing — see register()'s comment
- *     in scripts/seed-warm-cache.js — only request_count, real traffic, does)
+ *   - order = rows with no payload yet first, then by request_count DESC,
+ *     then seed_priority DESC (the backfill script's ranking, only a
+ *     tie-breaker among rows with no real traffic yet)
+ *   - eligibility = `packages:*` rows always; every other row only if it's
+ *     in the top WARM_TOP_N by that same ranking (tick() doesn't keep a
+ *     long tail of barely-requested catalogs warm — see its comment)
  *
  * Options
  *   --limit N        how many rows to show (default 20)
@@ -23,6 +26,7 @@ const { TTL_S, PACKAGES_TTL_S } = require("../src/ttl");
 // Must match src/infra/warmCache.js exactly, or this stops being a preview
 // of the real queue.
 const REFRESH_AHEAD = 0.8;
+const WARM_TOP_N = Number(process.env.WARM_TOP_N || 400);
 
 function parseArgs(argv) {
   const o = { limit: 20, country: null, all: false };
@@ -61,9 +65,20 @@ async function main() {
   });
 
   const RETENTION_DAYS = Number(process.env.WARM_RETENTION_DAYS || 14);
+  const topNClause = `(
+    key LIKE 'packages:%'
+    OR key IN (
+      SELECT key FROM query_cache
+       WHERE key NOT LIKE 'packages:%'
+         AND last_requested_at > now() - interval '${RETENTION_DAYS} days'
+       ORDER BY request_count DESC, seed_priority DESC
+       LIMIT ${WARM_TOP_N}
+    )
+  )`;
   const where = [
     `last_requested_at > now() - interval '${RETENTION_DAYS} days'`,
     ...(opt.all ? [] : [dueClause()]),
+    topNClause,
     ...(opt.country ? [`vars->>'country' = $1`] : []),
   ].join(" AND ");
   const params = opt.country ? [opt.country] : [];

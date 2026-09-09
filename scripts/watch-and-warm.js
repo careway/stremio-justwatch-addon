@@ -27,9 +27,15 @@ const WARM_DELAY_MS = 200;
 const REWARM_COOLDOWN_MS = 5 * 60 * 1000;
 const lastWarmed = new Map(); // key -> ms
 
+// Must match src/domain/catalog.js's MAX_OFFSET — production stops serving
+// (and therefore stops fetching) past this depth, so a failure this deep is
+// a scraper/bot walking the catalog, not a real user. Rewarming it just
+// spends this script's own JustWatch budget on a page nobody will ever see.
+const MAX_OFFSET = 300;
+
 const queue = [];
 let draining = false;
-const summary = { warmed: 0, failed: 0 };
+const summary = { warmed: 0, failed: 0, skippedDeep: 0 };
 
 function keyFor(vars) {
   return vars.kind === "packages"
@@ -38,6 +44,10 @@ function keyFor(vars) {
 }
 
 function enqueue(vars) {
+  if (vars.kind !== "packages" && vars.offset > MAX_OFFSET) {
+    summary.skippedDeep++;
+    return;
+  }
   const key = keyFor(vars);
   const now = Date.now();
   const last = lastWarmed.get(key);
@@ -52,6 +62,11 @@ async function drain() {
   draining = true;
   while (queue.length) {
     const { key, vars } = queue.shift();
+    // The one thing this prints: what it's about to fetch. No success/failure
+    // detail line — those are noise here (this exists to see *coverage*, not
+    // to duplicate the error output it's already reacting to); outcomes are
+    // still counted silently and reported in the shutdown summary.
+    console.log(`[watch-and-warm] requesting ${key}`);
     try {
       if (vars.kind === "packages") {
         await getPackages(vars.country, { force: true });
@@ -73,10 +88,8 @@ async function drain() {
         });
       }
       summary.warmed++;
-      console.log(`[watch-and-warm] warmed ${key}`);
-    } catch (err) {
+    } catch {
       summary.failed++;
-      console.warn(`[watch-and-warm] failed to warm ${key}: ${err.message}`);
     }
     await new Promise((r) => setTimeout(r, WARM_DELAY_MS));
   }
@@ -145,7 +158,10 @@ function handleLine(line) {
   if (!m) return;
   const vars = parseFailureVars(m[1]);
   if (!vars) return;
-  console.log(`[watch-and-warm] saw failure for ${keyFor(vars)} — queuing rewarm`);
+  // Deliberately silent here — this is production's own error, already
+  // visible in `beamup-cli logs` directly. What this script prints is
+  // coverage (which catalogs it's requesting), not a second copy of the
+  // errors it's reacting to.
   enqueue(vars);
 }
 
@@ -156,14 +172,24 @@ function startTail() {
   const child = spawn("npx", ["beamup-cli", "logs"], { stdio: ["ignore", "pipe", "pipe"] });
   currentChild = child;
 
-  let buf = "";
-  child.stdout.on("data", (chunk) => {
-    buf += chunk.toString();
-    const lines = buf.split("\n");
-    buf = lines.pop(); // keep the last, possibly-incomplete line
-    for (const line of lines) handleLine(line);
-  });
-  child.stderr.on("data", (chunk) => process.stderr.write(chunk));
+  // beamup-cli splits its output across both streams (the tailed log content
+  // itself has shown up on stderr, not just stdout) — route both through
+  // handleLine() instead of forwarding either raw. Nothing from the child
+  // should reach this script's own output directly; what gets printed is
+  // only ever this script's own "requesting …" lines. Separate buffers per
+  // stream — stdout and stderr chunks arrive independently, so sharing one
+  // buffer could splice an unrelated fragment into the middle of a line.
+  const makeLineReader = () => {
+    let buf = "";
+    return (chunk) => {
+      buf += chunk.toString();
+      const lines = buf.split("\n");
+      buf = lines.pop(); // keep the last, possibly-incomplete line
+      for (const line of lines) handleLine(line);
+    };
+  };
+  child.stdout.on("data", makeLineReader());
+  child.stderr.on("data", makeLineReader());
   child.on("exit", (code) => {
     console.log(`[watch-and-warm] beamup-cli logs exited (${code}) — reconnecting in 5s`);
     setTimeout(startTail, 5000);
@@ -175,7 +201,8 @@ startTail();
 function shutdown() {
   if (currentChild) currentChild.kill();
   console.log(
-    `[watch-and-warm] stopping — warmed ${summary.warmed}, failed ${summary.failed}` +
+    `[watch-and-warm] stopping — warmed ${summary.warmed}, failed ${summary.failed}, ` +
+      `skipped ${summary.skippedDeep} too-deep (offset > ${MAX_OFFSET})` +
       ` (${lastWarmed.size} distinct quer${lastWarmed.size === 1 ? "y" : "ies"} seen)`,
   );
   process.exit(0);

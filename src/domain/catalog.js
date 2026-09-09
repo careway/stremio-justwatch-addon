@@ -29,6 +29,16 @@ const TYPE_TO_JW = { movie: "MOVIE", series: "SHOW" };
 // pagination wins, because it's the one users notice.
 const PAGE_SIZE = 50;
 
+// How deep into a catalog this addon will ever fetch, in `skip`. Nothing in
+// Stremio's own UI pages this far on its own — a request for skip=700+ is a
+// scraper or a broken client walking the whole catalog page by page. Each
+// one is a full upstream call (page N needs everything before it re-fetched
+// or cached), so unbounded depth turns one such client into sustained
+// JustWatch load — exactly the kind of thing that trips the shared circuit
+// breaker for every real user. Past this, a page is served as empty (the
+// signal Stremio's client reads as "end of catalog") instead of fetched.
+const MAX_OFFSET = 100;
+
 // Titles fetched per shuffle block, in pages. **One**, deliberately.
 //
 // A randomized catalog has to cost the same upstream as a plain one. When a
@@ -165,6 +175,9 @@ async function handleCatalog({ type, id, extra }, config) {
 
   // Improved batching: fetch both the batch containing skip and the next batch, then merge and deduplicate
   let offset = Math.max(0, parseInt(skip, 10) || 0);
+  // See MAX_OFFSET's comment — end the catalog here rather than fetch this
+  // deep. `ok: true` so this is cached normally, not retried on every hit.
+  if (offset > MAX_OFFSET) return { ok: true, metas: [] };
   const jwType = TYPE_TO_JW[type];
   // An "r_" prefix (set by buildManifest for a randomized config) means this
   // catalog is served shuffled — strip it before parsing anything else.

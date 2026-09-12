@@ -4,12 +4,14 @@ const { searchTitles } = require("../infra/justwatch");
 const {
   getGenreCode,
   SORT_MAP,
-  GENRES,
   GLOBAL_PACKAGE_ID,
 } = require("../data/catalogMeta");
-const { resolvePosterUrl } = require("../infra/posterProviders");
+const { nodeToMeta } = require("./meta");
+const { getOfficialNetflixTrending } = require("./netflixTrending");
 const { seedFromString, seededShuffle, seedWindow } = require("./random");
 const { TTL_S } = require("../ttl");
+
+const NETFLIX_PACKAGE = "nfx";
 
 const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 const TYPE_TO_JW = { movie: "MOVIE", series: "SHOW" };
@@ -128,30 +130,6 @@ function resolveGenre(genre, language) {
   return null;
 }
 
-function nodeToMeta(node, language, config) {
-  const imdbId = node?.content?.externalIds?.imdbId;
-  if (!imdbId) return null;
-
-  const lang = (language || "en").toLowerCase().split("-")[0];
-
-  return {
-    id: imdbId,
-    type: node.objectType === "MOVIE" ? "movie" : "series",
-    name: node.content.title,
-    poster: resolvePosterUrl({
-      imdbId,
-      jwPosterUrl: node.content.posterUrl,
-      posterProvider: config?.posterProvider,
-      posterApiKey: config?.posterApiKey,
-    }),
-    description: node.content.shortDescription || undefined,
-    genres: (node.content.genres || []).map((g) => {
-      const entry = GENRES.find((e) => e.code === g.shortName);
-      return entry ? entry.names[lang] || entry.names.en : g.shortName;
-    }),
-  };
-}
-
 /**
  * Catalog handler.
  *
@@ -244,6 +222,46 @@ async function handleCatalog({ type, id, extra }, config) {
   };
 
   try {
+    // Netflix publishes its own official weekly Top 10 per country (see
+    // ../infra/netflixTop10) — the one part of this addon backed by data
+    // Netflix itself reports, rather than the JustWatch cross-provider
+    // popularity metric everything else here still runs on. A country-by-
+    // country check (2026-09-12) showed the two can diverge sharply — e.g.
+    // Malaysia's JustWatch "trending" surfaced Yellowstone/Breaking Bad/Rick
+    // and Morty while Netflix's own chart that week was almost entirely
+    // local Malay content — so this replaces page 1 of Netflix's "Trending"
+    // catalog specifically with the official chart, each entry matched back
+    // onto JustWatch by title for poster/synopsis/genres/imdbId (see
+    // ../domain/netflixTrending). Everything else is unaffected: Netflix's
+    // chart only ever has ~10 titles per type, so there's nothing to serve
+    // past offset 0, no way to apply a genre filter to a fixed top 10, and a
+    // randomized config's shuffle would just be fighting an already-real
+    // ranking — all three fall through to the regular JustWatch path below,
+    // as does any country Netflix doesn't publish a chart for.
+    if (
+      offset === 0 &&
+      !randomize &&
+      !genreCode &&
+      sortKey === "tnd" &&
+      packageFilter.length === 1 &&
+      packageFilter[0] === NETFLIX_PACKAGE
+    ) {
+      const officialMetas = await getOfficialNetflixTrending({
+        jwType,
+        country,
+        language,
+        config,
+      }).catch((err) => {
+        console.warn(
+          `[catalog] official Netflix Top10 lookup failed, falling back to JustWatch: ${err.message}`,
+        );
+        return null;
+      });
+      if (officialMetas?.length) {
+        return { ok: true, metas: officialMetas };
+      }
+    }
+
     // Fetch only the block this offset falls in, shuffle it against a seed
     // carrying that block's index, and serve the slice. No depth ceiling: the
     // randomized region widens a block at a time as the user pages, while the

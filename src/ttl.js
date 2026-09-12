@@ -11,6 +11,13 @@ const TTL_S = TTL_H * 3600;
 const PACKAGES_TTL_H = TTL_H * 6; // 24h
 const PACKAGES_TTL_S = PACKAGES_TTL_H * 3600;
 
+// Netflix republishes its official Top 10 (see ../infra/netflixTop10) weekly,
+// not on this addon's TTL_H cadence — same "slow-changing external data"
+// bucket as PACKAGES_TTL_H, reused here as a daily safety margin against a
+// mid-week correction rather than a guess at Netflix's own schedule.
+const NETFLIX_TOP10_TTL_H = PACKAGES_TTL_H; // 24h
+const NETFLIX_TOP10_TTL_S = NETFLIX_TOP10_TTL_H * 3600;
+
 // How long to stop calling JustWatch after it starts refusing us, and how many
 // consecutive failures it takes to decide that. Not derived from TTL_H: this is
 // a backoff, not a freshness window. 60s is long enough to stop being a
@@ -33,6 +40,8 @@ module.exports = {
   TTL_S,
   PACKAGES_TTL_H,
   PACKAGES_TTL_S,
+  NETFLIX_TOP10_TTL_H,
+  NETFLIX_TOP10_TTL_S,
   UPSTREAM_FAIL_THRESHOLD,
   UPSTREAM_COOLDOWN_S,
   UPSTREAM_BLOCK_COOLDOWN_S,

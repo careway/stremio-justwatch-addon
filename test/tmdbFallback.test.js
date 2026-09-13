@@ -19,12 +19,13 @@ global.fetch = async (url) => {
   return { ok: true, status: 200, json: async () => body };
 };
 
-const { resolveImdbId } = require("../src/infra/tmdbFallback");
+const { resolveImdbId, breaker } = require("../src/infra/tmdbFallback");
 
 describe("infra/tmdbFallback", () => {
   beforeEach(async () => {
     fetchCalls = [];
     responses = {};
+    breaker.reset();
     // Every test uses its own title so cache entries from earlier tests
     // (same process) can't leak in — cheaper than reaching into L1/L2
     // internals to flush by prefix.
@@ -88,6 +89,16 @@ describe("infra/tmdbFallback", () => {
     );
   });
 
+  test("a genuine failure is not cached — a real outage shouldn't poison a title for 24h", async () => {
+    responses["/3/search/movie"] = new Error("network down");
+    await resolveImdbId({ title: "Transient Outage", year: null, type: "movie" });
+
+    responses["/3/search/movie"] = { results: [{ id: 7, title: "Transient Outage" }] };
+    responses["/3/movie/7/external_ids"] = { imdb_id: "tt7" };
+    const second = await resolveImdbId({ title: "Transient Outage", year: null, type: "movie" });
+    assert.equal(second, "tt7", "must retry once TMDb recovers, not serve a stale null");
+  });
+
   test("caches a positive result — second lookup does not hit the network", async () => {
     responses["/3/search/movie"] = { results: [{ id: 5, title: "Cached Hit" }] };
     responses["/3/movie/5/external_ids"] = { imdb_id: "tt5" };
@@ -111,6 +122,48 @@ describe("infra/tmdbFallback", () => {
   test("without a title, resolves to null without touching the network", async () => {
     assert.equal(await resolveImdbId({ title: "", year: null, type: "movie" }), null);
     assert.equal(fetchCalls.length, 0);
+  });
+});
+
+describe("infra/tmdbFallback — breaker protects a flaky TMDb", () => {
+  beforeEach(() => {
+    fetchCalls = [];
+    responses = {};
+    breaker.reset();
+  });
+
+  test("tolerates isolated failures — does not open on the first or second", async () => {
+    responses["/3/search/movie"] = new Error("blip");
+    await resolveImdbId({ title: "Blip One", year: null, type: "movie" });
+    await resolveImdbId({ title: "Blip Two", year: null, type: "movie" });
+    assert.equal(breaker.isOpen(), false);
+  });
+
+  test("opens after 3 consecutive failures and skips the network while open", async () => {
+    responses["/3/search/movie"] = new Error("down");
+    for (const title of ["A", "B", "C"]) {
+      await resolveImdbId({ title, year: null, type: "movie" });
+    }
+    assert.equal(breaker.isOpen(), true);
+
+    fetchCalls = [];
+    responses["/3/search/movie"] = { results: [{ id: 1, title: "D" }] }; // "recovered"
+    const result = await resolveImdbId({ title: "D", year: null, type: "movie" });
+    assert.equal(result, null);
+    assert.equal(fetchCalls.length, 0, "must not hit the network while open");
+  });
+
+  test("a success in between resets the failure count", async () => {
+    responses["/3/search/movie"] = new Error("down");
+    await resolveImdbId({ title: "Fail One", year: null, type: "movie" });
+    await resolveImdbId({ title: "Fail Two", year: null, type: "movie" });
+
+    responses["/3/search/movie"] = { results: [] }; // answers cleanly, just no match
+    await resolveImdbId({ title: "Clean Miss", year: null, type: "movie" });
+
+    responses["/3/search/movie"] = new Error("down");
+    await resolveImdbId({ title: "Fail Three", year: null, type: "movie" });
+    assert.equal(breaker.isOpen(), false, "the clean answer should have reset the streak");
   });
 });
 

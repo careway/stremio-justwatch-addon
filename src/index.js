@@ -9,7 +9,6 @@ const stats = require("./infra/stats");
 const warmCache = require("./infra/warmCache");
 const visitors = require("./infra/visitors");
 const justwatch = require("./infra/justwatch");
-const netflixTop10 = require("./infra/netflixTop10");
 const { L1Cache } = require("./infra/cache");
 
 // Hot cache warming. Runs on any host that mounts this handler (BeamUp calls
@@ -27,10 +26,6 @@ warmCache
 visitors
   .start()
   .catch((err) => logError("[visitors] start error:", err.stack || err.message));
-
-// Pays for netflixTop10's one-time ~30MB download at startup instead of on
-// whichever live request happens to hit a cold cache first — see its warm().
-netflixTop10.warm();
 
 // ─── Handler (exported so any Node host can mount it) ──────────────────────
 

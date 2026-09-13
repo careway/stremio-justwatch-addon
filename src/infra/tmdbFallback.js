@@ -2,12 +2,23 @@
 
 const { L1Cache, L2Cache } = require("./cache");
 const { TMDB_FALLBACK_TTL_S } = require("../ttl");
+const { createCircuitBreaker } = require("./circuitBreaker");
 
 const TMDB_BASE = "https://api.themoviedb.org/3";
 // Read once at module load — same "unset → feature is off" contract as
 // DATABASE_URL/UPSTASH_REDIS_* elsewhere in ../infra. A free key is enough:
 // themoviedb.org/settings/api.
 const API_KEY = process.env.TMDB_API_KEY;
+
+// Unlike ../infra/netflixTop10's breaker (threshold 1 — one big file, one
+// failure is the whole signal), resolveImdbId() runs inline in the live
+// catalog request path (nodeToMetaWithFallback awaits it), so a handful of
+// genuinely transient blips are worth tolerating before giving up — opening
+// too eagerly would mean flipping every missing-imdbId title's fate on one
+// bad request. Once open, though, skip straight to null: without this, a
+// down TMDb would add its own timeout to every catalog request holding a
+// title with no imdbId, for as long as it stayed down.
+const breaker = createCircuitBreaker({ threshold: 3, cooldownMs: 2 * 60 * 1000 });
 
 // Same normalization ../domain/netflixTrending uses to compare a Netflix
 // Top10 title against JustWatch's — reused here for the same reason: TMDb's
@@ -33,40 +44,38 @@ async function tmdbGet(path, params) {
   const timer = setTimeout(() => controller.abort(), 8_000);
   try {
     const res = await fetch(url, { signal: controller.signal });
-    if (!res.ok) return null;
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
     return await res.json();
   } finally {
     clearTimeout(timer);
   }
 }
 
+// Throws on a genuine failure (network/timeout/non-2xx) so the caller can
+// tell that apart from "TMDb answered, this title just isn't there" — only
+// the former should count against the breaker.
 async function lookup({ title, year, type }) {
-  try {
-    const isTv = type === "tv";
-    const data = await tmdbGet(isTv ? "/search/tv" : "/search/movie", {
-      query: title,
-      [isTv ? "first_air_date_year" : "year"]: year,
-    });
-    const target = normalizeTitle(title);
-    // Only the top 5 — and only an exact normalized-title match among them,
-    // never just "TMDb's top hit by relevance". A caller surfaces anything
-    // this returns as a real catalog entry, so a same-genre-different-title
-    // false positive here would misattribute a totally different title's
-    // poster/synopsis/streams, not just misorder something.
-    const match = (data?.results || [])
-      .slice(0, 5)
-      .find((r) => normalizeTitle(r.title || r.name) === target);
-    if (!match) return null;
+  const isTv = type === "tv";
+  const data = await tmdbGet(isTv ? "/search/tv" : "/search/movie", {
+    query: title,
+    [isTv ? "first_air_date_year" : "year"]: year,
+  });
+  const target = normalizeTitle(title);
+  // Only the top 5 — and only an exact normalized-title match among them,
+  // never just "TMDb's top hit by relevance". A caller surfaces anything
+  // this returns as a real catalog entry, so a same-genre-different-title
+  // false positive here would misattribute a totally different title's
+  // poster/synopsis/streams, not just misorder something.
+  const match = (data?.results || [])
+    .slice(0, 5)
+    .find((r) => normalizeTitle(r.title || r.name) === target);
+  if (!match) return null;
 
-    const ids = await tmdbGet(
-      isTv ? `/tv/${match.id}/external_ids` : `/movie/${match.id}/external_ids`,
-      {},
-    );
-    return ids?.imdb_id || null;
-  } catch (err) {
-    console.warn(`[tmdbFallback] lookup failed for "${title}": ${err.message}`);
-    return null;
-  }
+  const ids = await tmdbGet(
+    isTv ? `/tv/${match.id}/external_ids` : `/movie/${match.id}/external_ids`,
+    {},
+  );
+  return ids?.imdb_id || null;
 }
 
 /**
@@ -103,11 +112,28 @@ async function resolveImdbId({ title, year, type }) {
   }
   if (cached) return cached.imdbId; // may itself be a cached "no match" (null)
 
-  const imdbId = await lookup({ title, year, type });
+  // Open breaker → skip straight to null instead of paying up to 8s of
+  // timeout on a TMDb that's already known to be down right now.
+  if (breaker.isOpen()) return null;
+
+  let imdbId;
+  try {
+    imdbId = await lookup({ title, year, type });
+    breaker.recordSuccess();
+  } catch (err) {
+    breaker.recordFailure();
+    console.warn(`[tmdbFallback] lookup failed for "${title}": ${err.message}`);
+    return null; // not cached — a real outage shouldn't poison this title for 24h
+  }
+
   const toStore = { imdbId };
   L1Cache.set(cacheKey, toStore, TMDB_FALLBACK_TTL_S);
   L2Cache.set(cacheKey, toStore, TMDB_FALLBACK_TTL_S);
   return imdbId;
 }
 
-module.exports = { resolveImdbId };
+module.exports = {
+  resolveImdbId,
+  // Exported for tests and for anyone wanting to inspect/reset upstream state.
+  breaker,
+};

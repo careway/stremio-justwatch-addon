@@ -2,7 +2,7 @@
 
 const { searchTitles } = require("../infra/justwatch");
 const { peekTop10 } = require("../infra/netflixTop10");
-const { nodeToMeta } = require("./meta");
+const { nodeToMetaWithFallback } = require("./meta");
 
 const NETFLIX_PACKAGE = "nfx";
 
@@ -22,9 +22,15 @@ const NETFLIX_PACKAGE = "nfx";
  * Netflix ships no metadata alongside the ranking — just a bare title per
  * rank, no poster/synopsis/genres/IMDb id — so each entry is matched back
  * onto JustWatch (restricted to Netflix's own catalog, `packages: ["nfx"]`)
- * by normalized title to fill those in via the exact same nodeToMeta() every
- * other catalog uses. An entry that can't be matched confidently, or whose
- * match has no IMDb id, is dropped rather than guessed at.
+ * by normalized title to fill those in via the same nodeToMetaWithFallback()
+ * every other catalog uses (see ../domain/meta and ../infra/tmdbFallback for
+ * the TMDb-backed fallback when JustWatch has the title but no IMDb id
+ * linked yet — a brand-new release, most often). An entry that still can't
+ * be matched to an IMDb id even after that is dropped rather than guessed
+ * at, and any entry that only resolved through the fallback is demoted below
+ * every confidently-matched entry, official rank or not — this only ever
+ * ranks ~10 titles to begin with, so a lower-confidence one sitting at the
+ * bottom of that short list is a small cost for not silently dropping it.
  *
  * Only ever covers the ~10 titles Netflix ranks that week per content type —
  * callers should use this for offset 0 of the Netflix "Trending" catalog only
@@ -58,16 +64,21 @@ async function getOfficialNetflixTrending({ jwType, country, language, config })
     ),
   );
 
+  const resolved = await Promise.all(
+    matches.map((node) =>
+      node ? nodeToMetaWithFallback(node, language, config) : null,
+    ),
+  );
+
   const seen = new Set();
-  const metas = [];
-  for (const node of matches) {
-    if (!node) continue;
-    const meta = nodeToMeta(node, language, config);
-    if (!meta || seen.has(meta.id)) continue;
-    seen.add(meta.id);
-    metas.push(meta);
+  const confident = [];
+  const fallback = [];
+  for (const r of resolved) {
+    if (!r?.meta?.id || seen.has(r.meta.id)) continue;
+    seen.add(r.meta.id);
+    (r.viaFallback ? fallback : confident).push(r.meta);
   }
-  return metas;
+  return [...confident, ...fallback];
 }
 
 async function matchOnJustWatch(title, jwType, country, language) {

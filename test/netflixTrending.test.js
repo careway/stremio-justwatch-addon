@@ -10,6 +10,7 @@ const { test, describe, beforeEach } = require("node:test");
 // relative path.
 const jwPath = require.resolve("../src/infra/justwatch");
 const top10Path = require.resolve("../src/infra/netflixTop10");
+const tmdbFallbackPath = require.resolve("../src/infra/tmdbFallback");
 
 let searchResults; // raw Top10 title string -> JustWatch nodes[]
 require.cache[jwPath] = {
@@ -30,6 +31,16 @@ require.cache[top10Path] = {
     peekTop10: async () => chart,
     getTop10: async () => chart,
     warm: () => {},
+  },
+};
+
+let fallbackImdbIds; // JustWatch node title -> IMDb id the TMDb fallback "resolves"
+require.cache[tmdbFallbackPath] = {
+  id: tmdbFallbackPath,
+  filename: tmdbFallbackPath,
+  loaded: true,
+  exports: {
+    resolveImdbId: async ({ title }) => fallbackImdbIds[title] || null,
   },
 };
 
@@ -55,6 +66,7 @@ describe("domain/netflixTrending", () => {
   beforeEach(() => {
     searchResults = {};
     chart = null;
+    fallbackImdbIds = {};
   });
 
   test("null when Netflix publishes no chart for the country", async () => {
@@ -144,6 +156,37 @@ describe("domain/netflixTrending", () => {
     assert.deepEqual(
       (await call("SHOW")).map((m) => m.id),
       ["tt2"],
+    );
+  });
+
+  test("a TMDb-resolved match is kept, not dropped, when JustWatch has no imdbId yet", async () => {
+    chart = { films: [{ rank: 1, title: "Enfrentados: Marfil" }], tv: [] };
+    searchResults["Enfrentados: Marfil"] = [
+      node("Enfrentados: Marfil", null), // JustWatch: no imdbId linked yet
+    ];
+    fallbackImdbIds["Enfrentados: Marfil"] = "tt36073210";
+    const metas = await call();
+    assert.deepEqual(
+      metas.map((m) => m.id),
+      ["tt36073210"],
+    );
+  });
+
+  test("a fallback-resolved entry is demoted below every confident entry, official rank or not", async () => {
+    chart = {
+      films: [
+        { rank: 1, title: "NoImdbYet" }, // ranked #1 on Netflix, but only fallback-resolvable
+        { rank: 2, title: "Confident" },
+      ],
+      tv: [],
+    };
+    searchResults.NoImdbYet = [node("NoImdbYet", null)];
+    searchResults.Confident = [node("Confident", "tt2")];
+    fallbackImdbIds.NoImdbYet = "tt1";
+    const metas = await call();
+    assert.deepEqual(
+      metas.map((m) => m.id),
+      ["tt2", "tt1"], // confident first despite ranking below on the real chart
     );
   });
 });

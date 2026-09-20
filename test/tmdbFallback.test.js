@@ -113,6 +113,28 @@ describe("infra/tmdbFallback", () => {
     assert.ok(!fetchCalls.some((c) => c.includes("external_ids")));
   });
 
+  test("two different non-Latin-script titles are never accepted as a match for each other", async () => {
+    // Regression test for a real false-positive confirmed live 2026-09-20:
+    // the matcher used to whitelist only [a-z0-9], which reduced any
+    // non-Latin title (Japanese here) to "" — making it accept *any* other
+    // title in the same script as a "match". Querying for Attack on Titan
+    // (進撃の巨人) with only a Demon Slayer (鬼滅の刃) candidate available
+    // used to wrongly return Demon Slayer's IMDb id.
+    responses["/3/search/tv"] = {
+      results: [
+        { id: 999, name: "Demon Slayer: Kimetsu no Yaiba", original_name: "鬼滅の刃" },
+      ],
+    };
+    responses["/3/tv/999/external_ids"] = { imdb_id: "tt9335498" };
+
+    const imdbId = await resolveImdbId({
+      title: "進撃の巨人", // Attack on Titan — a different show entirely
+      year: null,
+      type: "tv",
+    });
+    assert.equal(imdbId, null);
+  });
+
   test("no TMDb results at all resolves to null", async () => {
     responses["/3/search/movie"] = { results: [] };
     assert.equal(

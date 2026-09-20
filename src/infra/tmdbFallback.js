@@ -3,6 +3,7 @@
 const { L1Cache, L2Cache } = require("./cache");
 const { TMDB_FALLBACK_TTL_S } = require("../ttl");
 const { createCircuitBreaker } = require("./circuitBreaker");
+const { normalizeTitle } = require("../data/titleMatch");
 
 const TMDB_BASE = "https://api.themoviedb.org/3";
 // Read once at module load — same "unset → feature is off" contract as
@@ -19,18 +20,6 @@ const API_KEY = process.env.TMDB_API_KEY;
 // down TMDb would add its own timeout to every catalog request holding a
 // title with no imdbId, for as long as it stayed down.
 const breaker = createCircuitBreaker({ threshold: 3, cooldownMs: 2 * 60 * 1000 });
-
-// Same normalization ../domain/netflixTrending uses to compare a Netflix
-// Top10 title against JustWatch's — reused here for the same reason: TMDb's
-// own title text has its own casing/punctuation quirks.
-function normalizeTitle(title) {
-  return (title || "")
-    .normalize("NFKD")
-    .replace(/[̀-ͯ]/g, "") // strip combining accents after NFKD decomposition
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, " ")
-    .trim();
-}
 
 async function tmdbGet(path, params) {
   const url = new URL(`${TMDB_BASE}${path}`);

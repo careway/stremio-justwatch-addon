@@ -3,6 +3,7 @@
 const { searchTitles } = require("../infra/justwatch");
 const { peekTop10 } = require("../infra/netflixTop10");
 const { nodeToMetaWithFallback } = require("./meta");
+const { normalizeTitle } = require("../data/titleMatch");
 
 const NETFLIX_PACKAGE = "nfx";
 
@@ -93,19 +94,6 @@ async function matchOnJustWatch(title, jwType, country, language) {
   });
   const target = normalizeTitle(title);
   return nodes.find((n) => normalizeTitle(n?.content?.title) === target) || null;
-}
-
-// Netflix's Top10 export has quirks plain JustWatch title text doesn't (a
-// trailing comma on "Nevertheless,", accents, punctuation) — strip down to
-// bare alnum tokens on both sides before comparing so those don't cause a
-// real match to be missed.
-function normalizeTitle(title) {
-  return (title || "")
-    .normalize("NFKD")
-    .replace(/[̀-ͯ]/g, "") // strip combining accents after NFKD decomposition
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, " ")
-    .trim();
 }
 
 module.exports = { getOfficialNetflixTrending };

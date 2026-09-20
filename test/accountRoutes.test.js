@@ -7,6 +7,11 @@ const http = require("node:http");
 // Only the network edges are faked (JustWatch, email); everything between —
 // router, cookies, plan limits, store logic — is the real code, against the
 // in-memory store.
+// The operator's own TMDb key exists in this process on purpose: an account
+// must never end up using it (see the tmdb tests below).
+const OPERATOR_KEY = "0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f";
+process.env.TMDB_API_KEY = OPERATOR_KEY;
+
 const sent = []; // { email, link }
 const mailerPath = require.resolve("../src/infra/mailer");
 require.cache[mailerPath] = {
@@ -16,6 +21,26 @@ require.cache[mailerPath] = {
   exports: { sendMagicLink: async (email, link) => void sent.push({ email, link }) },
 };
 
+// TMDb, faked at fetch(); anything else goes to the real one (the test client
+// itself uses http, so nothing else in this file depends on it).
+const tmdbCalls = []; // full URLs
+let tmdbAuth = "ok"; // "ok" | "rejected" | "down" — what /authentication answers
+const realFetch = global.fetch;
+global.fetch = async (url, opts) => {
+  const u = String(url);
+  if (!u.includes("api.themoviedb.org")) return realFetch(url, opts);
+  tmdbCalls.push(u);
+  const reply = (body, status = 200) => ({ ok: status < 400, status, json: async () => body });
+  if (u.includes("/authentication")) {
+    if (tmdbAuth === "down") throw new Error("network down");
+    return tmdbAuth === "rejected" ? reply({}, 401) : reply({ success: true });
+  }
+  if (u.includes("/search/movie")) return reply({ results: [{ id: 77, title: "T" }] });
+  if (u.includes("/external_ids")) return reply({ imdb_id: "tt7777777" });
+  return reply({}, 404);
+};
+
+let jwHasImdb = true; // false → JustWatch hasn't linked an IMDb id yet
 const searchCalls = [];
 const jwPath = require.resolve("../src/infra/justwatch");
 const realJw = require(jwPath);
@@ -37,7 +62,7 @@ require.cache[jwPath] = {
             shortDescription: "",
             originalReleaseDate: "2000-01-01",
             genres: [],
-            externalIds: { imdbId: "tt0000001" },
+            externalIds: { imdbId: jwHasImdb ? "tt0000001" : null },
             posterUrl: null,
           },
         },
@@ -399,6 +424,114 @@ describe("accounts enabled", () => {
       const r = await call("PUT", "/api/me/config", { cookie, body: { legacy: "ES_es_rnd_nfx" } });
       assert.equal(r.status, 400);
       assert.equal(r.json.code, "plan_feature");
+    });
+  });
+
+  describe("the account's own TMDb key", () => {
+    const KEY = "abcdef0123456789abcdef0123456789";
+    const setKey = (cookie, key) => call("PUT", "/api/me/tmdb-key", { cookie, body: { key } });
+
+    test("saving a key reports it as set, with a hint — and never echoes it back", async () => {
+      tmdbAuth = "ok";
+      const { cookie } = await signIn("k1@example.com");
+      const r = await setKey(cookie, KEY);
+      assert.equal(r.status, 200, r.text);
+      assert.deepEqual(r.json.tmdbKey, { set: true, hint: "…6789" });
+      assert.ok(!r.text.includes(KEY), "the full key must not come back");
+      assert.ok(!(await call("GET", "/api/me", { cookie })).text.includes(KEY));
+    });
+
+    test("a malformed key is refused without asking TMDb", async () => {
+      const { cookie } = await signIn("k2@example.com");
+      tmdbCalls.length = 0;
+      const r = await setKey(cookie, "not a key");
+      assert.equal(r.status, 400);
+      assert.equal(r.json.code, "invalid_tmdb_key");
+      assert.equal(tmdbCalls.length, 0);
+    });
+
+    test("a key TMDb rejects is refused, so a typo is caught now", async () => {
+      tmdbAuth = "rejected";
+      const { cookie } = await signIn("k3@example.com");
+      const r = await setKey(cookie, KEY);
+      assert.equal(r.status, 400);
+      assert.equal(r.json.code, "invalid_tmdb_key");
+      assert.equal((await call("GET", "/api/me", { cookie })).json.tmdbKey.set, false);
+      tmdbAuth = "ok";
+    });
+
+    test("if TMDb can't be reached the key is kept — that says nothing about the key", async () => {
+      tmdbAuth = "down";
+      const { cookie } = await signIn("k4@example.com");
+      assert.equal((await setKey(cookie, KEY)).json.tmdbKey.set, true);
+      tmdbAuth = "ok";
+    });
+
+    test("it can be cleared, and survives saving and removing countries", async () => {
+      tmdbAuth = "ok";
+      const store = createMemoryStore();
+      setStore(store);
+      const { cookie, me } = await signIn("k5@example.com");
+      await store.setPlan((await store.findByEmail("k5@example.com")).id, "plus", null);
+      accounts.invalidate(me.uid);
+
+      await setKey(cookie, KEY);
+      await call("PUT", "/api/me/config", { cookie, body: { legacy: "ES_es_nfx" } });
+      await call("PUT", "/api/me/config", { cookie, body: { legacy: "MY_en_nfx" } });
+      await call("PUT", "/api/me/config", { cookie, body: { legacy: "MY_en_dnp", merge: false } });
+      await call("DELETE", "/api/me/sources/MY", { cookie, body: {} });
+      assert.equal((await call("GET", "/api/me", { cookie })).json.tmdbKey.set, true, "still there");
+      assert.equal(
+        (await store.getConfig((await store.findByEmail("k5@example.com")).id)).tmdbApiKey,
+        KEY,
+      );
+
+      const cleared = await setKey(cookie, null);
+      assert.equal(cleared.json.tmdbKey.set, false);
+    });
+
+    test("a full-config write that doesn't mention the key keeps it", async () => {
+      tmdbAuth = "ok";
+      const { cookie } = await signIn("k6@example.com");
+      await setKey(cookie, KEY);
+      const r = await call("PUT", "/api/me/config", { cookie, body: { sources: [SPAIN] } });
+      assert.equal(r.json.tmdbKey.set, true);
+    });
+
+    test("a title JustWatch hasn't linked is recovered with the account's key — not the operator's", async () => {
+      tmdbAuth = "ok";
+      const { cookie, me } = await signIn("k7@example.com");
+      await call("PUT", "/api/me/config", { cookie, body: { sources: [SPAIN] } });
+      await setKey(cookie, KEY);
+
+      jwHasImdb = false;
+      tmdbCalls.length = 0;
+      try {
+        const r = await call("GET", `/api/${me.uid}/catalog/movie/ES_es_jw_pop_nfx.json`);
+        assert.deepEqual(r.json.metas.map((m) => m.id), ["tt7777777"]);
+        const used = tmdbCalls.filter((u) => !u.includes("/authentication"));
+        assert.ok(used.length > 0);
+        assert.ok(used.every((u) => u.includes(`api_key=${KEY}`)), used.join("\n"));
+        assert.ok(!used.some((u) => u.includes(OPERATOR_KEY)));
+      } finally {
+        jwHasImdb = true;
+      }
+    });
+
+    test("an account with no key gets no fallback and never borrows the operator's", async () => {
+      const { cookie, me } = await signIn("k8@example.com");
+      await call("PUT", "/api/me/config", { cookie, body: { sources: [SPAIN] } });
+
+      jwHasImdb = false;
+      tmdbCalls.length = 0;
+      try {
+        const r = await call("GET", `/api/${me.uid}/catalog/series/ES_es_jw_pop_nfx.json`);
+        assert.equal(r.status, 200);
+        assert.ok(!r.json.metas.some((m) => m.id === "tt7777777"), "the unlinked title is simply dropped");
+        assert.equal(tmdbCalls.length, 0, "no TMDb traffic at all, and certainly none on the operator's key");
+      } finally {
+        jwHasImdb = true;
+      }
     });
   });
 

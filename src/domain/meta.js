@@ -65,6 +65,10 @@ async function nodeToMetaWithFallback(node, language, config) {
     title,
     year: extractYear(node?.content?.originalReleaseDate),
     type: node?.objectType === "MOVIE" ? "movie" : "tv",
+    // An account carries its own TMDb key (null = it hasn't set one → no
+    // fallback). The anonymous config has no such property, so it stays
+    // undefined and tmdbFallback uses the operator's TMDB_API_KEY, if any.
+    apiKey: config?.tmdbApiKey,
   });
   if (!imdbId) return null;
 

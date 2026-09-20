@@ -244,7 +244,8 @@
       align-items: center;
       gap: 0.5rem;
     }
-    .account-panel input[type="email"] {
+    .account-panel input[type="email"],
+    .account-panel input[type="password"] {
       flex: 1 1 12rem;
       min-width: 0;
       padding: 0.4rem 0.6rem;
@@ -287,6 +288,7 @@
       color: #e5e7eb;
     }
     .account-panel .acc-chip button { padding: 0.1rem 0.45rem; border-radius: 999px; }
+    .account-panel .acc-tmdb { margin-top: 0.8rem; padding-top: 0.7rem; border-top: 1px solid var(--border); }
     .account-panel .acc-footer { margin-top: 0.6rem; display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: center; }
 
     .header {
@@ -1237,6 +1239,16 @@
             <button id="acc-logout" type="button" style="margin-left: auto"></button>
           </div>
           <div class="acc-sources" id="acc-sources"></div>
+          <div class="acc-tmdb">
+            <div id="acc-tmdb-label" style="color: #e5e7eb"></div>
+            <div id="acc-tmdb-why"></div>
+            <div class="acc-row" style="margin-top: 0.4rem">
+              <input type="password" id="acc-tmdb-input" autocomplete="off" spellcheck="false" />
+              <button class="acc-primary" id="acc-tmdb-save" type="button"></button>
+              <button id="acc-tmdb-clear" type="button"></button>
+              <a id="acc-tmdb-help" href="https://www.themoviedb.org/settings/api" target="_blank" rel="noopener" style="color: var(--accent)"></a>
+            </div>
+          </div>
           <div class="acc-footer">
             <button id="acc-rotate" type="button"></button>
             <button id="acc-delete" type="button"></button>
@@ -2947,6 +2959,16 @@
         saveFail: "No se pudo guardar.",
         noSources: "Aún no has guardado ningún país: configura uno abajo y pulsa Instalar.",
         signedIn: "Sesión iniciada.",
+        tmdbLabel: "Tu clave de TMDb (recomendado)",
+        tmdbSet: "Clave de TMDb configurada ({hint})",
+        tmdbWhy: "Recupera títulos que JustWatch aún no ha enlazado con IMDb (estrenos recientes) que si no, no aparecerían. Usa tu propia clave gratuita; nunca se comparte.",
+        tmdbPlaceholder: "Clave de API o token de lectura",
+        tmdbSave: "Guardar clave",
+        tmdbClear: "Quitar",
+        tmdbHelp: "Conseguir una clave",
+        tmdbSaved: "Clave de TMDb guardada.",
+        tmdbRemoved: "Clave de TMDb eliminada.",
+        tmdbBad: "TMDb no acepta esa clave. Revisa que la hayas copiado entera.",
       },
       en: {
         pitch: "Save your setup and use one URL on all your devices.",
@@ -2973,6 +2995,16 @@
         saveFail: "Couldn't save.",
         noSources: "You haven't saved a country yet: set one up below and press Install.",
         signedIn: "Signed in.",
+        tmdbLabel: "Your TMDb key (recommended)",
+        tmdbSet: "TMDb key set ({hint})",
+        tmdbWhy: "Recovers titles JustWatch hasn't linked to IMDb yet (recent releases) that would otherwise be missing. Uses your own free key; it is never shared.",
+        tmdbPlaceholder: "API key or read access token",
+        tmdbSave: "Save key",
+        tmdbClear: "Remove",
+        tmdbHelp: "Get a key",
+        tmdbSaved: "TMDb key saved.",
+        tmdbRemoved: "TMDb key removed.",
+        tmdbBad: "TMDb doesn't accept that key. Check you copied all of it.",
       },
     };
     const acc = (key, vars) => {
@@ -3024,6 +3056,15 @@
         k: lim.maxCatalogs,
         t: lim.maxOffset + 50,
       });
+
+      const tk = accountState.tmdbKey || { set: false };
+      $acc("acc-tmdb-label").textContent = tk.set ? acc("tmdbSet", { hint: tk.hint }) : acc("tmdbLabel");
+      $acc("acc-tmdb-why").textContent = acc("tmdbWhy");
+      $acc("acc-tmdb-input").placeholder = acc("tmdbPlaceholder");
+      $acc("acc-tmdb-save").textContent = acc("tmdbSave");
+      $acc("acc-tmdb-clear").textContent = acc("tmdbClear");
+      $acc("acc-tmdb-clear").style.display = tk.set ? "" : "none";
+      $acc("acc-tmdb-help").textContent = acc("tmdbHelp");
 
       const box = $acc("acc-sources");
       box.replaceChildren();
@@ -3105,6 +3146,25 @@
     $acc("acc-email").addEventListener("keydown", (e) => {
       if (e.key === "Enter") $acc("acc-send").click();
     });
+    async function saveTmdbKey(key, okMessage) {
+      const r = await accApi("PUT", "/api/me/tmdb-key", { key });
+      if (r.status === 200) {
+        accountState = r.data;
+        $acc("acc-tmdb-input").value = "";
+        renderAccount();
+        accMessage(okMessage);
+      } else {
+        accMessage(r.data?.code === "invalid_tmdb_key" ? acc("tmdbBad") : r.data?.error || acc("saveFail"), true);
+      }
+    }
+    $acc("acc-tmdb-save").onclick = () => {
+      const key = $acc("acc-tmdb-input").value.trim();
+      if (key) saveTmdbKey(key, acc("tmdbSaved"));
+    };
+    $acc("acc-tmdb-input").addEventListener("keydown", (e) => {
+      if (e.key === "Enter") $acc("acc-tmdb-save").click();
+    });
+    $acc("acc-tmdb-clear").onclick = () => saveTmdbKey(null, acc("tmdbRemoved"));
     $acc("acc-logout").onclick = async () => {
       await accApi("POST", "/api/auth/logout", {});
       accountState = null;

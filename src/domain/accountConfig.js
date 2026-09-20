@@ -25,6 +25,7 @@ const {
 } = require("../data/catalogMeta");
 const { listProviders } = require("../infra/posterProviders");
 const { buildAccountCatalogs } = require("./manifest");
+const { isValidKeyFormat } = require("../infra/tmdbFallback");
 
 const ALL_SORT_KEYS = Object.keys(SORT_MAP);
 const VALID_COUNTRIES = new Set(COUNTRIES.map((c) => c.code));
@@ -171,10 +172,18 @@ function normalizeAccountConfig(raw, plan) {
     return fail("Randomized catalogs are not part of your plan", "plan_feature");
   }
 
+  // The account's own TMDb key (see infra/tmdbFallback). Absent → the
+  // fallback is off for this account; it is never borrowed from the operator.
+  const tmdbApiKey = raw.tmdbApiKey ? String(raw.tmdbApiKey).trim() : null;
+  if (tmdbApiKey && !isValidKeyFormat(tmdbApiKey)) {
+    return fail("That doesn't look like a TMDb API key", "invalid_tmdb_key");
+  }
+
   const config = {
     sources,
     posterProvider: poster.posterProvider,
     posterApiKey: poster.posterApiKey,
+    tmdbApiKey,
     randomize,
     hideCountry: !!raw.hideCountry,
   };

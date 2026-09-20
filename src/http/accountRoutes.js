@@ -7,6 +7,7 @@
 //   GET    /api/me                  profile, install URL, plan limits
 //   PUT    /api/me/config           save configuration (validated against the plan)
 //   DELETE /api/me/sources/{CC}     remove one country
+//   PUT    /api/me/tmdb-key         set/clear the account's own TMDb key
 //   POST   /api/me/rotate-uid       new install URL; the old one stops working
 //   DELETE /api/me                  delete the account
 //   GET    /api/{uid}/manifest.json     what Stremio installs
@@ -183,6 +184,15 @@ async function handleUserApi(req, res, path) {
     const result = typeof body.value?.legacy === "string"
       ? await accounts.saveLegacySource(user, body.value.legacy, { merge: body.value.merge !== false })
       : await accounts.saveConfig(user, body.value);
+    if (!result.ok) return json(res, { error: result.error, code: result.code }, 400);
+    return json(res, await accounts.describeAccount(user, getAddonBaseUrl(req)));
+  }
+
+  if (path === "/api/me/tmdb-key") {
+    if (!allow(["PUT"])) return;
+    const body = await readJson(req, 2048);
+    if (!body.ok) return bodyFailure(req, res, body);
+    const result = await accounts.setTmdbKey(user, body.value?.key);
     if (!result.ok) return json(res, { error: result.error, code: result.code }, 400);
     return json(res, await accounts.describeAccount(user, getAddonBaseUrl(req)));
   }

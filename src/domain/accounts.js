@@ -14,6 +14,7 @@ const { normalizeAccountConfig, clampToPlan, fromLegacyConfig } = require("./acc
 const { decodeConfig, encodeConfig } = require("./userConfig");
 const { buildAccountCatalogs } = require("./manifest");
 const { SORT_MAP } = require("../data/catalogMeta");
+const { verifyKey, isValidKeyFormat } = require("../infra/tmdbFallback");
 
 const MAGIC_LINK_TTL_MS = 15 * 60 * 1000;
 const SESSION_TTL_MS = 30 * 24 * 60 * 60 * 1000;
@@ -61,6 +62,9 @@ async function loadAccount(store, user) {
       language: first?.language,
       posterProvider: config.posterProvider,
       posterApiKey: config.posterApiKey,
+      // null, never undefined: undefined would mean "use the operator's key"
+      // to tmdbFallback, which is only for the anonymous flow.
+      tmdbApiKey: config.tmdbApiKey || null,
     },
   };
 }
@@ -153,7 +157,13 @@ async function logout(sessionToken) {
 async function saveConfig(user, raw) {
   const store = await getStore();
   const plan = getPlan(user);
-  const result = normalizeAccountConfig(raw, plan);
+  // A full-config write that says nothing about the TMDb key keeps the one
+  // already stored; clearing it is an explicit setTmdbKey(user, null).
+  const carried =
+    raw && typeof raw === "object" && !("tmdbApiKey" in raw)
+      ? { ...raw, tmdbApiKey: (await store.getConfig(user.id))?.tmdbApiKey ?? null }
+      : raw;
+  const result = normalizeAccountConfig(carried, plan);
   if (!result.ok) return result;
   await store.setConfig(user.id, result.config);
   invalidate(user.uid);
@@ -171,12 +181,45 @@ async function saveLegacySource(user, legacy, { merge = true } = {}) {
   if (!parsed) return { ok: false, error: "Invalid configuration", code: "invalid_config" };
 
   const store = await getStore();
-  const existing = merge ? await store.getConfig(user.id) : null;
+  const stored = await store.getConfig(user.id);
+  const existing = merge ? stored : null;
   const sources = [...(existing?.sources || [])];
   const at = sources.findIndex((s) => s.country === parsed.source.country);
   if (at === -1) sources.push(parsed.source);
   else sources[at] = parsed.source;
-  return saveConfig(user, { sources, ...parsed.account });
+  // The page's config segment doesn't carry the TMDb key, and starting over
+  // with merge:false must not lose it.
+  return saveConfig(user, { sources, ...parsed.account, tmdbApiKey: stored?.tmdbApiKey ?? null });
+}
+
+/**
+ * Set (or clear, with a falsy key) the account's own TMDb key. A malformed or
+ * rejected key is reported now; if TMDb simply can't be reached the key is
+ * kept — that says nothing about the key, and refusing would make saving
+ * depend on a third party being up.
+ */
+async function setTmdbKey(user, rawKey) {
+  const store = await getStore();
+  const key = rawKey ? String(rawKey).trim() : null;
+  if (key) {
+    if (!isValidKeyFormat(key)) {
+      return { ok: false, error: "That doesn't look like a TMDb API key", code: "invalid_tmdb_key" };
+    }
+    const check = await verifyKey(key);
+    if (!check.ok && check.reason === "invalid") {
+      return { ok: false, error: "TMDb rejected that key", code: "invalid_tmdb_key" };
+    }
+  }
+  const existing = (await store.getConfig(user.id)) || {
+    sources: [],
+    posterProvider: null,
+    posterApiKey: null,
+    randomize: false,
+    hideCountry: false,
+  };
+  await store.setConfig(user.id, { ...existing, tmdbApiKey: key });
+  invalidate(user.uid);
+  return { ok: true };
 }
 
 async function removeSource(user, country) {
@@ -212,7 +255,13 @@ async function deleteAccount(user) {
 async function describeAccount(user, baseUrl) {
   const store = await getStore();
   const plan = getPlan(user);
-  const config = await store.getConfig(user.id);
+  const stored = await store.getConfig(user.id);
+  // The TMDb key is a secret the owner typed once; the page only needs to
+  // know whether one is set, not to be handed it back.
+  const config = stored && { ...stored, tmdbApiKey: undefined };
+  const tmdbKey = stored?.tmdbApiKey
+    ? { set: true, hint: `…${stored.tmdbApiKey.slice(-4)}` }
+    : { set: false, hint: null };
   const manifestUrl = `${baseUrl}/api/${user.uid}/manifest.json`;
   return {
     email: user.email,
@@ -222,6 +271,7 @@ async function describeAccount(user, baseUrl) {
     manifestUrl,
     installUrl: manifestUrl.replace(/^https?:\/\//, "stremio://"),
     config,
+    tmdbKey,
     // What the configure page needs to list, edit and remove each country:
     // `legacy` is the same segment the page produces, so "edit" is just
     // opening /configure?config=<legacy>.
@@ -300,6 +350,7 @@ module.exports = {
   logout,
   saveConfig,
   saveLegacySource,
+  setTmdbKey,
   removeSource,
   rotateUid,
   deleteAccount,

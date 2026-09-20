@@ -6,49 +6,107 @@ const { createCircuitBreaker } = require("./circuitBreaker");
 const { normalizeTitle } = require("../data/titleMatch");
 
 const TMDB_BASE = "https://api.themoviedb.org/3";
-// Read once at module load — same "unset → feature is off" contract as
-// DATABASE_URL/UPSTASH_REDIS_* elsewhere in ../infra. A free key is enough:
-// themoviedb.org/settings/api.
-const API_KEY = process.env.TMDB_API_KEY;
+// The operator's own key, read once at module load — same "unset → feature is
+// off" contract as DATABASE_URL/UPSTASH_REDIS_* elsewhere in ../infra. It only
+// serves callers that don't bring a key (the anonymous /{config} flow). An
+// account brings its own (see resolveImdbId's `apiKey`), so a paid service
+// never runs on a free key that TMDb licenses for non-commercial use.
+const ENV_KEY = process.env.TMDB_API_KEY;
 
-// Unlike ../infra/netflixTop10's breaker (threshold 1 — one big file, one
-// failure is the whole signal), resolveImdbId() runs inline in the live
-// catalog request path (nodeToMetaWithFallback awaits it), so a handful of
-// genuinely transient blips are worth tolerating before giving up — opening
-// too eagerly would mean flipping every missing-imdbId title's fate on one
-// bad request. Once open, though, skip straight to null: without this, a
-// down TMDb would add its own timeout to every catalog request holding a
-// title with no imdbId, for as long as it stayed down.
-const breaker = createCircuitBreaker({ threshold: 3, cooldownMs: 2 * 60 * 1000 });
+// TMDb issues two credentials for the same account: the 32-hex "API key"
+// (sent as ?api_key=) and the long JWT "API Read Access Token" (sent as a
+// Bearer header). People routinely paste the wrong one, so both are accepted.
+const V3_KEY = /^[a-f0-9]{32}$/i;
+const V4_TOKEN = /^eyJ[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}$/;
+const isValidKeyFormat = (key) =>
+  typeof key === "string" && key.length <= 600 && (V3_KEY.test(key) || V4_TOKEN.test(key));
 
-async function tmdbGet(path, params) {
+// Failure state is **per key**. With one shared breaker, a single user's
+// mistyped or revoked key would open it and switch the fallback off for every
+// other account; and a key TMDb has said is invalid (401) shouldn't be asked
+// again on every catalog request either.
+//
+// The breaker itself is unchanged in intent: resolveImdbId() runs inline in
+// the live catalog request path (nodeToMetaWithFallback awaits it), so a
+// handful of genuinely transient blips are worth tolerating (threshold 3)
+// before skipping straight to null for a cooldown — without it a down TMDb
+// would add its own timeout to every catalog request holding a title with no
+// imdbId, for as long as it stayed down.
+const INVALID_KEY_COOLDOWN_MS = 60 * 60 * 1000;
+const MAX_TRACKED_KEYS = 5000;
+const keyStates = new Map(); // key -> { breaker, invalidUntil }
+
+function newState() {
+  return { breaker: createCircuitBreaker({ threshold: 3, cooldownMs: 2 * 60 * 1000 }), invalidUntil: 0 };
+}
+function stateFor(key) {
+  let st = keyStates.get(key);
+  if (!st) {
+    if (keyStates.size >= MAX_TRACKED_KEYS) keyStates.clear();
+    st = newState();
+    keyStates.set(key, st);
+  }
+  return st;
+}
+// Exported for tests: the state behind the operator's key (or a standalone one
+// when none is configured), which is what the pre-account tests inspect.
+const breaker = (ENV_KEY ? stateFor(ENV_KEY) : newState()).breaker;
+
+class TmdbHttpError extends Error {
+  constructor(status) {
+    super(`HTTP ${status}`);
+    this.status = status;
+  }
+}
+
+async function tmdbGet(path, params, key) {
   const url = new URL(`${TMDB_BASE}${path}`);
-  url.searchParams.set("api_key", API_KEY);
-  for (const [key, value] of Object.entries(params)) {
+  const headers = {};
+  if (V4_TOKEN.test(key)) headers.Authorization = `Bearer ${key}`;
+  else url.searchParams.set("api_key", key);
+  for (const [name, value] of Object.entries(params)) {
     if (value !== undefined && value !== null && value !== "") {
-      url.searchParams.set(key, String(value));
+      url.searchParams.set(name, String(value));
     }
   }
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), 8_000);
   try {
-    const res = await fetch(url, { signal: controller.signal });
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const res = await fetch(url, { signal: controller.signal, headers });
+    if (!res.ok) throw new TmdbHttpError(res.status);
     return await res.json();
   } finally {
     clearTimeout(timer);
   }
 }
 
+/**
+ * Ask TMDb whether a key works. Used when a user saves one, so a typo is
+ * reported to them then and there instead of silently disabling the fallback.
+ *
+ * @returns {Promise<{ok: true} | {ok: false, reason: "format"|"invalid"|"unreachable"}>}
+ *   "unreachable" means TMDb couldn't be asked (network, 5xx) — not a verdict
+ *   on the key, so callers should let it through.
+ */
+async function verifyKey(key) {
+  if (!isValidKeyFormat(key)) return { ok: false, reason: "format" };
+  try {
+    await tmdbGet("/authentication", {}, key);
+    return { ok: true };
+  } catch (err) {
+    return { ok: false, reason: err.status === 401 ? "invalid" : "unreachable" };
+  }
+}
+
 // Throws on a genuine failure (network/timeout/non-2xx) so the caller can
 // tell that apart from "TMDb answered, this title just isn't there" — only
 // the former should count against the breaker.
-async function lookup({ title, year, type }) {
+async function lookup({ title, year, type, key }) {
   const isTv = type === "tv";
   const data = await tmdbGet(isTv ? "/search/tv" : "/search/movie", {
     query: title,
     [isTv ? "first_air_date_year" : "year"]: year,
-  });
+  }, key);
   const target = normalizeTitle(title);
   // Only the top 5 — and only an exact normalized-title match among them,
   // never just "TMDb's top hit by relevance". A caller surfaces anything
@@ -74,6 +132,7 @@ async function lookup({ title, year, type }) {
   const ids = await tmdbGet(
     isTv ? `/tv/${match.id}/external_ids` : `/movie/${match.id}/external_ids`,
     {},
+    key,
   );
   return ids?.imdb_id || null;
 }
@@ -86,23 +145,32 @@ async function lookup({ title, year, type }) {
  * Video Spain, released 4 days earlier, already had an IMDb page — tt36073210
  * — JustWatch's `externalIds.imdbId` for it was still null.
  *
- * A no-op (always null, no network) unless TMDB_API_KEY is set — same
- * "off unless configured" contract as the L2 Redis cache and the Postgres
- * cache warmer. TMDb is free to use with a personal API key.
+ * A no-op (always null, no network) without a key — same "off unless
+ * configured" contract as the L2 Redis cache and the Postgres cache warmer.
+ * The key is the caller's: an account passes its own (or null when it hasn't
+ * set one, which turns the fallback off for it); a caller that passes nothing
+ * (`apiKey` undefined, the anonymous flow) falls back to TMDB_API_KEY.
  *
  * Both a match and a confident "no match" are cached (see TMDB_FALLBACK_TTL_S
  * in ../ttl) — a title JustWatch never links is not rare, and without a
  * negative cache it would retry the same failed lookup on every catalog
- * fetch, forever.
+ * fetch, forever. The cache is shared across keys (it maps a title to a
+ * public IMDb id and is never served to a caller that has no key of its own).
  *
  * @param {object} opts
  * @param {string} opts.title
  * @param {number|null} [opts.year]  - release year, if known; narrows the TMDb search
  * @param {"movie"|"tv"} opts.type
+ * @param {string|null} [opts.apiKey] - the caller's TMDb key; null disables, undefined → TMDB_API_KEY
  * @returns {Promise<string|null>}
  */
-async function resolveImdbId({ title, year, type }) {
-  if (!API_KEY || !title) return null;
+async function resolveImdbId({ title, year, type, apiKey }) {
+  const key = apiKey === undefined ? ENV_KEY : apiKey;
+  if (!key || !title) return null;
+
+  const state = stateFor(key);
+  // TMDb already told us this key is bad; don't ask again until the cooldown.
+  if (Date.now() < state.invalidUntil) return null;
 
   const cacheKey = `tmdbFallback:${type}:${year || ""}:${normalizeTitle(title)}`;
   let cached = await L1Cache.get(cacheKey);
@@ -113,15 +181,22 @@ async function resolveImdbId({ title, year, type }) {
   if (cached) return cached.imdbId; // may itself be a cached "no match" (null)
 
   // Open breaker → skip straight to null instead of paying up to 8s of
-  // timeout on a TMDb that's already known to be down right now.
-  if (breaker.isOpen()) return null;
+  // timeout on a TMDb that's already known to be down for this key right now.
+  if (state.breaker.isOpen()) return null;
 
   let imdbId;
   try {
-    imdbId = await lookup({ title, year, type });
-    breaker.recordSuccess();
+    imdbId = await lookup({ title, year, type, key });
+    state.breaker.recordSuccess();
   } catch (err) {
-    breaker.recordFailure();
+    if (err.status === 401) {
+      // The key is the problem, not TMDb: park the key, leave the breaker
+      // alone (nothing is wrong with the upstream).
+      state.invalidUntil = Date.now() + INVALID_KEY_COOLDOWN_MS;
+      console.warn("[tmdbFallback] TMDb rejected an API key; pausing lookups for it for 1h");
+      return null;
+    }
+    state.breaker.recordFailure();
     console.warn(`[tmdbFallback] lookup failed for "${title}": ${err.message}`);
     return null; // not cached — a real outage shouldn't poison this title for 24h
   }
@@ -134,6 +209,8 @@ async function resolveImdbId({ title, year, type }) {
 
 module.exports = {
   resolveImdbId,
+  verifyKey,
+  isValidKeyFormat,
   // Exported for tests and for anyone wanting to inspect/reset upstream state.
   breaker,
 };

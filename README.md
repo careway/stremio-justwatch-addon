@@ -112,6 +112,8 @@ With `DATABASE_URL(_POOLED)` set, the addon also offers accounts: sign in with a
 
 One account can hold several countries in one manifest. What an account may do comes from its plan (`src/domain/plans.js`: countries, total catalogs, catalog depth, request rate). The `uid` is a credential — Stremio can't send headers — so it is redacted from logs and can be regenerated from `/configure`. Without a database, accounts are off and only the `/{config}/manifest.json` links above are served, exactly as before.
 
+Each account also brings its own [TMDb](https://www.themoviedb.org/settings/api) key (entered on `/configure`, checked against TMDb when saved, never shown again). It powers the fallback that recovers titles JustWatch hasn't linked to IMDb yet; an account without one simply doesn't get that fallback, and never borrows the operator's key.
+
 Billing isn't connected yet; assign a plan by hand with `node --env-file=.env.development.local scripts/set-plan.js you@example.com pro 2026-12-31`. Sign-in emails go through [Resend](https://resend.com) (`RESEND_API_KEY`, `MAIL_FROM`); without a key, development prints the link to the console and production refuses to send.
 
 ## Environment variables
@@ -132,6 +134,7 @@ Billing isn't connected yet; assign a plan by hand with `node --env-file=.env.de
 | `WARM_SEED_LIMIT`             | `500`         | Max rows to bulk-seed into L1 from Postgres on startup          |
 | `WARM_POOL_MAX`                | `4`           | Max Postgres connections for the cache-warming pool             |
 | `VISITORS_POOL_MAX`           | `2`           | Max Postgres connections for the per-hour client-stats pool     |
+| `TMDB_API_KEY`                | —             | Operator's own TMDb key. Only used by the anonymous `/{config}` links; accounts use their own. TMDb's free key is non-commercial — leave unset on a commercial deployment. |
 | `RESEND_API_KEY`              | —             | Sends the sign-in emails for accounts. Unset → development logs the link; production refuses to send. |
 | `MAIL_FROM`                   | —             | From address for those emails (must be a domain verified in Resend) |
 | `ACCOUNTS_POOL_MAX`           | `4`           | Max Postgres connections for the accounts pool                  |

@@ -8,22 +8,26 @@ const { test, describe, beforeEach } = require("node:test");
 // DATABASE_URL/UPSTASH_REDIS_* elsewhere.
 process.env.TMDB_API_KEY = "test-key";
 
-let responses; // url pathname -> response body object, or an Error to reject with
+let responses; // url pathname -> response body object, an Error to reject with, or { __status } for an HTTP error
 let fetchCalls;
-global.fetch = async (url) => {
+let fetchHeaders;
+global.fetch = async (url, opts = {}) => {
   const u = new URL(url);
   fetchCalls.push(u.pathname + u.search);
+  fetchHeaders.push(opts.headers || {});
   const body = responses[u.pathname];
   if (body instanceof Error) throw body;
   if (body === undefined) return { ok: false, status: 404 };
+  if (body.__status) return { ok: false, status: body.__status };
   return { ok: true, status: 200, json: async () => body };
 };
 
-const { resolveImdbId, breaker } = require("../src/infra/tmdbFallback");
+const { resolveImdbId, breaker, verifyKey, isValidKeyFormat } = require("../src/infra/tmdbFallback");
 
 describe("infra/tmdbFallback", () => {
   beforeEach(async () => {
     fetchCalls = [];
+    fetchHeaders = [];
     responses = {};
     breaker.reset();
     // Every test uses its own title so cache entries from earlier tests
@@ -189,6 +193,7 @@ describe("infra/tmdbFallback", () => {
 
 describe("infra/tmdbFallback — breaker protects a flaky TMDb", () => {
   beforeEach(() => {
+    fetchHeaders = [];
     fetchCalls = [];
     responses = {};
     breaker.reset();
@@ -247,5 +252,123 @@ describe("infra/tmdbFallback — disabled without TMDB_API_KEY", () => {
     assert.equal(fetchCalls.length, 0);
 
     process.env.TMDB_API_KEY = "test-key"; // restore for any test file re-run
+  });
+});
+
+describe("infra/tmdbFallback — the caller's own key", () => {
+  // Failure state is per key and lives for the process, so every test that
+  // makes a key fail (or is judged on one that could have) gets its own.
+  const key = (n) => n.toString(16).padStart(32, "0");
+  const MINE = key(1);
+  const JWT = "eyJhbGciOiJIUzI1NiJ9.eyJhdWQiOiJhYmMxMjMifQ.c2lnbmF0dXJlLXNpZ25hdHVyZQ";
+  const hit = (title, id, imdb) => {
+    responses["/3/search/movie"] = { results: [{ id, title }] };
+    responses[`/3/movie/${id}/external_ids`] = { imdb_id: imdb };
+  };
+  beforeEach(() => {
+    fetchCalls = [];
+    fetchHeaders = [];
+    responses = {};
+    breaker.reset();
+  });
+
+  test("an account's key is the one sent to TMDb, not the operator's", async () => {
+    hit("Own Key Title", 11, "tt11");
+    const id = await resolveImdbId({ title: "Own Key Title", year: null, type: "movie", apiKey: MINE });
+    assert.equal(id, "tt11");
+    assert.ok(fetchCalls.every((c) => c.includes(`api_key=${MINE}`)), fetchCalls.join(" "));
+    assert.ok(!fetchCalls.some((c) => c.includes("test-key")));
+  });
+
+  test("apiKey: null switches the fallback off even though the operator has a key", async () => {
+    hit("No Key Title", 12, "tt12");
+    assert.equal(await resolveImdbId({ title: "No Key Title", year: null, type: "movie", apiKey: null }), null);
+    assert.equal(fetchCalls.length, 0);
+  });
+
+  test("apiKey left undefined is the anonymous flow: the operator's key", async () => {
+    hit("Anon Title", 13, "tt13");
+    assert.equal(await resolveImdbId({ title: "Anon Title", year: null, type: "movie" }), "tt13");
+    assert.ok(fetchCalls[0].includes("api_key=test-key"));
+  });
+
+  test("a v4 read-access token goes in an Authorization header, not the URL", async () => {
+    hit("Bearer Title", 14, "tt14");
+    await resolveImdbId({ title: "Bearer Title", year: null, type: "movie", apiKey: JWT });
+    assert.ok(fetchHeaders.every((h) => h.Authorization === `Bearer ${JWT}`));
+    assert.ok(!fetchCalls.some((c) => c.includes("api_key")));
+  });
+
+  test("a key TMDb rejects (401) is parked: no repeat calls, and the breaker is untouched", async () => {
+    const REJECTED = key(2);
+    responses["/3/search/movie"] = { __status: 401 };
+    assert.equal(await resolveImdbId({ title: "Rejected A", year: null, type: "movie", apiKey: REJECTED }), null);
+    const callsAfterFirst = fetchCalls.length;
+    assert.equal(await resolveImdbId({ title: "Rejected B", year: null, type: "movie", apiKey: REJECTED }), null);
+    assert.equal(fetchCalls.length, callsAfterFirst, "must not ask TMDb again with a key it refused");
+  });
+
+  test("one account's bad key does not stop another account's lookups", async () => {
+    responses["/3/search/movie"] = { __status: 401 };
+    await resolveImdbId({ title: "Bad Key Owner", year: null, type: "movie", apiKey: key(3) });
+
+    hit("Good Key Title", 15, "tt15");
+    assert.equal(await resolveImdbId({ title: "Good Key Title", year: null, type: "movie", apiKey: key(4) }), "tt15");
+    assert.equal(breaker.isOpen(), false);
+  });
+
+  test("one key's outage opens only that key's breaker", async () => {
+    const FAILING = key(5);
+    responses["/3/search/movie"] = new Error("down");
+    for (const t of ["A1", "A2", "A3"]) {
+      await resolveImdbId({ title: t, year: null, type: "movie", apiKey: FAILING });
+    }
+    fetchCalls = [];
+    responses["/3/search/movie"] = { results: [] };
+    await resolveImdbId({ title: "Still Works", year: null, type: "movie", apiKey: key(6) });
+    assert.ok(fetchCalls.length > 0, "another key must still reach TMDb");
+    await resolveImdbId({ title: "Skipped", year: null, type: "movie", apiKey: FAILING });
+    assert.ok(!fetchCalls.some((c) => c.includes("Skipped")), "the failing key is skipped");
+  });
+
+  test("results are cached across keys, but a caller with no key never sees the cache", async () => {
+    hit("Shared Cache Title", 16, "tt16");
+    await resolveImdbId({ title: "Shared Cache Title", year: null, type: "movie", apiKey: key(7) });
+    fetchCalls = [];
+    assert.equal(await resolveImdbId({ title: "Shared Cache Title", year: null, type: "movie", apiKey: key(8) }), "tt16");
+    assert.equal(fetchCalls.length, 0, "cache hit, no network");
+    assert.equal(await resolveImdbId({ title: "Shared Cache Title", year: null, type: "movie", apiKey: null }), null);
+  });
+});
+
+describe("infra/tmdbFallback — key format and verification", () => {
+  const V3 = "0123456789abcdef0123456789abcdef";
+  beforeEach(() => {
+    fetchCalls = [];
+    fetchHeaders = [];
+    responses = {};
+  });
+
+  test("accepts a 32-hex key and a JWT, refuses everything else", () => {
+    assert.equal(isValidKeyFormat(V3), true);
+    assert.equal(isValidKeyFormat(V3.toUpperCase()), true);
+    assert.equal(isValidKeyFormat("eyJhbGciOiJIUzI1NiJ9.eyJhdWQiOiJhYmMxMjMifQ.c2lnbmF0dXJlLXNpZ25hdHVyZQ"), true);
+    for (const bad of ["", "abc", V3 + "0", "g".repeat(32), "a b".repeat(11), null, undefined, 42, "x".repeat(700)]) {
+      assert.equal(isValidKeyFormat(bad), false, String(bad));
+    }
+  });
+
+  test("verifyKey: ok, invalid (401), unreachable (5xx / network), format", async () => {
+    responses["/3/authentication"] = { success: true };
+    assert.deepEqual(await verifyKey(V3), { ok: true });
+    responses["/3/authentication"] = { __status: 401 };
+    assert.deepEqual(await verifyKey(V3), { ok: false, reason: "invalid" });
+    responses["/3/authentication"] = { __status: 503 };
+    assert.deepEqual(await verifyKey(V3), { ok: false, reason: "unreachable" });
+    responses["/3/authentication"] = new Error("network down");
+    assert.deepEqual(await verifyKey(V3), { ok: false, reason: "unreachable" });
+    fetchCalls = [];
+    assert.deepEqual(await verifyKey("nope"), { ok: false, reason: "format" });
+    assert.equal(fetchCalls.length, 0, "a malformed key never reaches TMDb");
   });
 });

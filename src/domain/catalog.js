@@ -6,7 +6,7 @@ const {
   SORT_MAP,
   GLOBAL_PACKAGE_ID,
 } = require("../data/catalogMeta");
-const { nodeToMeta } = require("./meta");
+const { nodeToMetaWithFallback } = require("./meta");
 const { getOfficialNetflixTrending } = require("./netflixTrending");
 const { seedFromString, seededShuffle, seedWindow } = require("./random");
 const { TTL_S } = require("../ttl");
@@ -208,17 +208,30 @@ async function handleCatalog({ type, id, extra }, config) {
       offset: pageOffset,
     });
 
-  const buildMetas = (nodes) => {
-    const seen = new Set();
-    return nodes
+  // Async: a title with no imdbId yet goes through the TMDb fallback lookup
+  // (see ../domain/meta's nodeToMetaWithFallback) before being dropped.
+  // Anything resolved that way is a materially weaker match than JustWatch's
+  // own imdbId, so it's never left at its natural JustWatch rank — every
+  // fallback-resolved entry is sorted after every confidently-matched one in
+  // this batch, regardless of where JustWatch ranked it.
+  const buildMetas = async (nodes) => {
+    const candidates = nodes
       .filter((n) => !jwType || n.objectType === jwType)
-      .filter((n) => !isUnreleased(n))
-      .map((n) => nodeToMeta(n, language, config))
-      .filter((meta) => {
-        if (!meta || !meta.id || seen.has(meta.id)) return false;
-        seen.add(meta.id);
-        return true;
-      });
+      .filter((n) => !isUnreleased(n));
+
+    const resolved = await Promise.all(
+      candidates.map((n) => nodeToMetaWithFallback(n, language, config)),
+    );
+
+    const seen = new Set();
+    const confident = [];
+    const fallback = [];
+    for (const r of resolved) {
+      if (!r?.meta?.id || seen.has(r.meta.id)) continue;
+      seen.add(r.meta.id);
+      (r.viaFallback ? fallback : confident).push(r.meta);
+    }
+    return [...confident, ...fallback];
   };
 
   try {
@@ -285,7 +298,7 @@ async function handleCatalog({ type, id, extra }, config) {
         ].join("|"),
       );
       const offsetInBlock = offset - blockStart;
-      const metas = seededShuffle(buildMetas(pages.flat()), seed).slice(
+      const metas = seededShuffle(await buildMetas(pages.flat()), seed).slice(
         offsetInBlock,
         offsetInBlock + PAGE_SIZE,
       );
@@ -320,7 +333,7 @@ async function handleCatalog({ type, id, extra }, config) {
     // (Indices are taken on the deduped/filtered array rather than raw ranks,
     // the same approximation the aligned single-batch path already makes.)
     const offsetInBatch = offset - batchStart1;
-    const metas = buildMetas([...titles1, ...titles2]).slice(
+    const metas = (await buildMetas([...titles1, ...titles2])).slice(
       offsetInBatch,
       offsetInBatch + batchSize,
     );

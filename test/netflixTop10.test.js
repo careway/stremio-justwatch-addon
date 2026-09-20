@@ -30,6 +30,7 @@ function row(country, iso2, week, category, rank, title, season = "N/A") {
 describe("infra/netflixTop10", () => {
   beforeEach(async () => {
     fetchCalls = [];
+    netflixTop10.breaker.reset();
     await L1Cache.invalidate(CACHE_KEY);
     await L2Cache.invalidate(CACHE_KEY);
   });
@@ -126,5 +127,46 @@ describe("infra/netflixTop10", () => {
     fetchCalls = [];
     await netflixTop10.peekTop10("MY");
     assert.equal(fetchCalls.length, 0);
+  });
+});
+
+describe("infra/netflixTop10 — breaker protects a flaky endpoint", () => {
+  beforeEach(async () => {
+    fetchCalls = [];
+    netflixTop10.breaker.reset();
+    await L1Cache.invalidate(CACHE_KEY);
+    await L2Cache.invalidate(CACHE_KEY);
+  });
+
+  test("a single failure opens the breaker — no immediate retry on the next call", async () => {
+    nextResponse = new Error("network down");
+    await netflixTop10.getTop10("MY"); // fails, opens the breaker (threshold: 1)
+
+    fetchCalls = [];
+    nextResponse = [
+      HEADER,
+      row("Malaysia", "MY", "2026-09-06", "Films", 1, "X"),
+    ].join("\n"); // even though the endpoint "recovered"...
+    assert.equal(await netflixTop10.getTop10("MY"), null);
+    assert.equal(fetchCalls.length, 0, "must not hit the network while open");
+  });
+
+  test("peekTop10 also skips the background warm while the breaker is open", async () => {
+    nextResponse = new Error("network down");
+    await netflixTop10.getTop10("MY");
+
+    fetchCalls = [];
+    await netflixTop10.peekTop10("MY");
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    assert.equal(fetchCalls.length, 0);
+  });
+
+  test("a success clears the breaker for the next failure to reopen it", async () => {
+    nextResponse = [
+      HEADER,
+      row("Malaysia", "MY", "2026-09-06", "Films", 1, "X"),
+    ].join("\n");
+    await netflixTop10.getTop10("MY");
+    assert.equal(netflixTop10.breaker.isOpen(), false);
   });
 });

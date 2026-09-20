@@ -18,6 +18,25 @@ const PACKAGES_TTL_S = PACKAGES_TTL_H * 3600;
 const NETFLIX_TOP10_TTL_H = PACKAGES_TTL_H; // 24h
 const NETFLIX_TOP10_TTL_S = NETFLIX_TOP10_TTL_H * 3600;
 
+// netflix.com/tudum's data file is a big (~30MB) static download with no
+// affordance for being asked repeatedly — measured live 2026-09-13: 3-16s
+// when it works, an outright 503 ("upstream connect error... connection
+// timeout") when it doesn't. Unlike JustWatch's GraphQL endpoint (which this
+// addon calls constantly and so already has UPSTREAM_COOLDOWN_S), this one
+// is asked for rarely enough that a single failure is already a strong
+// signal to back off, not a blip to tolerate — hence its own, much longer,
+// cooldown rather than reusing the JustWatch constants above.
+const NETFLIX_TOP10_FAIL_COOLDOWN_S = 10 * 60;
+
+// A title's IMDb id, once resolved via the TMDb fallback (see
+// ../infra/tmdbFallback), essentially never changes — same slow-changing
+// bucket again. Also caches a *negative* result (no confident match found),
+// which matters more here than for packages/Top10: without it, a title
+// JustWatch just never links (not merely "not yet") would otherwise retry a
+// TMDb lookup on every catalog fetch, forever.
+const TMDB_FALLBACK_TTL_H = PACKAGES_TTL_H; // 24h
+const TMDB_FALLBACK_TTL_S = TMDB_FALLBACK_TTL_H * 3600;
+
 // How long to stop calling JustWatch after it starts refusing us, and how many
 // consecutive failures it takes to decide that. Not derived from TTL_H: this is
 // a backoff, not a freshness window. 60s is long enough to stop being a
@@ -42,6 +61,9 @@ module.exports = {
   PACKAGES_TTL_S,
   NETFLIX_TOP10_TTL_H,
   NETFLIX_TOP10_TTL_S,
+  NETFLIX_TOP10_FAIL_COOLDOWN_S,
+  TMDB_FALLBACK_TTL_H,
+  TMDB_FALLBACK_TTL_S,
   UPSTREAM_FAIL_THRESHOLD,
   UPSTREAM_COOLDOWN_S,
   UPSTREAM_BLOCK_COOLDOWN_S,

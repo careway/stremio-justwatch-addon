@@ -1,7 +1,8 @@
 "use strict";
 
 const { L1Cache, L2Cache } = require("./cache");
-const { NETFLIX_TOP10_TTL_S } = require("../ttl");
+const { NETFLIX_TOP10_TTL_S, NETFLIX_TOP10_FAIL_COOLDOWN_S } = require("../ttl");
+const { createCircuitBreaker } = require("./circuitBreaker");
 
 // Netflix publishes this itself, free, no login — the raw data behind
 // netflix.com/tudum/top10. There is no per-country or "current week only"
@@ -13,6 +14,20 @@ const CACHE_KEY = "netflix:top10:byCountry";
 // De-dupes concurrent callers on a cold cache into one download instead of
 // each firing its own 30MB request.
 let inFlight = null;
+
+// Without this, a flaky/503'ing endpoint (observed live 2026-09-13 — see
+// NETFLIX_TOP10_FAIL_COOLDOWN_S) gets hit again on every single cold-cache
+// check with zero pause between attempts: peekTop10() fires a background
+// ensureLoaded() on every call while byCountry is empty, and each failure
+// clears `inFlight` and leaves the very next call free to start a fresh
+// ~20s attempt. threshold: 1 because, unlike JustWatch's breaker (called
+// constantly, so a couple of blips are tolerated before concluding anything),
+// this is one single-purpose fetch asked for rarely enough that one failure
+// is already the whole signal.
+const breaker = createCircuitBreaker({
+  threshold: 1,
+  cooldownMs: NETFLIX_TOP10_FAIL_COOLDOWN_S * 1000,
+});
 
 /**
  * Parse the TSV into { [countryIso2]: { week, films: [...], tv: [...] } },
@@ -73,7 +88,7 @@ async function fetchAndParse() {
   // fetch() pulled it down cleanly every time in the same environment. Node
   // 18+ (this project's floor) ships fetch() built in, no extra dependency.
   const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), 60_000);
+  const timer = setTimeout(() => controller.abort(), 20_000);
   try {
     const res = await fetch(DATA_URL, { signal: controller.signal });
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
@@ -86,8 +101,11 @@ async function fetchAndParse() {
 
 // Fetches (if not already in flight), caches, and returns the full
 // byCountry map. This is the only path that ever pays for the ~30MB
-// download — measured around 15-20s end to end — so nothing on a live
-// request's critical path may call this directly; see peekTop10() below.
+// download — measured around 3-20s end to end when it works — so nothing on
+// a live request's critical path may call this directly; see peekTop10()
+// below. Skips the attempt entirely while the breaker is open, so a run of
+// failures degrades to "no official data" immediately instead of paying the
+// fetch timeout again on every call.
 async function ensureLoaded() {
   let byCountry = await L1Cache.get(CACHE_KEY);
   if (byCountry) return byCountry;
@@ -98,14 +116,18 @@ async function ensureLoaded() {
     return byCountry;
   }
 
+  if (breaker.isOpen()) return null;
+
   if (!inFlight) {
     inFlight = fetchAndParse()
       .then((data) => {
+        breaker.recordSuccess();
         L1Cache.set(CACHE_KEY, data, NETFLIX_TOP10_TTL_S);
         L2Cache.set(CACHE_KEY, data, NETFLIX_TOP10_TTL_S);
         return data;
       })
       .catch((err) => {
+        breaker.recordFailure();
         console.error(`[netflixTop10] fetch failed: ${err.message}`);
         return null;
       })
@@ -172,10 +194,26 @@ async function peekTop10(countryIso2) {
  * Fire-and-forget warm-up: pays for the ~30MB download once, up front,
  * instead of leaving it to whichever live request happens to hit a cold
  * cache first (which peekTop10() would otherwise just skip and defer again).
- * Safe to call unconditionally at startup — never throws, never awaited.
+ * Safe to call unconditionally — never throws, never awaited, breaker-gated
+ * like every other path through ensureLoaded().
+ *
+ * Deliberately NOT called from ../../index.js at startup (it was, briefly —
+ * removed 2026-09-13): this endpoint is a large file with no low-latency
+ * guarantee (3-20s observed, outright 503s not rare), so firing it
+ * unconditionally on every process boot meant every cold start paid for a
+ * slow/failing fetch it may not even need yet. peekTop10()'s lazy
+ * background warm-on-first-demand, now breaker-protected, covers the same
+ * ground without that cost. Exported for a future warmer/script that
+ * actually wants to pay this eagerly on its own schedule.
  */
 function warm() {
   ensureLoaded().catch(() => {}); // errors already logged in ensureLoaded/fetchAndParse
 }
 
-module.exports = { getTop10, peekTop10, warm };
+module.exports = {
+  getTop10,
+  peekTop10,
+  warm,
+  // Exported for tests and for anyone wanting to inspect/reset upstream state.
+  breaker,
+};

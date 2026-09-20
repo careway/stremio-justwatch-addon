@@ -66,9 +66,20 @@ async function lookup({ title, year, type }) {
   // this returns as a real catalog entry, so a same-genre-different-title
   // false positive here would misattribute a totally different title's
   // poster/synopsis/streams, not just misorder something.
+  //
+  // Checked against both the (display) title and original_title/name: TMDb
+  // defaults to an en-US display title with no `language` param — confirmed
+  // live 2026-09-20 on the exact case this fallback was built for,
+  // "Enfrentados: Marfil" (original_title), which TMDb's `title` field
+  // answers as "Drawn Together" — comparing only `title` rejected it and
+  // this fallback failed on its own motivating example.
   const match = (data?.results || [])
     .slice(0, 5)
-    .find((r) => normalizeTitle(r.title || r.name) === target);
+    .find((r) => {
+      const display = normalizeTitle(r.title || r.name);
+      const original = normalizeTitle(r.original_title || r.original_name);
+      return display === target || original === target;
+    });
   if (!match) return null;
 
   const ids = await tmdbGet(

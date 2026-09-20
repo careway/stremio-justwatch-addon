@@ -45,6 +45,46 @@ describe("infra/tmdbFallback", () => {
     assert.equal(imdbId, "tt36073210");
   });
 
+  test("matches via original_title when TMDb's display title is localized — the exact case this fallback was built for", async () => {
+    // Confirmed live 2026-09-20: with no `language` param, TMDb's search
+    // returns an en-US display `title` ("Drawn Together") even for a title
+    // whose original language/title is what JustWatch and the catalog query
+    // actually use ("Enfrentados: Marfil", in original_title) — comparing
+    // only `title` rejected this and the fallback failed on its own
+    // motivating example (see infra/tmdbFallback's resolveImdbId doc).
+    responses["/3/search/movie"] = {
+      results: [
+        {
+          id: 999,
+          title: "Drawn Together",
+          original_title: "Enfrentados: Marfil",
+        },
+      ],
+    };
+    responses["/3/movie/999/external_ids"] = { imdb_id: "tt36073210" };
+
+    const imdbId = await resolveImdbId({
+      title: "Enfrentados: Marfil",
+      year: 2026,
+      type: "movie",
+    });
+    assert.equal(imdbId, "tt36073210");
+  });
+
+  test("same original_name fallback for a TV search", async () => {
+    responses["/3/search/tv"] = {
+      results: [{ id: 42, name: "English Marketing Name", original_name: "Título Original" }],
+    };
+    responses["/3/tv/42/external_ids"] = { imdb_id: "tt42" };
+
+    const imdbId = await resolveImdbId({
+      title: "Título Original",
+      year: null,
+      type: "tv",
+    });
+    assert.equal(imdbId, "tt42");
+  });
+
   test("matches ignoring case/accents/punctuation, same as the Netflix Top10 matcher", async () => {
     responses["/3/search/movie"] = {
       results: [{ id: 1, title: "Enfrentados: Marfil" }],

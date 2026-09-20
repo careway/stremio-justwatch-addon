@@ -359,40 +359,11 @@ async function handleCatalog({ type, id, extra }, config) {
   } catch (err) {
     console.error("[catalog] Error:", err);
     // ok: false tells the caller this is a degraded fallback, not real data —
-    // it must not be cached, or the placeholder would stick around for the
-    // full catalog TTL instead of retrying on the next request.
-    return {
-      ok: false,
-      metas: [
-        {
-          id: "tt33071426",
-          type: "movie",
-          name: "The Drama",
-          poster:
-            "https://m.media-amazon.com/images/M/MV5BN2I5OTVmYzUtYmU5Ny00YjNkLTk1ZmMtNjY1ODk0NzA0ZWRlXkEyXkFqcGc@._V1_FMjpg_UX720_.jpg",
-          description:
-            "A happily-engaged couple is put to the test when an unexpected turn sends their wedding week off the rails.",
-        },
-        {
-          id: "tt0882755",
-          type: "movie",
-          name: "One, Two, Many",
-          poster:
-            "https://m.media-amazon.com/images/M/MV5BMzg0NjkzMDYwOF5BMl5BanBnXkFtZTcwODAyOTIxMw@@._V1_FMjpg_UX367_.jpg",
-          description:
-            "A modern-day romance that follows one man's quest to find the girl of his dreams. A girl who can agree that three is company.",
-        },
-        {
-          id: "tt7558346",
-          type: "movie",
-          name: "Requests",
-          poster:
-            "https://m.media-amazon.com/images/M/MV5BMDI1MDM3YzQtNTAwMy00MzFhLWExYTMtZGM2NGY2ODRjMzdlXkEyXkFqcGc@._V1_FMjpg_UY2915_.jpg",
-          description:
-            "In a nightclub, reminiscent of a 1980s photo-novel, a band is playing requests. The texts play with pop cliché's about life and true love. Until a dissatisfied customer can't take it anymore and reveals the universal truth.",
-        },
-      ],
-    };
+    // it must not be cached, or an empty result would replace the real
+    // catalog for the full TTL instead of just this one request. Empty
+    // rather than a placeholder meta: same convention as the router's own
+    // catch-all safety net for this handler (see ../http/router.js).
+    return { ok: false, metas: [] };
   }
 }
 

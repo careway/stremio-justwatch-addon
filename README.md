@@ -101,6 +101,19 @@ A few extra segments toggle optional behavior when present — `r` for randomize
 
 Each generated catalog's own `id` additionally carries its country and language (`{COUNTRY}_{LANGUAGE}_jw_{sort}_{provider}`) — see the Features section above for why.
 
+## Accounts and plans
+
+With `DATABASE_URL(_POOLED)` set, the addon also offers accounts: sign in with an emailed link, keep the configuration on the server, and install a single URL that never changes:
+
+```
+/api/{uid}/manifest.json        (uid = 22 random URL-safe characters, rotatable)
+/api/{uid}/catalog/{type}/{id}.json
+```
+
+One account can hold several countries in one manifest. What an account may do comes from its plan (`src/domain/plans.js`: countries, total catalogs, catalog depth, request rate). The `uid` is a credential — Stremio can't send headers — so it is redacted from logs and can be regenerated from `/configure`. Without a database, accounts are off and only the `/{config}/manifest.json` links above are served, exactly as before.
+
+Billing isn't connected yet; assign a plan by hand with `node --env-file=.env.development.local scripts/set-plan.js you@example.com pro 2026-12-31`. Sign-in emails go through [Resend](https://resend.com) (`RESEND_API_KEY`, `MAIL_FROM`); without a key, development prints the link to the console and production refuses to send.
+
 ## Environment variables
 
 | Variable                    | Default       | Description                                                   |
@@ -119,6 +132,9 @@ Each generated catalog's own `id` additionally carries its country and language 
 | `WARM_SEED_LIMIT`             | `500`         | Max rows to bulk-seed into L1 from Postgres on startup          |
 | `WARM_POOL_MAX`                | `4`           | Max Postgres connections for the cache-warming pool             |
 | `VISITORS_POOL_MAX`           | `2`           | Max Postgres connections for the per-hour client-stats pool     |
+| `RESEND_API_KEY`              | —             | Sends the sign-in emails for accounts. Unset → development logs the link; production refuses to send. |
+| `MAIL_FROM`                   | —             | From address for those emails (must be a domain verified in Resend) |
+| `ACCOUNTS_POOL_MAX`           | `4`           | Max Postgres connections for the accounts pool                  |
 | `INV_KEY`                      | —             | Secret gating two admin routes: manual cache invalidation (`/api/inv/<key>?key=<cache-key>`) and runtime stats (`/api/stats/<key>`) |
 
 See [`.env.example`](.env.example) for a template, and [`DATA.md`](DATA.md) for what gets stored where (cache warming registry, per-hour unique clients, in-process counters) and why.

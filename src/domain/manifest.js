@@ -121,6 +121,22 @@ function getSortLabel(key, language) {
  */
 function buildManifest(config, encodedConfig, pkgInfoMap, addonBaseUrl) {
   const country = config?.country || null;
+  return assembleManifest({
+    name: country ? `OmniCatalogs · ${country}` : "OmniCatalogs",
+    description: describe(country),
+    catalogs: buildCatalogs(config, pkgInfoMap),
+    addonBaseUrl,
+  });
+}
+
+/**
+ * The catalog list for ONE country/language selection — the part of
+ * buildManifest that is about a config rather than about the manifest
+ * envelope, split out so an account (several countries in one manifest, see
+ * buildAccountManifest) can build one list per source and concatenate them.
+ */
+function buildCatalogs(config, pkgInfoMap) {
+  const country = config?.country || null;
   const language = config?.language || "en";
   const packages = config?.packages || [];
   const allSortKeys = Object.keys(SORT_LABELS_I18N);
@@ -193,13 +209,21 @@ function buildManifest(config, encodedConfig, pkgInfoMap, addonBaseUrl) {
     }
   }
 
+  return catalogs;
+}
+
+function describe(countryLabel) {
+  return `Every streaming platform's catalog in one addon. Discover what's popular, trending, and new on Netflix, Disney+, HBO Max, Prime Video, and many more — organized by country and language, with translated cover art so everything feels native.
+
+Pick your platforms and country, and you're set: up-to-date catalogs, filterable by genre, no hassle.${countryLabel ? ` Country: ${countryLabel}.` : ""}`;
+}
+
+function assembleManifest({ name, description, catalogs, addonBaseUrl }) {
   return {
     id: "community.omnicatalogs.stremio.addon",
     version,
-    name: country ? `OmniCatalogs · ${country}` : "OmniCatalogs",
-    description: `Every streaming platform's catalog in one addon. Discover what's popular, trending, and new on Netflix, Disney+, HBO Max, Prime Video, and many more — organized by country and language, with translated cover art so everything feels native.
-    
-Pick your platforms and country, and you're set: up-to-date catalogs, filterable by genre, no hassle.${country ? ` Country: ${country}.` : ""}`,
+    name,
+    description,
     logo: `${addonBaseUrl}/static/logo-256.png`,
     background: `${addonBaseUrl}/static/background.png`,
     resources: ["catalog"],
@@ -218,4 +242,52 @@ Pick your platforms and country, and you're set: up-to-date catalogs, filterable
   };
 }
 
-module.exports = { buildManifest };
+/**
+ * Per-source configs of an account, each carrying the account-wide flags.
+ * With more than one source the country suffix is forced on: two "Netflix ·
+ * Popular" catalogs from different countries would otherwise be
+ * indistinguishable in Stremio.
+ */
+function accountSourceConfigs(account) {
+  const sources = account?.sources || [];
+  return sources.map((source) => ({
+    ...source,
+    randomize: !!account.randomize,
+    hideCountry: sources.length > 1 ? false : !!account.hideCountry,
+  }));
+}
+
+/**
+ * Catalogs of a whole account — every source's list, concatenated.
+ * `pkgInfoByCountry` maps country → (shortName → package info); omit it for a
+ * network-free list (names fall back to the shortName), which is what
+ * counting and "is this catalog id one this account has?" checks want.
+ */
+function buildAccountCatalogs(account, pkgInfoByCountry = {}) {
+  return accountSourceConfigs(account).flatMap((source) =>
+    buildCatalogs(source, pkgInfoByCountry[source.country] || {}),
+  );
+}
+
+/**
+ * One manifest for an account: several countries at once. Same envelope as
+ * buildManifest; the catalog ids already carry country + language, which is
+ * what lets domain/catalog.js serve them from a single install.
+ */
+function buildAccountManifest(account, pkgInfoByCountry, addonBaseUrl) {
+  const sources = account?.sources || [];
+  const single = sources.length === 1 ? sources[0].country : null;
+  return assembleManifest({
+    name: single ? `OmniCatalogs · ${single}` : "OmniCatalogs",
+    description: describe(single),
+    catalogs: buildAccountCatalogs(account, pkgInfoByCountry),
+    addonBaseUrl,
+  });
+}
+
+module.exports = {
+  buildManifest,
+  buildCatalogs,
+  buildAccountCatalogs,
+  buildAccountManifest,
+};

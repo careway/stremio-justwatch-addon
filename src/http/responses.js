@@ -1,18 +1,29 @@
 "use strict";
 
+/**
+ * @param {object} [opts]
+ * @param {boolean} [opts.cors=true]  false → no CORS headers. Account
+ *   endpoints use it: they are same-origin (the configure page) and carry a
+ *   session cookie, so they must not advertise `*`.
+ * @param {object} [opts.headers]     extra response headers (e.g. Set-Cookie)
+ */
 function respond(
   res,
   data,
   status = 200,
   cacheControl = "max-age=300, stale-while-revalidate=600",
+  opts = {},
 ) {
   const body = JSON.stringify(data);
+  const cors = opts.cors === false
+    ? {}
+    : { "Access-Control-Allow-Origin": "*", "Access-Control-Allow-Headers": "*" };
   res.writeHead(status, {
     "Content-Type": "application/json; charset=utf-8",
-    "Access-Control-Allow-Origin": "*",
-    "Access-Control-Allow-Headers": "*",
+    ...cors,
     "Cache-Control": cacheControl,
     "Content-Length": Buffer.byteLength(body),
+    ...(opts.headers || {}),
   });
   res.end(body);
 }

@@ -47,8 +47,16 @@ const RANDOM_ID = "r_jw_pop_nfx";
 const PAGE = 50;
 
 const rankOf = (meta) => Number(meta.id.slice(2));
+// MAX_OFFSET (100) is the anonymous default depth; these tests are about
+// shuffling at depth, so they run with a plan that allows it — the limit is a
+// per-request argument now (see handleCatalog's `limits`).
+const DEEP = { maxOffset: 1000 };
 const page = async (id, skip) => {
-  const res = await handleCatalog({ type: "movie", id, extra: { skip } }, CONFIG);
+  const res = await handleCatalog(
+    { type: "movie", id, extra: { skip } },
+    CONFIG,
+    DEEP,
+  );
   assert.equal(res.ok, true);
   return res.metas;
 };

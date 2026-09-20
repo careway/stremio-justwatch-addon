@@ -24,6 +24,7 @@ const {
 } = require("../infra/posterProviders");
 const { TTL_S, PACKAGES_TTL_S } = require("../ttl");
 const { respond, respondHtml, redirect } = require("./responses");
+const { handleAccountRoute } = require("./accountRoutes");
 const {
   parseExtra,
   getAddonBaseUrl,
@@ -260,6 +261,15 @@ async function router(req, res) {
 
       return respond(res, { error: `[INV_KEY] Key : ${key}` }, 202);
     }
+  }
+
+  // ── Accounts: /api/auth/*, /api/me*, /api/{uid}/* ────────────────────────────
+  // After every fixed /api/* route above, and before the generic {config}
+  // matcher below — which would otherwise take "api" for a config segment and
+  // answer 400 to /api/{uid}/manifest.json. When accounts aren't configured
+  // (no DATABASE_URL) this returns false and behaviour is exactly as before.
+  if (rawPath.startsWith("/api/") && (await handleAccountRoute(req, res, rawPath))) {
+    return;
   }
 
   // ── /{config}/* ───────────────────────────────────────────────────────────────

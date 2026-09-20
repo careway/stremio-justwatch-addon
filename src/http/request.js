@@ -102,4 +102,85 @@ function getLanguageFromRequest(req, countryCode) {
   return COUNTRY_LANGUAGE[countryCode] || primary || "en";
 }
 
-module.exports = { PORT, parseExtra, getAddonBaseUrl, getLanguageFromRequest };
+/**
+ * Reads and parses a JSON body, refusing anything larger than `maxBytes`.
+ * Resolves to `{ ok: true, value }` or `{ ok: false, status, error }` — a bad
+ * body is an expected outcome for an endpoint that takes user input, not an
+ * exception. The size cap is enforced while streaming, so an oversized body
+ * is cut off rather than buffered.
+ */
+function readJson(req, maxBytes = 16 * 1024) {
+  return new Promise((resolve) => {
+    const type = String(req.headers["content-type"] || "").toLowerCase();
+    // Requiring a JSON content type is also the CSRF gate: a cross-site form
+    // can't send it, and a cross-site fetch that does triggers a preflight.
+    if (!type.startsWith("application/json")) {
+      return resolve({ ok: false, status: 415, error: "Content-Type must be application/json" });
+    }
+    const chunks = [];
+    let size = 0;
+    let done = false;
+    const finish = (r) => {
+      if (done) return;
+      done = true;
+      resolve(r);
+    };
+    req.on("data", (chunk) => {
+      if (done) return; // already refused — discard the rest, don't buffer it
+      size += chunk.length;
+      if (size > maxBytes) {
+        chunks.length = 0;
+        finish({ ok: false, status: 413, error: "Body too large" });
+        return;
+      }
+      chunks.push(chunk);
+    });
+    req.on("end", () => {
+      try {
+        const text = Buffer.concat(chunks).toString("utf8");
+        finish({ ok: true, value: text ? JSON.parse(text) : {} });
+      } catch {
+        finish({ ok: false, status: 400, error: "Invalid JSON" });
+      }
+    });
+    req.on("error", () => finish({ ok: false, status: 400, error: "Request error" }));
+  });
+}
+
+function parseCookies(req) {
+  const out = {};
+  for (const part of String(req.headers.cookie || "").split(";")) {
+    const i = part.indexOf("=");
+    if (i > 0) out[part.slice(0, i).trim()] = part.slice(i + 1).trim();
+  }
+  return out;
+}
+
+/**
+ * The client's IP as seen through the proxy chain: first x-forwarded-for hop,
+ * else the socket. Same rule as infra/visitors. Spoofable if the proxy
+ * appends rather than replaces, so it is used to throttle (a spoofed value
+ * only ever hurts the spoofer's own bucket), never to authorize.
+ */
+function getClientIp(req) {
+  const xff = req.headers["x-forwarded-for"];
+  if (xff) return String(xff).split(",")[0].trim();
+  return req.socket?.remoteAddress || "";
+}
+
+/** True when the request reached us over HTTPS, directly or via the proxy. */
+function isSecureRequest(req) {
+  if (ADDON_PUBLIC_URL) return ADDON_PUBLIC_URL.startsWith("https://");
+  return (req.headers["x-forwarded-proto"] || "http") === "https";
+}
+
+module.exports = {
+  PORT,
+  parseExtra,
+  getAddonBaseUrl,
+  getLanguageFromRequest,
+  readJson,
+  parseCookies,
+  getClientIp,
+  isSecureRequest,
+};

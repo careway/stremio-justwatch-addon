@@ -144,8 +144,12 @@ function resolveGenre(genre, language) {
  * @param {string} args.id     - Catalog ID (e.g. jw_pop_nfx)
  * @param {object} args.extra  - { genre?, skip? } from Stremio
  * @param {object} config      - { country, language, packages }
+ * @param {object} [limits]    - per-request overrides of the module defaults,
+ *                               from the caller's subscription plan (see
+ *                               ./plans). Absent → the anonymous defaults.
+ * @param {number} [limits.maxOffset] - overrides MAX_OFFSET
  */
-async function handleCatalog({ type, id, extra }, config) {
+async function handleCatalog({ type, id, extra }, config, limits = {}) {
   const { genre, skip, search } = extra || {};
 
   // We only serve catalogs — search is handled by Cinemeta, not this addon
@@ -155,7 +159,7 @@ async function handleCatalog({ type, id, extra }, config) {
   let offset = Math.max(0, parseInt(skip, 10) || 0);
   // See MAX_OFFSET's comment — end the catalog here rather than fetch this
   // deep. `ok: true` so this is cached normally, not retried on every hit.
-  if (offset > MAX_OFFSET) return { ok: true, metas: [] };
+  if (offset > (limits.maxOffset ?? MAX_OFFSET)) return { ok: true, metas: [] };
   const jwType = TYPE_TO_JW[type];
   // An "r_" prefix (set by buildManifest for a randomized config) means this
   // catalog is served shuffled — strip it before parsing anything else.

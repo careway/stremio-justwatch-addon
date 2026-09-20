@@ -595,6 +595,9 @@ function _warmRefetch(key, vars) {
 module.exports = {
   searchTitles,
   getPackages,
+  // Exported so callers that pre-register expected queries with the cache
+  // warmer (domain/accounts) build the exact same key a live request would.
+  buildSearchKey,
   // Handed to warmCache.start() in index.js so the warmer can replay queries.
   _warmRefetch,
   // Exported for tests and for anyone wanting to inspect/reset upstream state.

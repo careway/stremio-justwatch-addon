@@ -226,6 +226,69 @@
       /* overflow: hidden; */
     }
 
+    /* ── Cuenta (opcional: solo se muestra si el servidor tiene cuentas) ── */
+    .account-panel {
+      display: none;
+      margin: -1rem 0 1.5rem;
+      padding: 0.8rem 1rem;
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      background: rgba(255, 255, 255, 0.03);
+      font-size: 0.78rem;
+      color: var(--muted);
+    }
+    .account-panel.visible { display: block; }
+    .account-panel .acc-row {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 0.5rem;
+    }
+    .account-panel input[type="email"] {
+      flex: 1 1 12rem;
+      min-width: 0;
+      padding: 0.4rem 0.6rem;
+      border-radius: 8px;
+      border: 1px solid var(--border);
+      background: rgba(0, 0, 0, 0.25);
+      color: inherit;
+      font: inherit;
+    }
+    .account-panel button {
+      padding: 0.4rem 0.7rem;
+      border-radius: 8px;
+      border: 1px solid var(--border);
+      background: transparent;
+      color: inherit;
+      font: inherit;
+      cursor: pointer;
+    }
+    .account-panel button:hover { border-color: var(--accent); }
+    .account-panel button.acc-primary { border-color: var(--accent); color: var(--accent); }
+    .account-panel .acc-plan {
+      padding: 0.1rem 0.5rem;
+      border-radius: 999px;
+      border: 1px solid var(--accent);
+      color: var(--accent);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      font-size: 0.65rem;
+    }
+    .account-panel .acc-msg { flex-basis: 100%; min-height: 1em; }
+    .account-panel .acc-msg.error { color: #ff6b6b; }
+    .account-panel .acc-sources { display: flex; flex-wrap: wrap; gap: 0.4rem; margin-top: 0.6rem; }
+    .account-panel .acc-chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.4rem;
+      padding: 0.25rem 0.3rem 0.25rem 0.6rem;
+      border: 1px solid var(--border);
+      border-radius: 999px;
+      color: #e5e7eb;
+    }
+    .account-panel .acc-chip button { padding: 0.1rem 0.45rem; border-radius: 999px; }
+    .account-panel .acc-footer { margin-top: 0.6rem; display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: center; }
+
     .header {
       display: flex;
       align-items: center;
@@ -1155,6 +1218,33 @@
         </p>
       </div>
 
+      <!-- ── Cuenta (se muestra solo si el servidor la tiene activada) ── -->
+      <div class="account-panel" id="account-panel">
+        <div id="acc-out" style="display: none">
+          <div class="acc-row">
+            <span id="acc-pitch"></span>
+          </div>
+          <div class="acc-row" style="margin-top: 0.5rem">
+            <input type="email" id="acc-email" autocomplete="email" />
+            <button class="acc-primary" id="acc-send" type="button"></button>
+          </div>
+        </div>
+        <div id="acc-in" style="display: none">
+          <div class="acc-row">
+            <strong id="acc-who" style="color: #e5e7eb"></strong>
+            <span class="acc-plan" id="acc-plan"></span>
+            <span id="acc-limits"></span>
+            <button id="acc-logout" type="button" style="margin-left: auto"></button>
+          </div>
+          <div class="acc-sources" id="acc-sources"></div>
+          <div class="acc-footer">
+            <button id="acc-rotate" type="button"></button>
+            <button id="acc-delete" type="button"></button>
+          </div>
+        </div>
+        <div class="acc-msg" id="acc-msg" role="status"></div>
+      </div>
+
       <!-- ── Paso 1 ── -->
       <div style="
             display: flex;
@@ -1592,6 +1682,11 @@
     const UI_LANG_KEY = "omnicatalog.uiLang";
     const DEFAULT_UI_LANG = "es";
     let uiLang = DEFAULT_UI_LANG;
+    // Cuenta activa (null = anónimo) y el último segmento de configuración que
+    // generateUrl() produjo desde el formulario. Declaradas aquí arriba porque
+    // generateUrl puede ejecutarse durante la inicialización.
+    let accountState = null;
+    let lastLegacyConfig = null;
     let uiStrings = {};
     let availableLanguages = [];
 
@@ -2724,7 +2819,14 @@
           "",
         );
       const manifest = `${window.location.origin}/${config}/manifest.json`;
-      urlOut.value = manifest;
+      lastLegacyConfig = config;
+      // Con cuenta y algo ya guardado, la URL que se enseña es la de la cuenta
+      // (siempre la misma, sin la configuración dentro); el segmento de arriba
+      // es lo que se guarda al pulsar Instalar o Copiar.
+      urlOut.value =
+        accountState && accountState.sources.length
+          ? accountState.manifestUrl
+          : manifest;
       resultEl.classList.add("visible");
       return manifest;
     }
@@ -2786,13 +2888,19 @@
         if (resultEl.classList.contains("visible")) generateUrl();
       });
 
-    btnGenerate.onclick = () => {
+    btnGenerate.onclick = async () => {
       const manifest = generateUrl();
       if (!manifest) return;
+      if (accountState) {
+        if (!(await saveToAccount())) return;
+        window.location.href = accountState.installUrl;
+        return;
+      }
       window.location.href = manifest.replace(/^https?:\/\//, "stremio://");
     };
 
     btnCopy.onclick = async () => {
+      if (accountState && lastLegacyConfig && !(await saveToAccount())) return;
       const text = urlOut.value;
       if (!text) return;
       try {
@@ -2808,6 +2916,225 @@
       btnCopy.textContent = t("copied");
       setTimeout(() => (btnCopy.textContent = t("copy")), 2000);
     };
+
+    /* ── Cuenta ────────────────────────────────────────────────────────────
+       Todo opcional: si el servidor no tiene cuentas (/api/me → 404) el panel
+       nunca aparece y la página funciona exactamente como antes. Los textos
+       son propios (es/en) en vez de pasar por /api/ui-strings. */
+    const ACC_TEXT = {
+      es: {
+        pitch: "Guarda tu configuración y usa una única URL en todos tus dispositivos.",
+        email: "tu@email.com",
+        send: "Entrar con email",
+        sent: "Te hemos enviado un enlace. Ábrelo en este navegador (caduca en 15 minutos).",
+        sending: "Enviando…",
+        badEmail: "Ese email no parece válido.",
+        throttled: "Demasiados intentos. Espera un poco.",
+        mailFail: "No hemos podido enviar el email. Inténtalo más tarde.",
+        badLink: "El enlace no es válido o ha caducado. Pide otro.",
+        logout: "Salir",
+        edit: "Editar",
+        remove: "Quitar",
+        providers: "proveedores",
+        country1: "país",
+        countryN: "países",
+        limits: "{c} {w} · {k} catálogos · hasta {t} títulos",
+        rotate: "Regenerar mi URL",
+        rotateAsk: "La URL actual dejará de funcionar y tendrás que reinstalar el addon. ¿Continuar?",
+        del: "Borrar cuenta",
+        delAsk: "Se borrará tu cuenta y tu configuración. ¿Seguro?",
+        saved: "Guardado.",
+        saveFail: "No se pudo guardar.",
+        noSources: "Aún no has guardado ningún país: configura uno abajo y pulsa Instalar.",
+        signedIn: "Sesión iniciada.",
+      },
+      en: {
+        pitch: "Save your setup and use one URL on all your devices.",
+        email: "you@email.com",
+        send: "Sign in with email",
+        sent: "We sent you a link. Open it in this browser (it expires in 15 minutes).",
+        sending: "Sending…",
+        badEmail: "That email doesn't look valid.",
+        throttled: "Too many attempts. Wait a moment.",
+        mailFail: "We couldn't send the email. Try again later.",
+        badLink: "The link is invalid or has expired. Request another.",
+        logout: "Sign out",
+        edit: "Edit",
+        remove: "Remove",
+        providers: "providers",
+        country1: "country",
+        countryN: "countries",
+        limits: "{c} {w} · {k} catalogs · up to {t} titles",
+        rotate: "Regenerate my URL",
+        rotateAsk: "The current URL will stop working and you'll need to reinstall the addon. Continue?",
+        del: "Delete account",
+        delAsk: "This deletes your account and setup. Sure?",
+        saved: "Saved.",
+        saveFail: "Couldn't save.",
+        noSources: "You haven't saved a country yet: set one up below and press Install.",
+        signedIn: "Signed in.",
+      },
+    };
+    const acc = (key, vars) => {
+      let text = (ACC_TEXT[uiLang] || ACC_TEXT.en)[key] ?? ACC_TEXT.en[key] ?? "";
+      for (const [k, v] of Object.entries(vars || {})) text = text.split(`{${k}}`).join(v);
+      return text;
+    };
+    const $acc = (id) => document.getElementById(id);
+
+    async function accApi(method, path, body) {
+      const res = await fetch(path, {
+        method,
+        credentials: "same-origin",
+        headers: body === undefined ? {} : { "Content-Type": "application/json" },
+        body: body === undefined ? undefined : JSON.stringify(body),
+      });
+      let data = null;
+      try { data = await res.json(); } catch {}
+      return { status: res.status, data };
+    }
+
+    function accMessage(text, isError) {
+      const el = $acc("acc-msg");
+      el.textContent = text || "";
+      el.className = "acc-msg" + (isError ? " error" : "");
+    }
+
+    function renderAccount() {
+      const panel = $acc("account-panel");
+      if (accountState === undefined) return; // aún sin saber si hay cuentas
+      panel.classList.add("visible");
+      $acc("acc-out").style.display = accountState ? "none" : "block";
+      $acc("acc-in").style.display = accountState ? "block" : "none";
+
+      $acc("acc-pitch").textContent = acc("pitch");
+      $acc("acc-email").placeholder = acc("email");
+      $acc("acc-send").textContent = acc("send");
+      $acc("acc-logout").textContent = acc("logout");
+      $acc("acc-rotate").textContent = acc("rotate");
+      $acc("acc-delete").textContent = acc("del");
+      if (!accountState) return;
+
+      $acc("acc-who").textContent = accountState.email;
+      $acc("acc-plan").textContent = accountState.plan;
+      const lim = accountState.limits;
+      $acc("acc-limits").textContent = acc("limits", {
+        c: lim.maxCountries,
+        w: acc(lim.maxCountries === 1 ? "country1" : "countryN"),
+        k: lim.maxCatalogs,
+        t: lim.maxOffset + 50,
+      });
+
+      const box = $acc("acc-sources");
+      box.replaceChildren();
+      if (!accountState.sources.length) {
+        const hint = document.createElement("span");
+        hint.textContent = acc("noSources");
+        box.append(hint);
+      }
+      for (const s of accountState.sources) {
+        const chip = document.createElement("span");
+        chip.className = "acc-chip";
+        const label = document.createElement("span");
+        label.textContent = `${s.country} · ${s.language} · ${s.providers}${s.global ? "+" : ""} ${acc("providers")}`;
+        const edit = document.createElement("button");
+        edit.type = "button";
+        edit.textContent = acc("edit");
+        edit.onclick = () => {
+          window.location.href = "/configure?config=" + encodeURIComponent(s.legacy);
+        };
+        const rm = document.createElement("button");
+        rm.type = "button";
+        rm.textContent = acc("remove");
+        rm.onclick = async () => {
+          const r = await accApi("DELETE", "/api/me/sources/" + encodeURIComponent(s.country));
+          if (r.status === 200) { accountState = r.data; renderAccount(); refreshResultUrl(); }
+          else accMessage(r.data?.error || acc("saveFail"), true);
+        };
+        chip.append(label, edit, rm);
+        box.append(chip);
+      }
+    }
+
+    // Vuelve a pintar la URL mostrada (cuenta vs. anónima) sin tocar el formulario.
+    function refreshResultUrl() {
+      if (resultEl.classList.contains("visible")) generateUrl();
+    }
+
+    async function saveToAccount() {
+      if (!lastLegacyConfig) return false;
+      const r = await accApi("PUT", "/api/me/config", { legacy: lastLegacyConfig, merge: true });
+      if (r.status !== 200) {
+        accMessage(r.data?.error || acc("saveFail"), true);
+        return false;
+      }
+      accountState = r.data;
+      accMessage(acc("saved"));
+      renderAccount();
+      urlOut.value = accountState.manifestUrl;
+      return true;
+    }
+
+    async function loadAccount() {
+      // El enlace del email lleva el token en el fragmento (#login=…): nunca
+      // llega a un servidor ni a un log, y hay que canjearlo con un POST.
+      const m = window.location.hash.match(/^#login=([A-Za-z0-9_-]+)$/);
+      if (m) {
+        history.replaceState(null, "", window.location.pathname + window.location.search);
+        const r = await accApi("POST", "/api/auth/verify", { token: m[1] });
+        if (r.status === 404) { accountState = undefined; return; }
+        if (r.status === 200) { accountState = r.data.me; renderAccount(); accMessage(acc("signedIn")); refreshResultUrl(); return; }
+        accountState = null; renderAccount(); accMessage(acc("badLink"), true); return;
+      }
+      const r = await accApi("GET", "/api/me");
+      if (r.status === 404) { accountState = undefined; return; } // cuentas desactivadas
+      accountState = r.status === 200 ? r.data : null;
+      renderAccount();
+      refreshResultUrl();
+    }
+
+    $acc("acc-send").onclick = async () => {
+      const email = $acc("acc-email").value.trim();
+      accMessage(acc("sending"));
+      const r = await accApi("POST", "/api/auth/request", { email });
+      if (r.status === 200) accMessage(acc("sent"));
+      else if (r.status === 429) accMessage(acc("throttled"), true);
+      else if (r.status === 400) accMessage(acc("badEmail"), true);
+      else accMessage(acc("mailFail"), true);
+    };
+    $acc("acc-email").addEventListener("keydown", (e) => {
+      if (e.key === "Enter") $acc("acc-send").click();
+    });
+    $acc("acc-logout").onclick = async () => {
+      await accApi("POST", "/api/auth/logout", {});
+      accountState = null;
+      accMessage("");
+      renderAccount();
+      refreshResultUrl();
+    };
+    $acc("acc-rotate").onclick = async () => {
+      if (!window.confirm(acc("rotateAsk"))) return;
+      const r = await accApi("POST", "/api/me/rotate-uid", {});
+      if (r.status === 200) { accountState = r.data; renderAccount(); refreshResultUrl(); }
+      else accMessage(r.data?.error || acc("saveFail"), true);
+    };
+    $acc("acc-delete").onclick = async () => {
+      if (!window.confirm(acc("delAsk"))) return;
+      const r = await accApi("DELETE", "/api/me");
+      if (r.status === 200) { accountState = null; accMessage(""); renderAccount(); refreshResultUrl(); }
+      else accMessage(r.data?.error || acc("saveFail"), true);
+    };
+
+    // Los textos siguen al idioma de la página (applyTranslations fija <html lang>).
+    new MutationObserver(() => renderAccount()).observe(document.documentElement, {
+      attributes: true, attributeFilter: ["lang"],
+    });
+    loadAccount().catch(() => { accountState = undefined; });
+    // Abrir el enlace del email en la misma pestaña solo cambia el fragmento:
+    // la página no se recarga, así que hay que reaccionar a ello.
+    window.addEventListener("hashchange", () => {
+      if (/^#login=/.test(window.location.hash)) loadAccount().catch(() => {});
+    });
   </script>
 </body>
 

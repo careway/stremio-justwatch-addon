@@ -21,16 +21,24 @@ if (!isProduction) {
   }
 }
 
+// An account uid in a URL (/api/{uid}/…) is a bearer token — whoever has it
+// can read that account's manifest and catalogs — so it must not be written
+// to logs or into the error ring that /api/stats serves. Keep four characters,
+// enough to tell accounts apart when debugging. Applied to every formatted
+// argument, so no call site has to remember to.
+const UID_IN_PATH = /\/api\/([A-Za-z0-9_-]{4})[A-Za-z0-9_-]{18}(?![A-Za-z0-9_-])/g;
+const redact = (text) => text.replace(UID_IN_PATH, "/api/$1…");
+
 function formatArg(a) {
-  if (a instanceof Error) return a.stack || String(a);
+  if (a instanceof Error) return redact(a.stack || String(a));
   if (typeof a === "object" && a !== null) {
     try {
-      return JSON.stringify(a);
+      return redact(JSON.stringify(a));
     } catch {
-      return String(a);
+      return redact(String(a));
     }
   }
-  return String(a);
+  return redact(String(a));
 }
 
 // ─── Levels ───────────────────────────────────────────────────────────────────
@@ -83,6 +91,7 @@ console.error = (...a) => logError(...a);
 console.warn = (...a) => logWarn(...a);
 
 module.exports = {
+  redact,
   log,
   debug,
   logWarn,

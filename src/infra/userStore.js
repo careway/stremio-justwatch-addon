@@ -112,14 +112,16 @@ function createMemoryStore({ now = () => Date.now() } = {}) {
 // ─── Postgres ────────────────────────────────────────────────────────────────
 
 const rowToUser = (r) =>
-  r && {
-    id: r.id,
-    email: r.email,
-    uid: r.uid,
-    plan: r.plan,
-    planExpiresAt: r.plan_expires_at,
-    createdAt: r.created_at,
-  };
+  r
+    ? {
+        id: r.id,
+        email: r.email,
+        uid: r.uid,
+        plan: r.plan,
+        planExpiresAt: r.plan_expires_at,
+        createdAt: r.created_at,
+      }
+    : null;
 
 async function ensureSchema(pool) {
   await pool.query(`

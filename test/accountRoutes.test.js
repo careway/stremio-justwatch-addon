@@ -276,10 +276,22 @@ describe("accounts enabled", () => {
 
     test("a config beyond the plan is a 400 with a stable code", async () => {
       const { cookie } = await signIn("cap@example.com");
-      const two = { sources: [SPAIN, { ...SPAIN, country: "MY", language: "en" }] };
-      const r = await call("PUT", "/api/me/config", { cookie, body: two });
+      const three = { sources: [SPAIN, { ...SPAIN, country: "MY", language: "en" }, { ...SPAIN, country: "US", language: "en" }] };
+      const r = await call("PUT", "/api/me/config", { cookie, body: three });
       assert.equal(r.status, 400);
       assert.equal(r.json.code, "plan_countries");
+    });
+
+    test("free holds two selections in ONE install URL", async () => {
+      const { cookie, me } = await signIn("two@example.com");
+      const two = { sources: [SPAIN, { ...SPAIN, country: "MY", language: "en" }] };
+      const r = await call("PUT", "/api/me/config", { cookie, body: two });
+      assert.equal(r.status, 200, r.text);
+      assert.equal(r.json.limits.maxCountries, 2);
+      const manifest = await call("GET", `/api/${me.uid}/manifest.json`);
+      const ids = manifest.json.catalogs.map((c) => c.id);
+      assert.ok(ids.some((i) => i.startsWith("ES_")) && ids.some((i) => i.startsWith("MY_")), "both selections' catalogs, one manifest");
+      assert.equal(new Set(r.json.sources.map((s) => s.country)).size, 2);
     });
   });
 
@@ -375,33 +387,55 @@ describe("accounts enabled", () => {
       assert.deepEqual(r.json.config.sources[0].packages, ["dnp"]);
     });
 
-    test("a second country needs a plan that allows it, and a merge keeps the first", async () => {
+    test("a third selection needs a paid plan, and a merge keeps the others", async () => {
       const store = createMemoryStore();
       setStore(store);
       const { cookie, me } = await signIn("merge@example.com");
       await call("PUT", "/api/me/config", { cookie, body: { legacy: "ES_es_nfx" } });
+      const second = await call("PUT", "/api/me/config", { cookie, body: { legacy: "MY_en_nfx" } });
+      assert.equal(second.status, 200, "the second one is within free");
+      assert.deepEqual(second.json.config.sources.map((s) => s.country), ["ES", "MY"]);
 
-      const blocked = await call("PUT", "/api/me/config", { cookie, body: { legacy: "MY_en_nfx" } });
+      const blocked = await call("PUT", "/api/me/config", { cookie, body: { legacy: "US_en_nfx" } });
       assert.equal(blocked.status, 400);
       assert.equal(blocked.json.code, "plan_countries");
+      // ...but editing one you already have is not "adding" one.
+      const edit = await call("PUT", "/api/me/config", { cookie, body: { legacy: "MY_en_dnp" } });
+      assert.equal(edit.status, 200, edit.text);
+      assert.deepEqual(edit.json.config.sources.map((s) => s.country), ["ES", "MY"]);
 
       await store.setPlan((await store.findByEmail("merge@example.com")).id, "plus", null);
       accounts.invalidate(me.uid);
-      const ok = await call("PUT", "/api/me/config", { cookie, body: { legacy: "MY_en_nfx" } });
+      const ok = await call("PUT", "/api/me/config", { cookie, body: { legacy: "US_en_nfx" } });
       assert.equal(ok.status, 200, ok.text);
-      assert.deepEqual(ok.json.config.sources.map((s) => s.country), ["ES", "MY"]);
+      assert.deepEqual(ok.json.config.sources.map((s) => s.country), ["ES", "MY", "US"]);
 
       // merge:false starts over with just this country.
       const fresh = await call("PUT", "/api/me/config", { cookie, body: { legacy: "MY_en_nfx", merge: false } });
       assert.deepEqual(fresh.json.config.sources.map((s) => s.country), ["MY"]);
     });
 
+    test("paid plans are unlimited: many selections, all in the one manifest", async () => {
+      const store = createMemoryStore();
+      setStore(store);
+      const { cookie, me } = await signIn("many@example.com");
+      await store.setPlan((await store.findByEmail("many@example.com")).id, "pro", null);
+      accounts.invalidate(me.uid);
+      for (const cc of ["ES", "MY", "US", "FR", "DE", "IT"]) {
+        const r = await call("PUT", "/api/me/config", { cookie, body: { legacy: `${cc}_en_nfx` } });
+        assert.equal(r.status, 200, `${cc}: ${r.text}`);
+      }
+      const profile = (await call("GET", "/api/me", { cookie })).json;
+      assert.equal(profile.sources.length, 6);
+      assert.equal(profile.limits.maxCountries, null, "null = unlimited");
+      const manifest = await call("GET", `/api/${me.uid}/manifest.json`);
+      assert.equal(new Set(manifest.json.catalogs.map((c) => c.id.slice(0, 2))).size, 6);
+    });
+
     test("a country can be removed; removing one that isn't there is a 404", async () => {
       const store = createMemoryStore();
       setStore(store);
-      const { cookie, me } = await signIn("remove@example.com");
-      await store.setPlan((await store.findByEmail("remove@example.com")).id, "plus", null);
-      accounts.invalidate(me.uid);
+      const { cookie } = await signIn("remove@example.com");
       await call("PUT", "/api/me/config", { cookie, body: { legacy: "ES_es_nfx" } });
       await call("PUT", "/api/me/config", { cookie, body: { legacy: "MY_en_nfx" } });
 
@@ -536,32 +570,32 @@ describe("accounts enabled", () => {
   });
 
   describe("upgrading a plan", () => {
-    test("multi-country and deeper catalogs open up, and a downgrade shrinks without breaking", async () => {
+    test("more selections and deeper catalogs open up, and a downgrade shrinks without breaking", async () => {
       const store = createMemoryStore();
       setStore(store);
       const { cookie, me } = await signIn("plus@example.com");
-      const two = { sources: [SPAIN, { ...SPAIN, country: "MY", language: "en" }] };
-      assert.equal((await call("PUT", "/api/me/config", { cookie, body: two })).status, 400);
+      const three = { sources: [SPAIN, { ...SPAIN, country: "MY", language: "en" }, { ...SPAIN, country: "US", language: "en" }] };
+      assert.equal((await call("PUT", "/api/me/config", { cookie, body: three })).status, 400);
 
       const user = await store.findByEmail("plus@example.com");
       await store.setPlan(user.id, "plus", null);
       accounts.invalidate(me.uid);
-      const ok = await call("PUT", "/api/me/config", { cookie, body: two });
+      const ok = await call("PUT", "/api/me/config", { cookie, body: three });
       assert.equal(ok.status, 200, ok.text);
 
       const manifest = await call("GET", `/api/${me.uid}/manifest.json`);
       const ids = manifest.json.catalogs.map((c) => c.id);
-      assert.ok(ids.some((i) => i.startsWith("ES_")) && ids.some((i) => i.startsWith("MY_")));
+      assert.ok(["ES_", "MY_", "US_"].every((p) => ids.some((i) => i.startsWith(p))));
 
       const deep = await call("GET", `/api/${me.uid}/catalog/movie/ES_es_jw_pop_nfx/skip=150.json`);
       assert.equal(deep.json.metas.length > 0, true, "plus reaches beyond the free depth");
 
-      // Plan lapses: the stored config stays, the manifest just gets smaller.
+      // Plan lapses: the stored selections stay, the manifest just gets smaller.
       await store.setPlan(user.id, "plus", new Date(Date.now() - 1000));
       accounts.invalidate(me.uid);
       const lapsed = await call("GET", `/api/${me.uid}/manifest.json`);
       assert.equal(lapsed.status, 200);
-      assert.deepEqual([...new Set(lapsed.json.catalogs.map((c) => c.id.slice(0, 2)))], ["ES"]);
+      assert.deepEqual([...new Set(lapsed.json.catalogs.map((c) => c.id.slice(0, 2)))], ["ES", "MY"]);
     });
   });
 

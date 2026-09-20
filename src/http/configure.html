@@ -277,17 +277,28 @@
     }
     .account-panel .acc-msg { flex-basis: 100%; min-height: 1em; }
     .account-panel .acc-msg.error { color: #ff6b6b; }
-    .account-panel .acc-sources { display: flex; flex-wrap: wrap; gap: 0.4rem; margin-top: 0.6rem; }
-    .account-panel .acc-chip {
+    /* Una selección (país + proveedores) = una pestaña. Todas van en el mismo
+       manifest que se instala. Son enlaces: cambiar de pestaña recarga la página
+       con la configuración de esa selección (el mismo ?config= de siempre). */
+    .account-panel .acc-tabs { display: flex; flex-wrap: wrap; gap: 0.4rem; margin-top: 0.7rem; }
+    .account-panel .acc-tab {
       display: inline-flex;
       align-items: center;
-      gap: 0.4rem;
-      padding: 0.25rem 0.3rem 0.25rem 0.6rem;
+      max-width: 14rem;
+      padding: 0.3rem 0.8rem;
       border: 1px solid var(--border);
       border-radius: 999px;
       color: #e5e7eb;
+      text-decoration: none;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
     }
-    .account-panel .acc-chip button { padding: 0.1rem 0.45rem; border-radius: 999px; }
+    .account-panel .acc-tab:hover { border-color: var(--accent); }
+    .account-panel .acc-tab.active { border-color: var(--accent); color: var(--accent); background: rgba(255, 255, 255, 0.06); }
+    .account-panel .acc-tab.add { border-style: dashed; }
+    .account-panel .acc-tab.disabled { opacity: 0.45; pointer-events: none; }
+    .account-panel .acc-manifest { margin-top: 0.7rem; }
     .account-panel .acc-tmdb { margin-top: 0.8rem; padding-top: 0.7rem; border-top: 1px solid var(--border); }
     .account-panel .acc-footer { margin-top: 0.6rem; display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: center; }
 
@@ -1238,7 +1249,11 @@
             <span id="acc-limits"></span>
             <button id="acc-logout" type="button" style="margin-left: auto"></button>
           </div>
-          <div class="acc-sources" id="acc-sources"></div>
+          <div class="acc-tabs" id="acc-tabs"></div>
+          <div class="acc-row acc-manifest">
+            <button class="acc-primary" id="acc-save" type="button"></button>
+            <button id="acc-remove" type="button"></button>
+          </div>
           <div class="acc-tmdb">
             <div id="acc-tmdb-label" style="color: #e5e7eb"></div>
             <div id="acc-tmdb-why"></div>
@@ -1698,6 +1713,10 @@
     // generateUrl() produjo desde el formulario. Declaradas aquí arriba porque
     // generateUrl puede ejecutarse durante la inicialización.
     let accountState = null;
+    // País de la selección que se abrió (por su pestaña o por el ?config= con el
+    // que se cargó la página); null en una pestaña nueva. Ver activeSource.
+    let openedCountry =
+      (new URLSearchParams(window.location.search).get("config") || "").split("_")[0].toUpperCase() || null;
     let lastLegacyConfig = null;
     let uiStrings = {};
     let availableLanguages = [];
@@ -2166,6 +2185,7 @@
         label.textContent = selected.name;
         countrySel = initCustomSelect("cs-country", (v) => {
           loadPackages(v);
+          renderAccount(); // la pestaña abierta sigue al país elegido
           if (resultEl.classList.contains("visible")) generateUrl();
         });
       }
@@ -2733,6 +2753,17 @@
       return types;
     }
 
+    // Lo que enseña la caja de URL con cuenta: la única URL del manifest de la
+    // cuenta (todas las selecciones van en ella), o el aviso de que se genera
+    // al guardar la primera. Anónimo: nada hasta que haya algo elegido.
+    function accountUrlText() {
+      return accountState
+        ? accountState.sources.length
+          ? accountState.manifestUrl
+          : acc("saveForUrl")
+        : "";
+    }
+
     function generateUrl() {
       const providerPkgs = [
         ...pkgPanes.querySelectorAll('input[type="checkbox"]:checked'),
@@ -2755,7 +2786,7 @@
       // that combination can never produce anything, so it's the same as
       // not having selected those providers at all.
       if (providerPkgs.length && !enabledSorts.length) {
-        urlOut.value = "";
+        urlOut.value = accountUrlText();
         return null;
       }
 
@@ -2776,7 +2807,7 @@
       const selected = [...providerPkgs];
       if (enabledGlobalSorts.length) selected.push("global");
       if (!selected.length) {
-        urlOut.value = "";
+        urlOut.value = accountUrlText();
         return null;
       }
 
@@ -2832,13 +2863,11 @@
         );
       const manifest = `${window.location.origin}/${config}/manifest.json`;
       lastLegacyConfig = config;
-      // Con cuenta y algo ya guardado, la URL que se enseña es la de la cuenta
-      // (siempre la misma, sin la configuración dentro); el segmento de arriba
-      // es lo que se guarda al pulsar Instalar o Copiar.
-      urlOut.value =
-        accountState && accountState.sources.length
-          ? accountState.manifestUrl
-          : manifest;
+      // Con cuenta, la URL que se enseña es la de la cuenta
+      // (/api/{uid}/manifest.json, siempre la misma, sin la configuración
+      // dentro); el segmento de arriba es lo que se guarda al pulsar Guardar,
+      // Añadir, Instalar o Copiar.
+      urlOut.value = accountState ? accountUrlText() : manifest;
       resultEl.classList.add("visible");
       return manifest;
     }
@@ -2912,7 +2941,7 @@
     };
 
     btnCopy.onclick = async () => {
-      if (accountState && lastLegacyConfig && !(await saveToAccount())) return;
+      if (accountState && !(await saveToAccount())) return;
       const text = urlOut.value;
       if (!text) return;
       try {
@@ -2947,17 +2976,24 @@
         logout: "Salir",
         edit: "Editar",
         remove: "Quitar",
-        providers: "proveedores",
-        country1: "país",
-        countryN: "países",
-        limits: "{c} {w} · {k} catálogos · hasta {t} títulos",
+        newTab: "+ Nuevo",
+        tabLimit: "Tu plan permite {max} selecciones (países). Quita una para añadir otra.",
+        limits: "{count} selecciones · hasta {k} catálogos · hasta {t} títulos",
+        save: "Guardar",
+        add: "Añadir a mi manifest",
+        replace: "Sustituir la selección de {cc}",
+        removeSel: "Quitar esta selección",
+        removeAsk: "Se quitarán los catálogos de esta selección de tu manifest. ¿Continuar?",
         rotate: "Regenerar mi URL",
         rotateAsk: "La URL actual dejará de funcionar y tendrás que reinstalar el addon. ¿Continuar?",
+        saveForUrl: "Tu URL se genera al guardar",
+        nothingToSave: "Elige al menos un proveedor.",
+        added: "Añadido a tu manifest.",
+        noSelections: "Aún no tienes ninguna selección: elige país y proveedores abajo y pulsa Añadir.",
         del: "Borrar cuenta",
         delAsk: "Se borrará tu cuenta y tu configuración. ¿Seguro?",
         saved: "Guardado.",
         saveFail: "No se pudo guardar.",
-        noSources: "Aún no has guardado ningún país: configura uno abajo y pulsa Instalar.",
         signedIn: "Sesión iniciada.",
         tmdbLabel: "Tu clave de TMDb (recomendado)",
         tmdbSet: "Clave de TMDb configurada ({hint})",
@@ -2981,19 +3017,24 @@
         mailFail: "We couldn't send the email. Try again later.",
         badLink: "The link is invalid or has expired. Request another.",
         logout: "Sign out",
-        edit: "Edit",
-        remove: "Remove",
-        providers: "providers",
-        country1: "country",
-        countryN: "countries",
-        limits: "{c} {w} · {k} catalogs · up to {t} titles",
+        newTab: "+ New",
+        tabLimit: "Your plan allows {max} selections (countries). Remove one to add another.",
+        limits: "{count} selections · up to {k} catalogs · up to {t} titles",
+        save: "Save",
+        add: "Add to my manifest",
+        replace: "Replace the {cc} selection",
+        removeSel: "Remove this selection",
+        removeAsk: "This selection's catalogs will be removed from your manifest. Continue?",
         rotate: "Regenerate my URL",
         rotateAsk: "The current URL will stop working and you'll need to reinstall the addon. Continue?",
+        saveForUrl: "Your URL is generated when you save",
+        nothingToSave: "Pick at least one provider.",
+        added: "Added to your manifest.",
+        noSelections: "You don't have a selection yet: pick a country and providers below and press Add.",
         del: "Delete account",
         delAsk: "This deletes your account and setup. Sure?",
         saved: "Saved.",
         saveFail: "Couldn't save.",
-        noSources: "You haven't saved a country yet: set one up below and press Install.",
         signedIn: "Signed in.",
         tmdbLabel: "Your TMDb key (recommended)",
         tmdbSet: "TMDb key set ({hint})",
@@ -3032,6 +3073,23 @@
       el.className = "acc-msg" + (isError ? " error" : "");
     }
 
+    // Una selección por país: el país es su identidad. La abierta es la que se
+    // cargó en el formulario mientras siga mostrando ese país; si se cambia a
+    // otro, el formulario pasa a ser una selección nueva.
+    const formCountry = () => (countrySel && countrySel.value) || openedCountry;
+    const activeSource = () =>
+      (accountState &&
+        openedCountry &&
+        formCountry() === openedCountry &&
+        accountState.sources.find((s) => s.country === openedCountry)) ||
+      null;
+    // Una selección nueva cuyo país ya tiene pestaña: guardarla sustituye a esa.
+    const collidingSource = () =>
+      (accountState && !activeSource() && accountState.sources.find((s) => s.country === formCountry())) || null;
+    // Cada pestaña es la página abierta con la configuración de esa selección:
+    // el mismo ?config= que ya rellena el formulario al cargar.
+    const tabHref = (source) => "/configure?config=" + encodeURIComponent(source.legacy);
+
     function renderAccount() {
       const panel = $acc("account-panel");
       if (accountState === undefined) return; // aún sin saber si hay cuentas
@@ -3047,15 +3105,49 @@
       $acc("acc-delete").textContent = acc("del");
       if (!accountState) return;
 
+      const current = activeSource();
+      const lim = accountState.limits;
+      const count = accountState.sources.length;
+      const full = lim.maxCountries !== null && count >= lim.maxCountries;
+
       $acc("acc-who").textContent = accountState.email;
       $acc("acc-plan").textContent = accountState.plan;
-      const lim = accountState.limits;
       $acc("acc-limits").textContent = acc("limits", {
-        c: lim.maxCountries,
-        w: acc(lim.maxCountries === 1 ? "country1" : "countryN"),
+        count: lim.maxCountries === null ? count : count + "/" + lim.maxCountries,
         k: lim.maxCatalogs,
         t: lim.maxOffset + 50,
       });
+
+      const tabs = $acc("acc-tabs");
+      tabs.replaceChildren();
+      if (!count) {
+        const hint = document.createElement("span");
+        hint.textContent = acc("noSelections");
+        tabs.append(hint);
+      }
+      for (const source of accountState.sources) {
+        const tab = document.createElement("a");
+        tab.className = "acc-tab" + (current && source.country === current.country ? " active" : "");
+        tab.href = tabHref(source);
+        tab.textContent = `${source.country} · ${source.language}`;
+        tab.title = `${source.providers}${source.global ? "+" : ""}`;
+        tabs.append(tab);
+      }
+      const add = document.createElement("a");
+      add.className = "acc-tab add" + (!current ? " active" : "") + (full && current ? " disabled" : "");
+      add.href = "/configure";
+      add.textContent = acc("newTab");
+      if (full) add.title = acc("tabLimit", { max: lim.maxCountries });
+      tabs.append(add);
+
+      const clash = collidingSource();
+      $acc("acc-save").textContent = current
+        ? acc("save")
+        : clash
+          ? acc("replace", { cc: clash.country })
+          : acc("add");
+      $acc("acc-remove").textContent = acc("removeSel");
+      $acc("acc-remove").style.display = current ? "" : "none";
 
       const tk = accountState.tmdbKey || { set: false };
       $acc("acc-tmdb-label").textContent = tk.set ? acc("tmdbSet", { hint: tk.hint }) : acc("tmdbLabel");
@@ -3065,36 +3157,7 @@
       $acc("acc-tmdb-clear").textContent = acc("tmdbClear");
       $acc("acc-tmdb-clear").style.display = tk.set ? "" : "none";
       $acc("acc-tmdb-help").textContent = acc("tmdbHelp");
-
-      const box = $acc("acc-sources");
-      box.replaceChildren();
-      if (!accountState.sources.length) {
-        const hint = document.createElement("span");
-        hint.textContent = acc("noSources");
-        box.append(hint);
-      }
-      for (const s of accountState.sources) {
-        const chip = document.createElement("span");
-        chip.className = "acc-chip";
-        const label = document.createElement("span");
-        label.textContent = `${s.country} · ${s.language} · ${s.providers}${s.global ? "+" : ""} ${acc("providers")}`;
-        const edit = document.createElement("button");
-        edit.type = "button";
-        edit.textContent = acc("edit");
-        edit.onclick = () => {
-          window.location.href = "/configure?config=" + encodeURIComponent(s.legacy);
-        };
-        const rm = document.createElement("button");
-        rm.type = "button";
-        rm.textContent = acc("remove");
-        rm.onclick = async () => {
-          const r = await accApi("DELETE", "/api/me/sources/" + encodeURIComponent(s.country));
-          if (r.status === 200) { accountState = r.data; renderAccount(); refreshResultUrl(); }
-          else accMessage(r.data?.error || acc("saveFail"), true);
-        };
-        chip.append(label, edit, rm);
-        box.append(chip);
-      }
+      urlOut.value = accountUrlText();
     }
 
     // Vuelve a pintar la URL mostrada (cuenta vs. anónima) sin tocar el formulario.
@@ -3102,17 +3165,31 @@
       if (resultEl.classList.contains("visible")) generateUrl();
     }
 
+    // Guarda la selección del formulario en la cuenta: sustituye la de ese país
+    // si ya existe, o la añade a las demás (todas en el mismo manifest).
+    // Devuelve si quedó guardada.
     async function saveToAccount() {
-      if (!lastLegacyConfig) return false;
+      if (!generateUrl()) {
+        accMessage(acc("nothingToSave"), true);
+        return false;
+      }
+      const existed = !!activeSource() || !!collidingSource();
       const r = await accApi("PUT", "/api/me/config", { legacy: lastLegacyConfig, merge: true });
       if (r.status !== 200) {
-        accMessage(r.data?.error || acc("saveFail"), true);
+        accMessage(
+          r.data?.code === "plan_countries"
+            ? acc("tabLimit", { max: accountState.limits.maxCountries })
+            : r.data?.error || acc("saveFail"),
+          true,
+        );
         return false;
       }
       accountState = r.data;
-      accMessage(acc("saved"));
+      openedCountry = lastLegacyConfig.split("_")[0].toUpperCase();
+      // Recargar (o compartir el enlace) vuelve a esta misma pestaña.
+      history.replaceState(null, "", "/configure?config=" + encodeURIComponent(lastLegacyConfig));
+      accMessage(acc(existed ? "saved" : "added"));
       renderAccount();
-      urlOut.value = accountState.manifestUrl;
       return true;
     }
 
@@ -3171,6 +3248,16 @@
       accMessage("");
       renderAccount();
       refreshResultUrl();
+    };
+    $acc("acc-save").onclick = () => saveToAccount();
+    $acc("acc-remove").onclick = async () => {
+      const current = activeSource();
+      if (!current || !window.confirm(acc("removeAsk"))) return;
+      const r = await accApi("DELETE", "/api/me/sources/" + encodeURIComponent(current.country));
+      if (r.status !== 200) { accMessage(r.data?.error || acc("saveFail"), true); return; }
+      // Sin la pestaña abierta, ir a la primera que quede (o a una en blanco).
+      const next = r.data.sources[0];
+      window.location.href = next ? tabHref(next) : "/configure";
     };
     $acc("acc-rotate").onclick = async () => {
       if (!window.confirm(acc("rotateAsk"))) return;

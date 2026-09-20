@@ -110,7 +110,7 @@ With `DATABASE_URL(_POOLED)` set, the addon also offers accounts: sign in with a
 /api/{uid}/catalog/{type}/{id}.json
 ```
 
-One account can hold several countries in one manifest. What an account may do comes from its plan (`src/domain/plans.js`: countries, total catalogs, catalog depth, request rate). The `uid` is a credential — Stremio can't send headers — so it is redacted from logs and can be regenerated from `/configure`. Without a database, accounts are off and only the `/{config}/manifest.json` links above are served, exactly as before.
+An account installs **one** manifest, and everything it has chosen goes into it. Each *selection* — one country plus its providers — is a tab on `/configure`; a free account keeps up to 2, paid plans are unlimited (bounded by the total-catalog cap). What an account may do comes from its plan (`src/domain/plans.js`: selections, total catalogs, catalog depth, request rate). The `uid` is a credential — Stremio can't send headers — so it is redacted from logs and can be regenerated from `/configure`. Without a database, accounts are off and only the `/{config}/manifest.json` links above are served, exactly as before.
 
 Each account also brings its own [TMDb](https://www.themoviedb.org/settings/api) key (entered on `/configure`, checked against TMDb when saved, never shown again). It powers the fallback that recovers titles JustWatch hasn't linked to IMDb yet; an account without one simply doesn't get that fallback, and never borrows the operator's key.
 

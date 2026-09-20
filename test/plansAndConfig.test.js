@@ -34,9 +34,13 @@ describe("plans — effective plan", () => {
 
   test("higher plans are strictly more generous on every limit", () => {
     const { free, plus, pro } = PLANS;
-    for (const k of ["maxOffset", "maxCountries", "maxCatalogs"]) {
+    for (const k of ["maxOffset", "maxCatalogs"]) {
       assert.ok(free[k] < plus[k] && plus[k] < pro[k], k);
     }
+    // Saved selections (one per country): 2 on free, unlimited (null) once paying.
+    assert.equal(free.maxCountries, 2);
+    assert.equal(plus.maxCountries, null);
+    assert.equal(pro.maxCountries, null);
     assert.ok(free.rateLimit.perMin < plus.rateLimit.perMin);
   });
 
@@ -85,8 +89,10 @@ describe("normalizeAccountConfig", () => {
 
   test("a plan's country limit is enforced, with a stable code", () => {
     const two = cfg([src(), src({ country: "MY", language: "en" })]);
-    assert.equal(normalizeAccountConfig(two, free).code, "plan_countries");
-    assert.equal(normalizeAccountConfig(two, PLANS.plus).ok, true);
+    assert.equal(normalizeAccountConfig(two, free).ok, true, "free holds two");
+    const three = cfg([...two.sources, src({ country: "US", language: "en" })]);
+    assert.equal(normalizeAccountConfig(three, free).code, "plan_countries");
+    assert.equal(normalizeAccountConfig(three, PLANS.plus).ok, true);
   });
 
   test("the same country twice is refused rather than merged", () => {
@@ -130,8 +136,10 @@ describe("clampToPlan — a downgrade must shrink the manifest, not break it", (
       { randomize: true },
     );
     const c = clampToPlan(stored, PLANS.free);
-    assert.deepEqual(c.sources.map((s) => s.country), ["ES"]);
+    assert.deepEqual(c.sources.map((s) => s.country), ["ES", "MY"]);
     assert.equal(c.randomize, false);
+    // Unlimited plans keep everything.
+    assert.equal(clampToPlan(stored, PLANS.plus).sources.length, 3);
   });
 
   test("trims trailing providers until it fits the catalog limit", () => {
@@ -179,5 +187,16 @@ describe("account manifest — several countries in one install", () => {
   test("randomize prefixes every id", () => {
     const ids = buildAccountCatalogs({ ...two, randomize: true }).map((c) => c.id);
     assert.ok(ids.every((id) => id.startsWith("r_")));
+  });
+});
+
+describe("unlimited countries", () => {
+  test("null means no plan cap, but never more than MAX_SOURCES", () => {
+    const codes = ["ES", "MY", "US", "FR", "DE", "IT", "GB", "MX", "BR", "JP", "KR", "IN", "CA", "AU", "NL", "SE", "NO", "DK", "FI", "PL", "TR", "AR"];
+    const many = cfg(codes.map((country) => src({ country, language: "en" })));
+    const r = normalizeAccountConfig(many, { ...PLANS.pro, maxCatalogs: 10_000 });
+    assert.equal(r.error, "Too many sources", "22 selections is over the ceiling");
+    const ok = normalizeAccountConfig(cfg(codes.slice(0, 20).map((country) => src({ country, language: "en" }))), { ...PLANS.pro, maxCatalogs: 10_000 });
+    assert.equal(ok.ok, true, ok.error);
   });
 });

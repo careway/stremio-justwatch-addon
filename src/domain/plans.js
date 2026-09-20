@@ -10,9 +10,12 @@
 //                 maxOffset + 50 titles. The response cache is shared across
 //                 users, so depth only costs upstream calls when someone
 //                 actually scrolls that far.
-//   maxCountries  distinct countries in one manifest. Each is its own set of
-//                 upstream queries, so this is the limit that really scales
-//                 cost.
+//   maxCountries  saved selections per account. A selection is one country plus
+//                 its providers (a tab on /configure), and an account has one
+//                 selection per country, so this is a country count. Each is
+//                 its own set of upstream queries, so this is the limit that
+//                 really scales cost. null = unlimited, bounded only by
+//                 MAX_SOURCES and maxCatalogs.
 //   maxCatalogs   total catalogs in the manifest (sources × providers × sorts
 //                 × types). Stremio asks for page 1 of every catalog on
 //                 install, which is what got the deploy 403-blocked on
@@ -23,7 +26,7 @@ const PLANS = {
   free: {
     id: "free",
     maxOffset: 100,
-    maxCountries: 1,
+    maxCountries: 2,
     maxCatalogs: 36,
     features: { randomize: false },
     rateLimit: { burst: 120, perMin: 60 },
@@ -31,7 +34,7 @@ const PLANS = {
   plus: {
     id: "plus",
     maxOffset: 200,
-    maxCountries: 3,
+    maxCountries: null,
     maxCatalogs: 120,
     features: { randomize: true },
     rateLimit: { burst: 200, perMin: 120 },
@@ -39,7 +42,7 @@ const PLANS = {
   pro: {
     id: "pro",
     maxOffset: 400,
-    maxCountries: 10,
+    maxCountries: null,
     maxCatalogs: 216,
     features: { randomize: true },
     rateLimit: { burst: 400, perMin: 240 },

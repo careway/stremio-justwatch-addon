@@ -157,9 +157,10 @@ function normalizeAccountConfig(raw, plan) {
   if (countries.size !== sources.length) {
     return fail("Each country can only appear once", "duplicate_country");
   }
-  if (countries.size > plan.maxCountries) {
+  const maxCountries = plan.maxCountries ?? MAX_SOURCES; // null = unlimited
+  if (countries.size > maxCountries) {
     return fail(
-      `Your plan allows ${plan.maxCountries} countr${plan.maxCountries === 1 ? "y" : "ies"}`,
+      `Your plan allows ${maxCountries} countr${maxCountries === 1 ? "y" : "ies"}`,
       "plan_countries",
     );
   }
@@ -206,7 +207,7 @@ function normalizeAccountConfig(raw, plan) {
  */
 function clampToPlan(config, plan) {
   const sources = (config.sources || [])
-    .slice(0, plan.maxCountries)
+    .slice(0, plan.maxCountries ?? MAX_SOURCES)
     .map((s) => ({ ...s, packages: [...s.packages] }));
   const clamped = {
     ...config,

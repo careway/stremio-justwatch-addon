@@ -64,8 +64,19 @@ function effectivePlanId(user, now = Date.now()) {
   return user.plan;
 }
 
+/**
+ * The plans as the subscription page shows them — the same numbers the limits
+ * are enforced with, so the comparison can't drift from what's applied.
+ */
+function publicPlans() {
+  return PLAN_IDS.map((id) => {
+    const { maxOffset, maxCountries, maxCatalogs, features } = PLANS[id];
+    return { id, maxOffset, maxCountries, maxCatalogs, features: { ...features } };
+  });
+}
+
 function getPlan(user, now) {
   return PLANS[effectivePlanId(user, now)];
 }
 
-module.exports = { PLANS, PLAN_IDS, effectivePlanId, getPlan };
+module.exports = { PLANS, PLAN_IDS, publicPlans, effectivePlanId, getPlan };

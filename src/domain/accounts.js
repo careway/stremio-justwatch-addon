@@ -9,8 +9,8 @@
 const crypto = require("crypto");
 const { getStore } = require("../infra/userStore");
 const { sendMagicLink } = require("../infra/mailer");
-const { getPlan } = require("./plans");
-const { normalizeAccountConfig, clampToPlan, fromLegacyConfig } = require("./accountConfig");
+const { getPlan, publicPlans } = require("./plans");
+const { normalizeAccountConfig, normalizeSettings, clampToPlan, fromLegacyConfig } = require("./accountConfig");
 const { decodeConfig, encodeConfig } = require("./userConfig");
 const { buildAccountCatalogs } = require("./manifest");
 const { SORT_MAP } = require("../data/catalogMeta");
@@ -172,9 +172,15 @@ async function saveConfig(user, raw) {
 }
 
 /**
- * Save one country from the configure page. `merge` keeps the account's other
- * countries and replaces (or appends) just this one, so several countries can
- * be built up one at a time; without it the account becomes only this one.
+ * Save one country's selection from the configure page. `merge` keeps the
+ * account's other selections and replaces (or appends) just this one, so
+ * several can be built up one at a time; without it the account becomes only
+ * this one.
+ *
+ * Only the selection is taken from the page's segment. The cover-rating
+ * provider, randomize and hide-country in it are account settings, kept in
+ * Settings and changed by saveSettings — saving a selection must not reset
+ * them to whatever the form happened to hold.
  */
 async function saveLegacySource(user, legacy, { merge = true } = {}) {
   const parsed = fromLegacyConfig(typeof legacy === "string" ? decodeConfig(legacy) : null);
@@ -182,14 +188,50 @@ async function saveLegacySource(user, legacy, { merge = true } = {}) {
 
   const store = await getStore();
   const stored = await store.getConfig(user.id);
-  const existing = merge ? stored : null;
-  const sources = [...(existing?.sources || [])];
+  const sources = [...(merge ? stored?.sources || [] : [])];
   const at = sources.findIndex((s) => s.country === parsed.source.country);
   if (at === -1) sources.push(parsed.source);
   else sources[at] = parsed.source;
-  // The page's config segment doesn't carry the TMDb key, and starting over
-  // with merge:false must not lose it.
-  return saveConfig(user, { sources, ...parsed.account, tmdbApiKey: stored?.tmdbApiKey ?? null });
+  return saveConfig(user, { ...accountSettings(stored), sources, tmdbApiKey: stored?.tmdbApiKey ?? null });
+}
+
+const NO_SETTINGS = { posterProvider: null, posterApiKey: null, randomize: false, hideCountry: false };
+const accountSettings = (stored) => ({
+  posterProvider: stored?.posterProvider ?? null,
+  posterApiKey: stored?.posterApiKey ?? null,
+  randomize: !!stored?.randomize,
+  hideCountry: !!stored?.hideCountry,
+});
+
+/**
+ * Change the account-wide settings: cover-rating provider and its key,
+ * randomized catalogs, hiding the country. A field the client doesn't send
+ * keeps its stored value; a poster key it doesn't send (or sends blank) is
+ * kept as long as the provider is the same one, so the page never has to be
+ * handed the key back just to save something else.
+ */
+async function saveSettings(user, raw) {
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) {
+    return { ok: false, error: "Invalid settings", code: "invalid_config" };
+  }
+  const store = await getStore();
+  const stored = (await store.getConfig(user.id)) || { sources: [], ...NO_SETTINGS };
+  const current = accountSettings(stored);
+
+  const provider = "posterProvider" in raw ? raw.posterProvider || null : current.posterProvider;
+  const sentKey = typeof raw.posterApiKey === "string" ? raw.posterApiKey.trim() : "";
+  const merged = {
+    posterProvider: provider,
+    posterApiKey: sentKey || (provider && provider === current.posterProvider ? current.posterApiKey : null),
+    randomize: "randomize" in raw ? !!raw.randomize : current.randomize,
+    hideCountry: "hideCountry" in raw ? !!raw.hideCountry : current.hideCountry,
+  };
+
+  const result = normalizeSettings(merged, getPlan(user));
+  if (!result.ok) return result;
+  await store.setConfig(user.id, { ...stored, ...result.settings });
+  invalidate(user.uid);
+  return { ok: true };
 }
 
 /**
@@ -256,45 +298,50 @@ async function describeAccount(user, baseUrl) {
   const store = await getStore();
   const plan = getPlan(user);
   const stored = await store.getConfig(user.id);
-  // The TMDb key is a secret the owner typed once; the page only needs to
-  // know whether one is set, not to be handed it back.
-  const config = stored && { ...stored, tmdbApiKey: undefined };
-  const tmdbKey = stored?.tmdbApiKey
-    ? { set: true, hint: `…${stored.tmdbApiKey.slice(-4)}` }
-    : { set: false, hint: null };
-  const manifestUrl = `${baseUrl}/api/${user.uid}/manifest.json`;
+  // The TMDb and poster keys are secrets the owner typed once; the page only
+  // needs to know whether one is set (and its tail, to recognise it), not to
+  // be handed it back.
+  const masked = (key) => (key ? { set: true, hint: `…${key.slice(-4)}` } : { set: false, hint: null });
+  const settings = accountSettings(stored);
+  const sources = stored?.sources || [];
   return {
     email: user.email,
     plan: plan.id,
     planExpiresAt: user.planExpiresAt || null,
     uid: user.uid,
-    manifestUrl,
-    installUrl: manifestUrl.replace(/^https?:\/\//, "stremio://"),
-    config,
-    tmdbKey,
-    // What the configure page needs to list, edit and remove each country:
-    // `legacy` is the same segment the page produces, so "edit" is just
-    // opening /configure?config=<legacy>.
-    sources: (config?.sources || []).map((source) => ({
+    ...installUrls(user, baseUrl),
+    tmdbKey: masked(stored?.tmdbApiKey),
+    settings: {
+      posterProvider: settings.posterProvider,
+      posterKey: masked(settings.posterApiKey),
+      randomize: settings.randomize,
+      hideCountry: settings.hideCountry,
+    },
+    // What the configure page needs to list, edit and remove each selection:
+    // `legacy` is the segment the page itself produces, so "edit" is just
+    // opening /configure?config=<legacy>. It carries the selection only —
+    // the account settings live apart (see saveSettings).
+    sources: sources.map((source) => ({
       country: source.country,
       language: source.language,
       providers: source.packages.filter((p) => p !== "global").length,
       global: source.packages.includes("global"),
-      legacy: encodeConfig({
-        ...source,
-        posterProvider: config.posterProvider,
-        posterApiKey: config.posterApiKey,
-        randomize: config.randomize,
-        hideCountry: config.hideCountry,
-      }),
+      legacy: encodeConfig(source),
     })),
+    catalogs: buildAccountCatalogs(clampToPlan({ ...settings, sources }, plan)).length,
     limits: {
       maxOffset: plan.maxOffset,
       maxCountries: plan.maxCountries,
       maxCatalogs: plan.maxCatalogs,
       features: plan.features,
     },
+    plans: publicPlans(),
   };
+}
+
+function installUrls(user, baseUrl) {
+  const manifestUrl = `${baseUrl}/api/${user.uid}/manifest.json`;
+  return { manifestUrl, installUrl: manifestUrl.replace(/^https?:\/\//, "stremio://") };
 }
 
 // ─── Load forecasting ────────────────────────────────────────────────────────
@@ -350,6 +397,7 @@ module.exports = {
   logout,
   saveConfig,
   saveLegacySource,
+  saveSettings,
   setTmdbKey,
   removeSource,
   rotateUid,

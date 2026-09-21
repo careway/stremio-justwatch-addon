@@ -226,7 +226,7 @@
       /* overflow: hidden; */
     }
 
-    /* ── Cuenta (opcional: solo se muestra si el servidor tiene cuentas) ── */
+    /* ── Acceso (sin sesión; solo aparece si el servidor tiene cuentas) ── */
     .account-panel {
       display: none;
       margin: -1rem 0 1.5rem;
@@ -238,69 +238,310 @@
       color: var(--muted);
     }
     .account-panel.visible { display: block; }
-    .account-panel .acc-row {
-      display: flex;
+    .account-panel .acc-row { display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem; }
+    .account-panel .acc-msg { flex-basis: 100%; min-height: 1em; margin-top: 0.4rem; }
+    .account-panel .acc-msg.error { color: #ff6b6b; }
+
+    /* ── Con sesión: la página pasa a ser una app con menú ─────────────────
+       El formulario de siempre (país, idioma, plataformas) es la vista
+       "Manifest"; los ajustes y la suscripción son vistas nuevas. Sin sesión
+       nada de esto se ve y la página es la de 3 pasos. */
+    .app-btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.4rem;
+      padding: 0.55rem 1rem;
+      border-radius: 10px;
+      border: 1px solid var(--border);
+      background: rgba(255, 255, 255, 0.04);
+      color: var(--text);
+      font: inherit;
+      font-size: 0.8rem;
+      font-weight: 600;
+      cursor: pointer;
+      text-decoration: none;
+      transition: border-color 0.15s, background 0.15s, transform 0.15s;
+    }
+    .app-btn:hover { border-color: var(--accent); background: rgba(255, 255, 255, 0.07); }
+    .app-btn:focus-visible, .app-links a:focus-visible, .user-btn:focus-visible, .user-menu button:focus-visible, .acc-tab:focus-visible {
+      outline: 2px solid var(--accent);
+      outline-offset: 2px;
+    }
+    .app-btn.primary { background: var(--accent); border-color: var(--accent); color: #0f0c29; font-weight: 800; box-shadow: 0 0 18px var(--accent-glow); }
+    .app-btn.primary:hover { filter: brightness(1.08); transform: translateY(-1px); }
+    .app-btn.danger { border-color: rgba(255, 107, 107, 0.5); color: #ff8f8f; }
+    .app-btn.danger:hover { background: rgba(255, 107, 107, 0.12); border-color: #ff6b6b; }
+    .app-btn[disabled] { opacity: 0.5; cursor: not-allowed; transform: none; }
+    .app-input {
+      width: 100%;
+      min-width: 0;
+      padding: 0.6rem 0.8rem;
+      border-radius: 10px;
+      border: 1px solid var(--border);
+      background: rgba(0, 0, 0, 0.3);
+      color: var(--text);
+      font: inherit;
+      font-size: 0.85rem;
+    }
+    .account-panel .app-input { flex: 1 1 12rem; width: auto; }
+    .app-input:focus { outline: none; border-color: var(--accent); }
+
+    .app-nav {
+      display: none;
+      align-items: center;
       flex-wrap: wrap;
+      gap: 0.4rem 1.2rem;
+      position: sticky;
+      top: 0.75rem;
+      z-index: 60;
+      margin-bottom: 1.6rem;
+      /* Room for the floating language button (54px + gap) in the corner. */
+      padding: 0.55rem 72px 0.55rem 0.9rem;
+      border: 1px solid var(--border);
+      border-radius: 18px;
+      background: rgba(20, 16, 44, 0.78);
+      backdrop-filter: blur(16px);
+      box-shadow: 0 8px 30px rgba(0, 0, 0, 0.35);
+    }
+    body.app .app-nav { display: flex; }
+    .app-brand { display: flex; align-items: center; gap: 0.6rem; font-weight: 800; letter-spacing: -0.3px; }
+    .app-brand img { width: 30px; height: 30px; border-radius: 9px; box-shadow: 0 0 14px var(--accent-glow); }
+    .app-brand span {
+      font-size: 1.05rem;
+      background: linear-gradient(to right, #fff, var(--secondary));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+    .app-links { display: flex; gap: 0.2rem; flex: 1 1 auto; overflow-x: auto; scrollbar-width: none; }
+    .app-links a {
+      padding: 0.5rem 0.95rem;
+      border-radius: 10px;
+      color: var(--muted);
+      text-decoration: none;
+      font-size: 0.82rem;
+      font-weight: 600;
+      white-space: nowrap;
+      transition: color 0.15s, background 0.15s;
+    }
+    .app-links a:hover { color: var(--text); background: rgba(255, 255, 255, 0.06); }
+    .app-links a[aria-current="page"] { color: var(--accent); background: rgba(255, 121, 198, 0.13); }
+    .app-user { position: relative; margin-left: auto; }
+    .user-btn {
+      display: inline-flex;
       align-items: center;
       gap: 0.5rem;
-    }
-    .account-panel input[type="email"],
-    .account-panel input[type="password"] {
-      flex: 1 1 12rem;
-      min-width: 0;
-      padding: 0.4rem 0.6rem;
-      border-radius: 8px;
+      padding: 0.3rem 0.6rem 0.3rem 0.35rem;
+      border-radius: 999px;
       border: 1px solid var(--border);
-      background: rgba(0, 0, 0, 0.25);
-      color: inherit;
+      background: rgba(255, 255, 255, 0.04);
+      color: var(--text);
       font: inherit;
-    }
-    .account-panel button {
-      padding: 0.4rem 0.7rem;
-      border-radius: 8px;
-      border: 1px solid var(--border);
-      background: transparent;
-      color: inherit;
-      font: inherit;
+      font-size: 0.78rem;
       cursor: pointer;
     }
-    .account-panel button:hover { border-color: var(--accent); }
-    .account-panel button.acc-primary { border-color: var(--accent); color: var(--accent); }
-    .account-panel .acc-plan {
-      padding: 0.1rem 0.5rem;
+    .user-btn:hover, .user-btn[aria-expanded="true"] { border-color: var(--accent); }
+    .avatar {
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      display: grid;
+      place-items: center;
+      background: linear-gradient(135deg, var(--accent), var(--secondary));
+      color: #0f0c29;
+      font-weight: 800;
+      font-size: 0.8rem;
+      text-transform: uppercase;
+    }
+    .user-email { max-width: 11rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .plan-pill {
+      padding: 0.08rem 0.5rem;
       border-radius: 999px;
       border: 1px solid var(--accent);
       color: var(--accent);
       text-transform: uppercase;
-      letter-spacing: 0.05em;
-      font-size: 0.65rem;
+      letter-spacing: 0.06em;
+      font-size: 0.62rem;
+      font-weight: 700;
     }
-    .account-panel .acc-msg { flex-basis: 100%; min-height: 1em; }
-    .account-panel .acc-msg.error { color: #ff6b6b; }
-    /* Una selección (país + proveedores) = una pestaña. Todas van en el mismo
-       manifest que se instala. Son enlaces: cambiar de pestaña recarga la página
-       con la configuración de esa selección (el mismo ?config= de siempre). */
-    .account-panel .acc-tabs { display: flex; flex-wrap: wrap; gap: 0.4rem; margin-top: 0.7rem; }
-    .account-panel .acc-tab {
+    .user-menu {
+      position: absolute;
+      right: 0;
+      top: calc(100% + 0.5rem);
+      min-width: 15rem;
+      padding: 0.4rem;
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      background: #171a2b;
+      box-shadow: 0 20px 40px rgba(0, 0, 0, 0.55);
+      z-index: 100;
+    }
+    .user-menu[hidden] { display: none; }
+    .user-menu-head { padding: 0.5rem 0.7rem 0.6rem; border-bottom: 1px solid var(--border); margin-bottom: 0.3rem; display: flex; flex-direction: column; gap: 0.35rem; align-items: flex-start; }
+    .user-menu-head strong { font-size: 0.8rem; word-break: break-all; }
+    .user-menu button {
+      display: block;
+      width: 100%;
+      padding: 0.55rem 0.7rem;
+      border: none;
+      border-radius: 9px;
+      background: transparent;
+      color: var(--text);
+      font: inherit;
+      font-size: 0.8rem;
+      text-align: left;
+      cursor: pointer;
+    }
+    .user-menu button:hover { background: rgba(255, 255, 255, 0.08); }
+    .user-menu button.danger { color: #ff8f8f; }
+
+    /* Cada vista. Sin sesión, la del formulario se dibuja como si no hubiera
+       envoltorio (display: contents) para no tocar el diseño de siempre. */
+    .app-view[hidden] { display: none !important; }
+    #view-manifest { display: contents; }
+    body.app #view-manifest { display: block; }
+    .view-title { font-size: 1.35rem; font-weight: 800; letter-spacing: -0.3px; }
+    .view-sub { color: var(--muted); font-size: 0.82rem; margin: 0.25rem 0 1.3rem; line-height: 1.5; }
+    .app-card {
+      margin-bottom: 1rem;
+      padding: 1.1rem 1.2rem;
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      background: rgba(255, 255, 255, 0.03);
+    }
+    .app-card h3 { font-size: 0.95rem; font-weight: 700; margin-bottom: 0.3rem; }
+    .app-card > p, .hint { color: var(--muted); font-size: 0.78rem; line-height: 1.5; }
+    .app-card > p { margin-bottom: 0.9rem; }
+    .app-card .row:last-child { margin-bottom: 0; }
+    .hint { margin-top: 0.5rem; }
+    .app-card.danger { border-color: rgba(255, 107, 107, 0.3); }
+    .app-card .card-row { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 0.8rem; }
+    .app-card .card-row + .card-row { margin-top: 0.9rem; padding-top: 0.9rem; border-top: 1px solid var(--border); }
+    .card-row .grow { flex: 1 1 16rem; }
+    .card-row .grow b { display: block; font-size: 0.85rem; margin-bottom: 0.15rem; }
+    .card-row .grow span { color: var(--muted); font-size: 0.76rem; line-height: 1.45; }
+    .field-row { display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: center; }
+    .save-row { display: flex; justify-content: flex-end; margin: 0.2rem 0 1.4rem; }
+
+    /* Vista Manifest */
+    .mf-top { margin-bottom: 1.6rem; }
+    .mf-install { margin-top: 0.2rem; }
+    .mf-install .actions { padding-top: 0 !important; }
+    .mf-install .result { margin-top: 1rem; }
+    .mf-stats { display: flex; flex-wrap: wrap; gap: 0.5rem; margin: 1rem 0 0; }
+    .stat-chip {
+      padding: 0.3rem 0.75rem;
+      border-radius: 999px;
+      border: 1px solid var(--border);
+      background: rgba(255, 255, 255, 0.04);
+      color: var(--muted);
+      font-size: 0.74rem;
+    }
+    .stat-chip b { color: var(--text); font-weight: 700; }
+    .mf-section { margin: 1.6rem 0 0.7rem; }
+    .mf-section h3 { font-size: 0.95rem; font-weight: 700; }
+    .mf-section p { color: var(--muted); font-size: 0.76rem; margin-top: 0.2rem; }
+    .acc-tabs { display: flex; flex-wrap: wrap; gap: 0.45rem; align-items: center; color: var(--muted); font-size: 0.78rem; }
+    .acc-tab {
       display: inline-flex;
       align-items: center;
       max-width: 14rem;
-      padding: 0.3rem 0.8rem;
+      padding: 0.45rem 0.95rem;
       border: 1px solid var(--border);
       border-radius: 999px;
-      color: #e5e7eb;
+      background: rgba(255, 255, 255, 0.03);
+      color: var(--text);
+      font-size: 0.8rem;
+      font-weight: 600;
       text-decoration: none;
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
+      transition: border-color 0.15s, background 0.15s;
     }
-    .account-panel .acc-tab:hover { border-color: var(--accent); }
-    .account-panel .acc-tab.active { border-color: var(--accent); color: var(--accent); background: rgba(255, 255, 255, 0.06); }
-    .account-panel .acc-tab.add { border-style: dashed; }
-    .account-panel .acc-tab.disabled { opacity: 0.45; pointer-events: none; }
-    .account-panel .acc-manifest { margin-top: 0.7rem; }
-    .account-panel .acc-tmdb { margin-top: 0.8rem; padding-top: 0.7rem; border-top: 1px solid var(--border); }
-    .account-panel .acc-footer { margin-top: 0.6rem; display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: center; }
+    .acc-tab:hover { border-color: var(--accent); }
+    .acc-tab.active { border-color: var(--accent); color: var(--accent); background: rgba(255, 121, 198, 0.12); }
+    .acc-tab.add { border-style: dashed; color: var(--muted); }
+    .acc-tab.add.active { color: var(--accent); }
+    .acc-tab.disabled { opacity: 0.45; pointer-events: none; }
+    .editor-head { display: flex; align-items: baseline; justify-content: space-between; gap: 1rem; margin: 1.6rem 0 1rem; padding-top: 1.4rem; border-top: 1px solid var(--border); }
+    .editor-head h3 { font-size: 0.95rem; font-weight: 700; }
+    .savebar {
+      position: sticky;
+      bottom: 0.9rem;
+      z-index: 40;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.6rem;
+      align-items: center;
+      justify-content: flex-end;
+      margin-top: 1.4rem;
+      padding: 0.7rem 0.9rem;
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      background: rgba(20, 16, 44, 0.88);
+      backdrop-filter: blur(14px);
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4);
+    }
+    .savebar .savebar-note { margin-right: auto; color: var(--muted); font-size: 0.76rem; }
+
+    /* Vista Suscripción */
+    .plan-now { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 1rem; }
+    .plan-now .plan-name { font-size: 1.5rem; font-weight: 800; }
+    .plan-now .plan-status { color: var(--muted); font-size: 0.8rem; margin-top: 0.2rem; }
+    .meters { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 1rem; margin-top: 1.1rem; }
+    .meter .meter-label { display: flex; justify-content: space-between; font-size: 0.75rem; color: var(--muted); margin-bottom: 0.4rem; }
+    .meter .meter-label b { color: var(--text); }
+    .meter .bar { height: 6px; border-radius: 999px; background: rgba(255, 255, 255, 0.08); overflow: hidden; }
+    .meter .bar i { display: block; height: 100%; border-radius: inherit; background: linear-gradient(to right, var(--secondary), var(--accent)); }
+    .plan-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 0.9rem; margin-top: 0.4rem; }
+    .plan-card { display: flex; flex-direction: column; gap: 0.7rem; padding: 1.1rem; border: 1px solid var(--border); border-radius: 16px; background: rgba(255, 255, 255, 0.03); }
+    .plan-card.current { border-color: var(--accent); box-shadow: 0 0 24px var(--accent-glow); }
+    .plan-card h4 { font-size: 1.05rem; font-weight: 800; display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; }
+    .plan-card ul { list-style: none; display: flex; flex-direction: column; gap: 0.5rem; font-size: 0.78rem; flex: 1; }
+    .plan-card li { display: flex; justify-content: space-between; gap: 0.6rem; color: var(--muted); }
+    .plan-card li b { color: var(--text); font-weight: 600; text-align: right; }
+    .plan-card li b.no { color: var(--muted); opacity: 0.6; }
+    .plan-card li b.yes { color: var(--neon-green); }
+
+    .toast {
+      position: fixed;
+      left: 50%;
+      bottom: 1.5rem;
+      transform: translate(-50%, 20px);
+      z-index: 2000;
+      max-width: min(92vw, 30rem);
+      padding: 0.7rem 1.1rem;
+      border-radius: 12px;
+      border: 1px solid var(--border);
+      background: #171a2b;
+      color: var(--text);
+      font-size: 0.82rem;
+      box-shadow: 0 14px 40px rgba(0, 0, 0, 0.55);
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.2s, transform 0.2s;
+    }
+    .toast.show { opacity: 1; transform: translate(-50%, 0); }
+    .toast.error { border-color: #ff6b6b; color: #ffb4b4; }
+    .app-foot { display: none; margin-top: 2rem; padding-top: 1.1rem; border-top: 1px solid var(--border); gap: 1.2rem; flex-wrap: wrap; justify-content: center; font-size: 0.76rem; }
+    body.app .app-foot { display: flex; }
+    .app-foot a { color: var(--muted); text-decoration: none; }
+    .app-foot a:hover { color: var(--accent); }
+
+    /* Con sesión, los pasos numerados pasan a ser títulos de sección. */
+    body.app .header, body.app .creator-sidebar, body.app #account-panel, body.app #poster-block { display: none !important; }
+    body.app .app-wrapper { flex-direction: column; max-width: 1000px; }
+    body.app .card { max-width: none; width: 100%; }
+    body.app .step-head > span:first-child { display: none !important; }
+    body.app .step-head > span:last-child { font-size: 0.95rem !important; text-transform: none !important; letter-spacing: 0 !important; font-weight: 700 !important; }
+    body.app #opt-block > label { display: none !important; }
+    #set-poster-slot .row { margin-bottom: 0; }
+    .toggle-item input:disabled + .toggle-card { opacity: 0.5; cursor: not-allowed; }
+    @media (max-width: 640px) {
+      .user-email { display: none; }
+      .app-nav { padding-right: 0.9rem; margin-top: 3.4rem; }
+    }
 
     .header {
       display: flex;
@@ -1231,49 +1472,62 @@
         </p>
       </div>
 
-      <!-- ── Cuenta (se muestra solo si el servidor la tiene activada) ── -->
+      <!-- ── Acceso (se muestra solo si el servidor tiene cuentas y no hay sesión) ── -->
       <div class="account-panel" id="account-panel">
         <div id="acc-out" style="display: none">
           <div class="acc-row">
             <span id="acc-pitch"></span>
           </div>
           <div class="acc-row" style="margin-top: 0.5rem">
-            <input type="email" id="acc-email" autocomplete="email" />
-            <button class="acc-primary" id="acc-send" type="button"></button>
-          </div>
-        </div>
-        <div id="acc-in" style="display: none">
-          <div class="acc-row">
-            <strong id="acc-who" style="color: #e5e7eb"></strong>
-            <span class="acc-plan" id="acc-plan"></span>
-            <span id="acc-limits"></span>
-            <button id="acc-logout" type="button" style="margin-left: auto"></button>
-          </div>
-          <div class="acc-tabs" id="acc-tabs"></div>
-          <div class="acc-row acc-manifest">
-            <button class="acc-primary" id="acc-save" type="button"></button>
-            <button id="acc-remove" type="button"></button>
-          </div>
-          <div class="acc-tmdb">
-            <div id="acc-tmdb-label" style="color: #e5e7eb"></div>
-            <div id="acc-tmdb-why"></div>
-            <div class="acc-row" style="margin-top: 0.4rem">
-              <input type="password" id="acc-tmdb-input" autocomplete="off" spellcheck="false" />
-              <button class="acc-primary" id="acc-tmdb-save" type="button"></button>
-              <button id="acc-tmdb-clear" type="button"></button>
-              <a id="acc-tmdb-help" href="https://www.themoviedb.org/settings/api" target="_blank" rel="noopener" style="color: var(--accent)"></a>
-            </div>
-          </div>
-          <div class="acc-footer">
-            <button id="acc-rotate" type="button"></button>
-            <button id="acc-delete" type="button"></button>
+            <input class="app-input" type="email" id="acc-email" autocomplete="email" />
+            <button class="app-btn primary" id="acc-send" type="button"></button>
           </div>
         </div>
         <div class="acc-msg" id="acc-msg" role="status"></div>
       </div>
 
+      <!-- ── Barra de la app (con sesión) ── -->
+      <nav class="app-nav" id="app-nav">
+        <div class="app-brand"><img src="/static/logo.svg" alt="" onerror="this.style.display = 'none'" /><span>OmniCatalog</span></div>
+        <div class="app-links" id="app-links">
+          <a href="#/manifest" data-view="manifest" data-acc="navManifest"></a>
+          <a href="#/settings" data-view="settings" data-acc="navSettings"></a>
+          <a href="#/subscription" data-view="subscription" data-acc="navSubscription"></a>
+        </div>
+        <div class="app-user">
+          <button class="user-btn" id="user-btn" type="button" aria-haspopup="menu" aria-expanded="false">
+            <span class="avatar" id="user-initial"></span>
+            <span class="user-email" id="user-email"></span>
+            <span class="plan-pill" id="user-plan"></span>
+          </button>
+          <div class="user-menu" id="user-menu" role="menu" hidden>
+            <div class="user-menu-head"><strong id="um-email"></strong><span class="plan-pill" id="um-plan"></span></div>
+            <button role="menuitem" type="button" data-go="settings" data-acc="navSettings"></button>
+            <button role="menuitem" type="button" data-go="subscription" data-acc="navSubscription"></button>
+            <button role="menuitem" type="button" class="danger" id="um-logout" data-acc="logout"></button>
+          </div>
+        </div>
+      </nav>
+
+      <!-- ═══ Vista: Manifest (sin sesión es el formulario de siempre) ═══ -->
+      <div id="view-manifest" class="app-view">
+        <div class="mf-top" id="mf-top" hidden>
+          <h2 class="view-title" data-acc="mfTitle"></h2>
+          <p class="view-sub" data-acc="mfSub"></p>
+          <div class="app-card mf-install" id="mf-install-slot"></div>
+          <div class="mf-stats" id="mf-stats"></div>
+          <div class="mf-section">
+            <h3 data-acc="mfSelections"></h3>
+            <p data-acc="mfSelectionsHint"></p>
+          </div>
+          <div class="acc-tabs" id="acc-tabs" role="navigation"></div>
+          <div class="editor-head">
+            <h3 id="mf-editor-title"></h3>
+          </div>
+        </div>
+
       <!-- ── Paso 1 ── -->
-      <div style="
+      <div class="step-head" style="
             display: flex;
             align-items: center;
             gap: 0.6rem;
@@ -1353,7 +1607,7 @@
       </div>
 
       <!-- ── Paso 2 ── -->
-      <div style="
+      <div class="step-head" style="
             display: flex;
             align-items: center;
             gap: 0.6rem;
@@ -1512,6 +1766,7 @@
 
 
 
+      <div id="opt-block" style="display: contents">
       <label style="
             color: var(--secondary);
             font-size: 0.65rem;
@@ -1560,8 +1815,11 @@
         </div>
       </div>
 
+      </div>
+
+      <div id="poster-block" style="display: contents">
       <!-- ── Paso 3 ── -->
-      <div style="
+      <div class="step-head" style="
             display: flex;
             align-items: center;
             gap: 0.6rem;
@@ -1639,7 +1897,9 @@
         </div>
       </div>
 
-      <div class="actions" style="flex-shrink: 0; padding-top: 1rem">
+</div>
+
+      <div class="actions" id="install-block" style="flex-shrink: 0; padding-top: 1rem">
         <button class="btn-primary" id="btn-generate" data-i18n="install">
           Instalar en Stremio
         </button>
@@ -1664,6 +1924,79 @@
           </div>
         </div>
       </div>
+        <div class="savebar" id="savebar" hidden>
+          <span class="savebar-note" id="savebar-note"></span>
+          <button class="app-btn danger" id="acc-remove" type="button"></button>
+          <button class="app-btn primary" id="acc-save" type="button"></button>
+        </div>
+      </div>
+
+      <!-- ═══ Vista: Configuración ═══ -->
+      <section id="view-settings" class="app-view" hidden>
+        <h2 class="view-title" data-acc="setTitle"></h2>
+        <p class="view-sub" data-acc="setSub"></p>
+
+        <div class="app-card">
+          <h3 data-acc="setPosterH"></h3>
+          <p data-acc="setPosterP"></p>
+          <div id="set-poster-slot"></div>
+          <div class="hint" id="set-poster-hint"></div>
+        </div>
+
+        <div class="app-card">
+          <h3 data-acc="setOptsH"></h3>
+          <p data-acc="setOptsP"></p>
+          <div id="set-options-slot"></div>
+          <div class="hint" id="set-random-lock" hidden></div>
+        </div>
+
+        <div class="save-row">
+          <button class="app-btn primary" id="set-save" type="button"></button>
+        </div>
+
+        <div class="app-card">
+          <h3 id="acc-tmdb-label"></h3>
+          <p id="acc-tmdb-why"></p>
+          <div class="field-row">
+            <input class="app-input" style="flex: 1 1 14rem; width: auto" type="password" id="acc-tmdb-input" autocomplete="off" spellcheck="false" />
+            <button class="app-btn primary" id="acc-tmdb-save" type="button"></button>
+            <button class="app-btn" id="acc-tmdb-clear" type="button"></button>
+          </div>
+          <div class="hint"><a id="acc-tmdb-help" href="https://www.themoviedb.org/settings/api" target="_blank" rel="noopener" style="color: var(--accent)"></a></div>
+        </div>
+
+        <div class="app-card">
+          <h3 data-acc="setAccountH"></h3>
+          <div class="card-row">
+            <div class="grow"><b id="set-email"></b><span id="set-plan-line"></span></div>
+            <button class="app-btn" id="set-logout" type="button"></button>
+          </div>
+        </div>
+
+        <div class="app-card danger">
+          <h3 data-acc="setDangerH"></h3>
+          <div class="card-row">
+            <div class="grow"><b data-acc="rotate"></b><span data-acc="setRotateP"></span></div>
+            <button class="app-btn" id="acc-rotate" type="button"></button>
+          </div>
+          <div class="card-row">
+            <div class="grow"><b data-acc="del"></b><span data-acc="setDeleteP"></span></div>
+            <button class="app-btn danger" id="acc-delete" type="button"></button>
+          </div>
+        </div>
+      </section>
+
+      <!-- ═══ Vista: Suscripción ═══ -->
+      <section id="view-subscription" class="app-view" hidden>
+        <h2 class="view-title" data-acc="subTitle"></h2>
+        <p class="view-sub" data-acc="subSub"></p>
+        <div id="sub-root"></div>
+      </section>
+
+      <footer class="app-foot" id="app-foot">
+        <a href="https://discord.gg/EYQyJBjWn3" target="_blank" rel="noopener">Discord</a>
+        <a href="https://ko-fi.com/careway" target="_blank" rel="noopener">Ko-fi</a>
+      </footer>
     </main>
 
     <!-- SIDEBAR -->
@@ -1701,6 +2034,8 @@
       </div>
     </aside>
   </div>
+
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
 
   <script>
     /* LÓGICA DE JAVASCRIPT */
@@ -2062,6 +2397,7 @@
 
         posterProviderSel = initCustomSelect("cs-poster-provider", (v) => {
           updatePosterKeyField(v);
+          if (accountState) renderPosterHint();
           if (resultEl.classList.contains("visible")) generateUrl();
         });
 
@@ -2072,6 +2408,8 @@
           updatePosterKeyField(parsed.providerId);
           document.getElementById("poster-api-key").value = parsed.apiKey;
         }
+        // Con sesión, los ajustes guardados mandan sobre cualquier ?config=.
+        applySettingsToForm();
       } catch (e) {
         console.error("Failed to load poster providers:", e);
       }
@@ -2185,7 +2523,7 @@
         label.textContent = selected.name;
         countrySel = initCustomSelect("cs-country", (v) => {
           loadPackages(v);
-          renderAccount(); // la pestaña abierta sigue al país elegido
+          renderManifest(); // la pestaña abierta sigue al país elegido
           if (resultEl.classList.contains("visible")) generateUrl();
         });
       }
@@ -2959,9 +3297,13 @@
     };
 
     /* ── Cuenta ────────────────────────────────────────────────────────────
-       Todo opcional: si el servidor no tiene cuentas (/api/me → 404) el panel
-       nunca aparece y la página funciona exactamente como antes. Los textos
-       son propios (es/en) en vez de pasar por /api/ui-strings. */
+       Todo opcional: si el servidor no tiene cuentas (/api/me → 404) nada de
+       esto aparece y la página funciona exactamente como antes. Con sesión, la
+       página pasa a ser una app: barra con Manifest / Configuración /
+       Suscripción. La vista Manifest reutiliza el formulario de siempre; los
+       campos de portadas y opciones se mudan a Configuración (mismos nodos,
+       mismos manejadores). Los textos son propios (es/en) en vez de pasar por
+       /api/ui-strings. */
     const ACC_TEXT = {
       es: {
         pitch: "Guarda tu configuración y usa una única URL en todos tus dispositivos.",
@@ -2973,31 +3315,59 @@
         throttled: "Demasiados intentos. Espera un poco.",
         mailFail: "No hemos podido enviar el email. Inténtalo más tarde.",
         badLink: "El enlace no es válido o ha caducado. Pide otro.",
-        logout: "Salir",
-        edit: "Editar",
-        remove: "Quitar",
-        newTab: "+ Nuevo",
-        tabLimit: "Tu plan permite {max} selecciones (países). Quita una para añadir otra.",
-        limits: "{count} selecciones · hasta {k} catálogos · hasta {t} títulos",
+        signedIn: "Sesión iniciada.",
+        logout: "Cerrar sesión",
+        saved: "Guardado.",
+        saveFail: "No se pudo guardar.",
+        navManifest: "Manifest",
+        navSettings: "Configuración",
+        navSubscription: "Suscripción",
+        planFree: "Gratuito",
+        mfTitle: "Tu manifest",
+        mfSub: "Un único enlace de instalación con todas tus selecciones. Añade países y plataformas y se actualiza solo, sin reinstalar.",
+        mfSelections: "Tus selecciones",
+        mfSelectionsHint: "Cada selección es un país con sus plataformas. Todas van en el mismo manifest.",
+        mfEditEdit: "Editando la selección de {cc}",
+        mfEditReplace: "Nueva selección para {cc}: sustituirá a la que ya tienes",
+        mfEditNew: "Nueva selección",
+        statSelections: "{count} selecciones",
+        statCatalogs: "{k} de {max} catálogos",
+        newTab: "+ Nueva",
+        tabLimit: "Tu plan permite {max} selecciones (países). Quita una o mira los planes para añadir más.",
+        noSelections: "Aún no tienes ninguna selección: elige país y plataformas abajo y pulsa Añadir.",
         save: "Guardar",
         add: "Añadir a mi manifest",
         replace: "Sustituir la selección de {cc}",
         removeSel: "Quitar esta selección",
         removeAsk: "Se quitarán los catálogos de esta selección de tu manifest. ¿Continuar?",
-        rotate: "Regenerar mi URL",
-        rotateAsk: "La URL actual dejará de funcionar y tendrás que reinstalar el addon. ¿Continuar?",
         saveForUrl: "Tu URL se genera al guardar",
-        nothingToSave: "Elige al menos un proveedor.",
+        nothingToSave: "Elige al menos una plataforma.",
         added: "Añadido a tu manifest.",
-        noSelections: "Aún no tienes ninguna selección: elige país y proveedores abajo y pulsa Añadir.",
+        setTitle: "Configuración",
+        setSub: "Estos ajustes se guardan en tu cuenta y se aplican a todo tu manifest.",
+        setPosterH: "Ratings en las portadas",
+        setPosterP: "Muestra las valoraciones sobre los pósters con el proveedor que elijas (por ejemplo RPDB). Necesitas tu propia clave: se guarda en tu cuenta y no se vuelve a mostrar.",
+        setPosterKeySaved: "Clave guardada ({hint}). Déjala en blanco para conservarla.",
+        posterBad: "Revisa el proveedor de portadas y su clave.",
+        setOptsH: "Opciones del manifest",
+        setOptsP: "Cómo se ordenan y se nombran tus catálogos.",
+        setRandomLock: "Aleatorizar catálogos es una función de los planes de pago.",
+        seePlans: "Ver planes",
+        planFeatureRandom: "Aleatorizar catálogos no está incluido en tu plan.",
+        setSave: "Guardar cambios",
+        settingsSaved: "Ajustes guardados.",
+        setAccountH: "Cuenta",
+        setPlanLine: "Plan {plan}",
+        setDangerH: "Zona de peligro",
+        rotate: "Regenerar mi URL",
+        setRotateP: "Crea un enlace de instalación nuevo. El actual dejará de funcionar y tendrás que reinstalar el addon.",
+        rotateAsk: "La URL actual dejará de funcionar y tendrás que reinstalar el addon. ¿Continuar?",
         del: "Borrar cuenta",
+        setDeleteP: "Borra tu cuenta, tus selecciones y tus claves. No se puede deshacer.",
         delAsk: "Se borrará tu cuenta y tu configuración. ¿Seguro?",
-        saved: "Guardado.",
-        saveFail: "No se pudo guardar.",
-        signedIn: "Sesión iniciada.",
         tmdbLabel: "Tu clave de TMDb (recomendado)",
         tmdbSet: "Clave de TMDb configurada ({hint})",
-        tmdbWhy: "Recupera títulos que JustWatch aún no ha enlazado con IMDb (estrenos recientes) que si no, no aparecerían. Usa tu propia clave gratuita; nunca se comparte.",
+        tmdbWhy: "Recupera títulos que JustWatch aún no ha enlazado con IMDb (estrenos recientes) y que si no, no aparecerían. Usa tu propia clave gratuita; nunca se comparte.",
         tmdbPlaceholder: "Clave de API o token de lectura",
         tmdbSave: "Guardar clave",
         tmdbClear: "Quitar",
@@ -3005,6 +3375,24 @@
         tmdbSaved: "Clave de TMDb guardada.",
         tmdbRemoved: "Clave de TMDb eliminada.",
         tmdbBad: "TMDb no acepta esa clave. Revisa que la hayas copiado entera.",
+        subTitle: "Suscripción",
+        subSub: "Tu plan actual, tu uso y lo que incluye cada plan.",
+        subYourPlan: "Tu plan",
+        subFreeNote: "Plan gratuito, sin caducidad.",
+        subActive: "Plan activo.",
+        subUntil: "Activo hasta el {date}.",
+        subUsage: "Uso",
+        useSelections: "Selecciones (países)",
+        useCatalogs: "Catálogos en tu manifest",
+        useDepth: "Títulos por catálogo",
+        unlimited: "Ilimitadas",
+        featSelections: "Selecciones (países)",
+        featCatalogs: "Catálogos por manifest",
+        featDepth: "Títulos por catálogo",
+        featRandom: "Catálogos aleatorios",
+        current: "Tu plan actual",
+        soon: "Próximamente",
+        subNote: "El pago con tarjeta llegará pronto. Si quieres un plan de pago ya, escríbenos por",
       },
       en: {
         pitch: "Save your setup and use one URL on all your devices.",
@@ -3016,26 +3404,56 @@
         throttled: "Too many attempts. Wait a moment.",
         mailFail: "We couldn't send the email. Try again later.",
         badLink: "The link is invalid or has expired. Request another.",
+        signedIn: "Signed in.",
         logout: "Sign out",
+        saved: "Saved.",
+        saveFail: "Couldn't save.",
+        navManifest: "Manifest",
+        navSettings: "Settings",
+        navSubscription: "Subscription",
+        planFree: "Free",
+        mfTitle: "Your manifest",
+        mfSub: "One install link with all your selections. Add countries and platforms and it updates itself, no reinstalling.",
+        mfSelections: "Your selections",
+        mfSelectionsHint: "Each selection is a country with its platforms. They all go into the same manifest.",
+        mfEditEdit: "Editing the {cc} selection",
+        mfEditReplace: "New selection for {cc}: it will replace the one you already have",
+        mfEditNew: "New selection",
+        statSelections: "{count} selections",
+        statCatalogs: "{k} of {max} catalogs",
         newTab: "+ New",
-        tabLimit: "Your plan allows {max} selections (countries). Remove one to add another.",
-        limits: "{count} selections · up to {k} catalogs · up to {t} titles",
+        tabLimit: "Your plan allows {max} selections (countries). Remove one or look at the plans to add more.",
+        noSelections: "You don't have a selection yet: pick a country and platforms below and press Add.",
         save: "Save",
         add: "Add to my manifest",
         replace: "Replace the {cc} selection",
         removeSel: "Remove this selection",
         removeAsk: "This selection's catalogs will be removed from your manifest. Continue?",
-        rotate: "Regenerate my URL",
-        rotateAsk: "The current URL will stop working and you'll need to reinstall the addon. Continue?",
         saveForUrl: "Your URL is generated when you save",
-        nothingToSave: "Pick at least one provider.",
+        nothingToSave: "Pick at least one platform.",
         added: "Added to your manifest.",
-        noSelections: "You don't have a selection yet: pick a country and providers below and press Add.",
+        setTitle: "Settings",
+        setSub: "These settings are saved to your account and apply to your whole manifest.",
+        setPosterH: "Ratings on covers",
+        setPosterP: "Shows ratings on the posters using the provider you choose (for example RPDB). You need your own key: it's saved to your account and never shown again.",
+        setPosterKeySaved: "Key saved ({hint}). Leave it blank to keep it.",
+        posterBad: "Check the cover provider and its key.",
+        setOptsH: "Manifest options",
+        setOptsP: "How your catalogs are ordered and named.",
+        setRandomLock: "Randomized catalogs are a feature of the paid plans.",
+        seePlans: "See plans",
+        planFeatureRandom: "Randomized catalogs aren't part of your plan.",
+        setSave: "Save changes",
+        settingsSaved: "Settings saved.",
+        setAccountH: "Account",
+        setPlanLine: "{plan} plan",
+        setDangerH: "Danger zone",
+        rotate: "Regenerate my URL",
+        setRotateP: "Creates a new install link. The current one will stop working and you'll need to reinstall the addon.",
+        rotateAsk: "The current URL will stop working and you'll need to reinstall the addon. Continue?",
         del: "Delete account",
+        setDeleteP: "Deletes your account, your selections and your keys. This can't be undone.",
         delAsk: "This deletes your account and setup. Sure?",
-        saved: "Saved.",
-        saveFail: "Couldn't save.",
-        signedIn: "Signed in.",
         tmdbLabel: "Your TMDb key (recommended)",
         tmdbSet: "TMDb key set ({hint})",
         tmdbWhy: "Recovers titles JustWatch hasn't linked to IMDb yet (recent releases) that would otherwise be missing. Uses your own free key; it is never shared.",
@@ -3046,6 +3464,24 @@
         tmdbSaved: "TMDb key saved.",
         tmdbRemoved: "TMDb key removed.",
         tmdbBad: "TMDb doesn't accept that key. Check you copied all of it.",
+        subTitle: "Subscription",
+        subSub: "Your current plan, your usage and what each plan includes.",
+        subYourPlan: "Your plan",
+        subFreeNote: "Free plan, no expiry.",
+        subActive: "Plan active.",
+        subUntil: "Active until {date}.",
+        subUsage: "Usage",
+        useSelections: "Selections (countries)",
+        useCatalogs: "Catalogs in your manifest",
+        useDepth: "Titles per catalog",
+        unlimited: "Unlimited",
+        featSelections: "Selections (countries)",
+        featCatalogs: "Catalogs per manifest",
+        featDepth: "Titles per catalog",
+        featRandom: "Randomized catalogs",
+        current: "Your current plan",
+        soon: "Coming soon",
+        subNote: "Card payments are coming soon. If you want a paid plan now, message us on",
       },
     };
     const acc = (key, vars) => {
@@ -3054,6 +3490,13 @@
       return text;
     };
     const $acc = (id) => document.getElementById(id);
+    const mk = (tag, cls, text) => {
+      const node = document.createElement(tag);
+      if (cls) node.className = cls;
+      if (text !== undefined) node.textContent = text;
+      return node;
+    };
+    const planName = (id) => (id === "free" ? acc("planFree") : id.charAt(0).toUpperCase() + id.slice(1));
 
     async function accApi(method, path, body) {
       const res = await fetch(path, {
@@ -3067,15 +3510,28 @@
       return { status: res.status, data };
     }
 
+    // Sin sesión el mensaje va en la caja de acceso; con sesión, en un aviso
+    // flotante (visible aunque se esté en otra parte de la página).
+    let toastTimer;
     function accMessage(text, isError) {
+      if (accountState) {
+        if (!text) return;
+        const el = $acc("toast");
+        el.textContent = text;
+        el.className = "toast show" + (isError ? " error" : "");
+        clearTimeout(toastTimer);
+        toastTimer = setTimeout(() => el.classList.remove("show"), isError ? 6500 : 3500);
+        return;
+      }
       const el = $acc("acc-msg");
       el.textContent = text || "";
       el.className = "acc-msg" + (isError ? " error" : "");
     }
 
-    // Una selección por país: el país es su identidad. La abierta es la que se
-    // cargó en el formulario mientras siga mostrando ese país; si se cambia a
-    // otro, el formulario pasa a ser una selección nueva.
+    // ── Selecciones: una por país, todas en el mismo manifest ──
+    // El país es la identidad de una selección. La abierta es la que se cargó
+    // en el formulario mientras siga mostrando ese país; si se cambia a otro,
+    // el formulario pasa a ser una selección nueva.
     const formCountry = () => (countrySel && countrySel.value) || openedCountry;
     const activeSource = () =>
       (accountState &&
@@ -3090,64 +3546,126 @@
     // el mismo ?config= que ya rellena el formulario al cargar.
     const tabHref = (source) => "/configure?config=" + encodeURIComponent(source.legacy);
 
-    function renderAccount() {
-      const panel = $acc("account-panel");
-      if (accountState === undefined) return; // aún sin saber si hay cuentas
-      panel.classList.add("visible");
-      $acc("acc-out").style.display = accountState ? "none" : "block";
-      $acc("acc-in").style.display = accountState ? "block" : "none";
-
-      $acc("acc-pitch").textContent = acc("pitch");
-      $acc("acc-email").placeholder = acc("email");
-      $acc("acc-send").textContent = acc("send");
-      $acc("acc-logout").textContent = acc("logout");
-      $acc("acc-rotate").textContent = acc("rotate");
-      $acc("acc-delete").textContent = acc("del");
+    // ── Vistas ──
+    const VIEWS = ["manifest", "settings", "subscription"];
+    function currentView() {
+      const m = window.location.hash.match(/^#\/(manifest|settings|subscription)$/);
+      return m ? m[1] : "manifest";
+    }
+    function showView() {
       if (!accountState) return;
+      const view = currentView();
+      for (const name of VIEWS) $acc("view-" + name).hidden = name !== view;
+      for (const a of document.querySelectorAll("#app-links a")) {
+        if (a.dataset.view === view) a.setAttribute("aria-current", "page");
+        else a.removeAttribute("aria-current");
+      }
+      closeUserMenu();
+    }
 
+    // Pasa la página a modo app: los campos de portadas y opciones se mudan a
+    // Configuración y el bloque de instalar sube a lo alto de la vista Manifest.
+    let appMode = false;
+    function enterAppMode() {
+      if (appMode) return;
+      appMode = true;
+      document.body.classList.add("app");
+      $acc("set-poster-slot").append(document.querySelector("#poster-block .row"));
+      $acc("set-options-slot").append($acc("opt-block"));
+      $acc("mf-install-slot").append($acc("install-block"));
+      $acc("mf-top").hidden = false;
+      $acc("savebar").hidden = false;
+    }
+
+    function applyAccText() {
+      for (const el of document.querySelectorAll("[data-acc]")) el.textContent = acc(el.dataset.acc);
+    }
+
+    // Lo que enseña la caja de URL con cuenta: la única URL del manifest de la
+    // cuenta (todas las selecciones van en ella), o el aviso de que se genera
+    // al guardar la primera. Anónimo: nada hasta que haya algo elegido.
+    // (Definida más arriba junto a generateUrl.)
+
+    function renderNav() {
+      const email = accountState.email;
+      $acc("user-initial").textContent = email.charAt(0);
+      $acc("user-email").textContent = email;
+      $acc("user-plan").textContent = planName(accountState.plan);
+      $acc("um-email").textContent = email;
+      $acc("um-plan").textContent = planName(accountState.plan);
+    }
+
+    function renderManifest() {
+      if (!accountState) return;
       const current = activeSource();
+      const clash = collidingSource();
       const lim = accountState.limits;
       const count = accountState.sources.length;
       const full = lim.maxCountries !== null && count >= lim.maxCountries;
 
-      $acc("acc-who").textContent = accountState.email;
-      $acc("acc-plan").textContent = accountState.plan;
-      $acc("acc-limits").textContent = acc("limits", {
-        count: lim.maxCountries === null ? count : count + "/" + lim.maxCountries,
-        k: lim.maxCatalogs,
-        t: lim.maxOffset + 50,
-      });
+      const stats = $acc("mf-stats");
+      stats.replaceChildren(
+        mk("span", "stat-chip", acc("statSelections", { count: lim.maxCountries === null ? count : count + "/" + lim.maxCountries })),
+        mk("span", "stat-chip", acc("statCatalogs", { k: accountState.catalogs, max: lim.maxCatalogs })),
+      );
 
       const tabs = $acc("acc-tabs");
       tabs.replaceChildren();
-      if (!count) {
-        const hint = document.createElement("span");
-        hint.textContent = acc("noSelections");
-        tabs.append(hint);
-      }
+      if (!count) tabs.append(mk("span", "", acc("noSelections")));
       for (const source of accountState.sources) {
-        const tab = document.createElement("a");
-        tab.className = "acc-tab" + (current && source.country === current.country ? " active" : "");
+        const tab = mk("a", "acc-tab" + (current && source.country === current.country ? " active" : ""), `${source.country} · ${source.language}`);
         tab.href = tabHref(source);
-        tab.textContent = `${source.country} · ${source.language}`;
         tab.title = `${source.providers}${source.global ? "+" : ""}`;
         tabs.append(tab);
       }
-      const add = document.createElement("a");
-      add.className = "acc-tab add" + (!current ? " active" : "") + (full && current ? " disabled" : "");
+      const add = mk("a", "acc-tab add" + (!current ? " active" : "") + (full && current ? " disabled" : ""), acc("newTab"));
       add.href = "/configure";
-      add.textContent = acc("newTab");
       if (full) add.title = acc("tabLimit", { max: lim.maxCountries });
       tabs.append(add);
 
-      const clash = collidingSource();
-      $acc("acc-save").textContent = current
-        ? acc("save")
+      $acc("mf-editor-title").textContent = current
+        ? acc("mfEditEdit", { cc: current.country })
         : clash
-          ? acc("replace", { cc: clash.country })
-          : acc("add");
+          ? acc("mfEditReplace", { cc: clash.country })
+          : acc("mfEditNew");
+      $acc("acc-save").textContent = current ? acc("save") : clash ? acc("replace", { cc: clash.country }) : acc("add");
       $acc("acc-remove").textContent = acc("removeSel");
       $acc("acc-remove").style.display = current ? "" : "none";
+      $acc("savebar-note").textContent = full && !current && !clash ? acc("tabLimit", { max: lim.maxCountries }) : "";
+      urlOut.value = accountUrlText();
+    }
+
+    // Los ajustes del servidor se vuelcan a los campos de Configuración solo
+    // cuando cambian (no en cada repintado, para no pisar lo que se esté
+    // escribiendo) y una vez que el desplegable de proveedores existe.
+    let appliedSettingsSig = null;
+    function applySettingsToForm() {
+      if (!accountState || !posterProviderSel) return;
+      const sig = JSON.stringify(accountState.settings);
+      if (sig === appliedSettingsSig) return;
+      appliedSettingsSig = sig;
+      const st = accountState.settings;
+      posterProviderSel.value = st.posterProvider || "";
+      updatePosterKeyField(st.posterProvider || "");
+      document.getElementById("poster-api-key").value = "";
+      $acc("randomize-toggle").checked = !!st.randomize;
+      $acc("hide-country-toggle").checked = !!st.hideCountry;
+      renderPosterHint();
+    }
+
+    function renderPosterHint() {
+      if (!accountState) return;
+      const st = accountState.settings;
+      const same = posterProviderSel && st.posterProvider && posterProviderSel.value === st.posterProvider;
+      $acc("set-poster-hint").textContent = same && st.posterKey.set ? acc("setPosterKeySaved", { hint: st.posterKey.hint }) : "";
+    }
+
+    function renderSettings() {
+      $acc("set-email").textContent = accountState.email;
+      const expires = accountState.planExpiresAt && accountState.plan !== "free";
+      $acc("set-plan-line").textContent =
+        acc("setPlanLine", { plan: planName(accountState.plan) }) +
+        (expires ? " · " + acc("subUntil", { date: new Date(accountState.planExpiresAt).toLocaleDateString(uiLang) }) : "");
 
       const tk = accountState.tmdbKey || { set: false };
       $acc("acc-tmdb-label").textContent = tk.set ? acc("tmdbSet", { hint: tk.hint }) : acc("tmdbLabel");
@@ -3157,7 +3675,132 @@
       $acc("acc-tmdb-clear").textContent = acc("tmdbClear");
       $acc("acc-tmdb-clear").style.display = tk.set ? "" : "none";
       $acc("acc-tmdb-help").textContent = acc("tmdbHelp");
-      urlOut.value = accountUrlText();
+
+      $acc("set-save").textContent = acc("setSave");
+      $acc("acc-rotate").textContent = acc("rotate");
+      $acc("acc-delete").textContent = acc("del");
+      $acc("set-logout").textContent = acc("logout");
+
+      // Aleatorizar es de pago: se ve, pero bloqueado, con el camino a los planes.
+      const canRandom = !!accountState.limits.features.randomize;
+      $acc("randomize-toggle").disabled = !canRandom;
+      const lock = $acc("set-random-lock");
+      lock.hidden = canRandom;
+      if (!canRandom) {
+        const link = mk("a", "", acc("seePlans"));
+        link.href = "#/subscription";
+        link.style.color = "var(--accent)";
+        lock.replaceChildren(acc("setRandomLock") + " ", link);
+      }
+      applySettingsToForm();
+      renderPosterHint();
+    }
+
+    function renderSubscription() {
+      const root = $acc("sub-root");
+      root.replaceChildren();
+      const lim = accountState.limits;
+      const order = accountState.plans.map((p) => p.id);
+      const count = accountState.sources.length;
+
+      // Plan actual
+      const now = mk("div", "app-card");
+      const head = mk("div", "plan-now");
+      const left = mk("div");
+      left.append(mk("div", "view-sub", acc("subYourPlan")));
+      left.lastChild.style.margin = "0";
+      left.append(mk("div", "plan-name", planName(accountState.plan)));
+      const status =
+        accountState.plan === "free"
+          ? acc("subFreeNote")
+          : accountState.planExpiresAt
+            ? acc("subUntil", { date: new Date(accountState.planExpiresAt).toLocaleDateString(uiLang) })
+            : acc("subActive");
+      left.append(mk("div", "plan-status", status));
+      head.append(left, mk("span", "plan-pill", planName(accountState.plan)));
+      now.append(head);
+
+      const meters = mk("div", "meters");
+      const meter = (label, used, max, valueText) => {
+        const m = mk("div", "meter");
+        const lab = mk("div", "meter-label");
+        lab.append(mk("span", "", label), mk("b", "", valueText));
+        m.append(lab);
+        if (max) {
+          const bar = mk("div", "bar");
+          const fill = document.createElement("i");
+          fill.style.width = Math.min(100, Math.round((used / max) * 100)) + "%";
+          bar.append(fill);
+          m.append(bar);
+        }
+        return m;
+      };
+      meters.append(
+        meter(acc("useSelections"), count, lim.maxCountries, lim.maxCountries === null ? `${count} · ${acc("unlimited")}` : `${count} / ${lim.maxCountries}`),
+        meter(acc("useCatalogs"), accountState.catalogs, lim.maxCatalogs, `${accountState.catalogs} / ${lim.maxCatalogs}`),
+        meter(acc("useDepth"), 0, 0, String(lim.maxOffset + 50)),
+      );
+      now.append(meters);
+      root.append(now);
+
+      // Comparativa
+      const grid = mk("div", "plan-grid");
+      for (const p of accountState.plans) {
+        const card = mk("div", "plan-card" + (p.id === accountState.plan ? " current" : ""));
+        card.append(mk("h4", "", planName(p.id)));
+        const list = mk("ul");
+        const row = (label, value, cls) => {
+          const li = mk("li");
+          li.append(mk("span", "", label), mk("b", cls || "", value));
+          list.append(li);
+        };
+        row(acc("featSelections"), p.maxCountries === null ? acc("unlimited") : String(p.maxCountries));
+        row(acc("featCatalogs"), String(p.maxCatalogs));
+        row(acc("featDepth"), String(p.maxOffset + 50));
+        row(acc("featRandom"), p.features.randomize ? "✓" : "—", p.features.randomize ? "yes" : "no");
+        card.append(list);
+        if (p.id === accountState.plan) {
+          card.append(mk("span", "plan-pill", acc("current")));
+          card.lastChild.style.alignSelf = "flex-start";
+        } else if (order.indexOf(p.id) > order.indexOf(accountState.plan)) {
+          const cta = mk("button", "app-btn", acc("soon"));
+          cta.type = "button";
+          cta.disabled = true;
+          card.append(cta);
+        }
+        grid.append(card);
+      }
+      root.append(grid);
+
+      const note = mk("p", "hint", acc("subNote") + " ");
+      const discord = mk("a", "", "Discord");
+      discord.href = "https://discord.gg/EYQyJBjWn3";
+      discord.target = "_blank";
+      discord.rel = "noopener";
+      discord.style.color = "var(--accent)";
+      note.append(discord, ".");
+      root.append(note);
+    }
+
+    function renderAccount() {
+      if (accountState === undefined) return; // aún sin saber si hay cuentas
+      const panel = $acc("account-panel");
+      applyAccText();
+      if (!accountState) {
+        panel.classList.add("visible");
+        $acc("acc-out").style.display = "block";
+        $acc("acc-pitch").textContent = acc("pitch");
+        $acc("acc-email").placeholder = acc("email");
+        $acc("acc-send").textContent = acc("send");
+        return;
+      }
+      panel.classList.remove("visible");
+      enterAppMode();
+      renderNav();
+      renderManifest();
+      renderSettings();
+      renderSubscription();
+      showView();
     }
 
     // Vuelve a pintar la URL mostrada (cuenta vs. anónima) sin tocar el formulario.
@@ -3186,8 +3829,8 @@
       }
       accountState = r.data;
       openedCountry = lastLegacyConfig.split("_")[0].toUpperCase();
-      // Recargar (o compartir el enlace) vuelve a esta misma pestaña.
-      history.replaceState(null, "", "/configure?config=" + encodeURIComponent(lastLegacyConfig));
+      // Recargar (o compartir el enlace) vuelve a esta misma pestaña y vista.
+      history.replaceState(null, "", "/configure?config=" + encodeURIComponent(lastLegacyConfig) + window.location.hash);
       accMessage(acc(existed ? "saved" : "added"));
       renderAccount();
       return true;
@@ -3211,6 +3854,36 @@
       refreshResultUrl();
     }
 
+    // ── Menú de usuario ──
+    function closeUserMenu() {
+      $acc("user-menu").hidden = true;
+      $acc("user-btn").setAttribute("aria-expanded", "false");
+    }
+    $acc("user-btn").onclick = (e) => {
+      e.stopPropagation();
+      const open = $acc("user-menu").hidden;
+      $acc("user-menu").hidden = !open;
+      $acc("user-btn").setAttribute("aria-expanded", String(open));
+    };
+    document.addEventListener("click", (e) => {
+      if (!e.target.closest(".app-user")) closeUserMenu();
+    });
+    document.addEventListener("keydown", (e) => {
+      if (e.key === "Escape") closeUserMenu();
+    });
+    for (const item of document.querySelectorAll("#user-menu [data-go]")) {
+      item.onclick = () => { window.location.hash = "#/" + item.dataset.go; closeUserMenu(); };
+    }
+
+    async function doLogout() {
+      await accApi("POST", "/api/auth/logout", {});
+      // Recarga limpia: vuelve la página de 3 pasos, con los campos en su sitio.
+      window.location.href = "/configure";
+    }
+    $acc("um-logout").onclick = doLogout;
+    $acc("set-logout").onclick = doLogout;
+
+    // ── Acceso ──
     $acc("acc-send").onclick = async () => {
       const email = $acc("acc-email").value.trim();
       accMessage(acc("sending"));
@@ -3223,6 +3896,40 @@
     $acc("acc-email").addEventListener("keydown", (e) => {
       if (e.key === "Enter") $acc("acc-send").click();
     });
+
+    // ── Manifest ──
+    $acc("acc-save").onclick = () => saveToAccount();
+    $acc("acc-remove").onclick = async () => {
+      const current = activeSource();
+      if (!current || !window.confirm(acc("removeAsk"))) return;
+      const r = await accApi("DELETE", "/api/me/sources/" + encodeURIComponent(current.country));
+      if (r.status !== 200) { accMessage(r.data?.error || acc("saveFail"), true); return; }
+      // Sin la pestaña abierta, ir a la primera que quede (o a una en blanco).
+      const next = r.data.sources[0];
+      window.location.href = next ? tabHref(next) : "/configure";
+    };
+
+    // ── Configuración ──
+    $acc("set-save").onclick = async () => {
+      const key = document.getElementById("poster-api-key").value.trim();
+      const r = await accApi("PUT", "/api/me/settings", {
+        posterProvider: posterProviderSel ? posterProviderSel.value || null : null,
+        posterApiKey: key,
+        randomize: $acc("randomize-toggle").checked,
+        hideCountry: $acc("hide-country-toggle").checked,
+      });
+      if (r.status === 200) {
+        accountState = r.data;
+        renderAccount();
+        accMessage(acc("settingsSaved"));
+      } else {
+        const code = r.data?.code;
+        accMessage(
+          code === "invalid_poster" ? acc("posterBad") : code === "plan_feature" ? acc("planFeatureRandom") : r.data?.error || acc("saveFail"),
+          true,
+        );
+      }
+    };
     async function saveTmdbKey(key, okMessage) {
       const r = await accApi("PUT", "/api/me/tmdb-key", { key });
       if (r.status === 200) {
@@ -3242,33 +3949,16 @@
       if (e.key === "Enter") $acc("acc-tmdb-save").click();
     });
     $acc("acc-tmdb-clear").onclick = () => saveTmdbKey(null, acc("tmdbRemoved"));
-    $acc("acc-logout").onclick = async () => {
-      await accApi("POST", "/api/auth/logout", {});
-      accountState = null;
-      accMessage("");
-      renderAccount();
-      refreshResultUrl();
-    };
-    $acc("acc-save").onclick = () => saveToAccount();
-    $acc("acc-remove").onclick = async () => {
-      const current = activeSource();
-      if (!current || !window.confirm(acc("removeAsk"))) return;
-      const r = await accApi("DELETE", "/api/me/sources/" + encodeURIComponent(current.country));
-      if (r.status !== 200) { accMessage(r.data?.error || acc("saveFail"), true); return; }
-      // Sin la pestaña abierta, ir a la primera que quede (o a una en blanco).
-      const next = r.data.sources[0];
-      window.location.href = next ? tabHref(next) : "/configure";
-    };
     $acc("acc-rotate").onclick = async () => {
       if (!window.confirm(acc("rotateAsk"))) return;
       const r = await accApi("POST", "/api/me/rotate-uid", {});
-      if (r.status === 200) { accountState = r.data; renderAccount(); refreshResultUrl(); }
+      if (r.status === 200) { accountState = r.data; renderAccount(); refreshResultUrl(); accMessage(acc("saved")); }
       else accMessage(r.data?.error || acc("saveFail"), true);
     };
     $acc("acc-delete").onclick = async () => {
       if (!window.confirm(acc("delAsk"))) return;
       const r = await accApi("DELETE", "/api/me");
-      if (r.status === 200) { accountState = null; accMessage(""); renderAccount(); refreshResultUrl(); }
+      if (r.status === 200) window.location.href = "/configure";
       else accMessage(r.data?.error || acc("saveFail"), true);
     };
 
@@ -3278,9 +3968,11 @@
     });
     loadAccount().catch(() => { accountState = undefined; });
     // Abrir el enlace del email en la misma pestaña solo cambia el fragmento:
-    // la página no se recarga, así que hay que reaccionar a ello.
+    // la página no se recarga, así que hay que reaccionar a ello. Lo mismo con
+    // el menú, que navega entre vistas por el fragmento.
     window.addEventListener("hashchange", () => {
       if (/^#login=/.test(window.location.hash)) loadAccount().catch(() => {});
+      else if (accountState) { showView(); window.scrollTo(0, 0); }
     });
   </script>
 </body>

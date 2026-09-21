@@ -135,6 +135,32 @@ function normalizePoster(raw) {
 }
 
 /**
+ * The account-wide settings: cover-rating provider (+ its key), randomized
+ * catalogs, hiding the country in catalog names. They apply to every selection
+ * of the account, so they are saved apart from the selections (see
+ * accounts.saveSettings) and checked here against the plan on their own.
+ */
+function normalizeSettings(raw, plan) {
+  if (!raw || typeof raw !== "object") return fail("Settings must be an object", "invalid_config");
+  const poster = normalizePoster(raw);
+  if (!poster.ok) return poster;
+
+  const randomize = !!raw.randomize;
+  if (randomize && !plan.features.randomize) {
+    return fail("Randomized catalogs are not part of your plan", "plan_feature");
+  }
+  return {
+    ok: true,
+    settings: {
+      posterProvider: poster.posterProvider,
+      posterApiKey: poster.posterApiKey,
+      randomize,
+      hideCountry: !!raw.hideCountry,
+    },
+  };
+}
+
+/**
  * Validate `raw` and check it against `plan`. Returns { ok: true, config } or
  * { ok: false, error, code } — `code` is stable for the client to switch on,
  * `error` is a human sentence.
@@ -165,13 +191,8 @@ function normalizeAccountConfig(raw, plan) {
     );
   }
 
-  const poster = normalizePoster(raw);
-  if (!poster.ok) return poster;
-
-  const randomize = !!raw.randomize;
-  if (randomize && !plan.features.randomize) {
-    return fail("Randomized catalogs are not part of your plan", "plan_feature");
-  }
+  const settings = normalizeSettings(raw, plan);
+  if (!settings.ok) return settings;
 
   // The account's own TMDb key (see infra/tmdbFallback). Absent → the
   // fallback is off for this account; it is never borrowed from the operator.
@@ -180,14 +201,7 @@ function normalizeAccountConfig(raw, plan) {
     return fail("That doesn't look like a TMDb API key", "invalid_tmdb_key");
   }
 
-  const config = {
-    sources,
-    posterProvider: poster.posterProvider,
-    posterApiKey: poster.posterApiKey,
-    tmdbApiKey,
-    randomize,
-    hideCountry: !!raw.hideCountry,
-  };
+  const config = { sources, ...settings.settings, tmdbApiKey };
 
   const catalogs = buildAccountCatalogs(config).length;
   if (catalogs > plan.maxCatalogs) {
@@ -251,4 +265,4 @@ function fromLegacyConfig(decoded) {
   };
 }
 
-module.exports = { normalizeAccountConfig, clampToPlan, fromLegacyConfig, MAX_SOURCES };
+module.exports = { normalizeAccountConfig, normalizeSettings, clampToPlan, fromLegacyConfig, MAX_SOURCES };

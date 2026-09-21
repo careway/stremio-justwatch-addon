@@ -271,7 +271,7 @@ describe("accounts enabled", () => {
       assert.equal(r.status, 200, r.text);
       assert.equal(r.json.plan, "free");
       assert.equal(r.json.installUrl, `stremio://127.0.0.1:${server.address().port}/api/${me.uid}/manifest.json`);
-      assert.deepEqual(r.json.config.sources[0].packages, ["nfx"]);
+      assert.equal(r.json.sources[0].providers, 1);
     });
 
     test("a config beyond the plan is a 400 with a stable code", async () => {
@@ -372,7 +372,6 @@ describe("accounts enabled", () => {
       const { cookie } = await signIn("legacy@example.com");
       const r = await call("PUT", "/api/me/config", { cookie, body: { legacy: "ES_es_nfx_dnp" } });
       assert.equal(r.status, 200, r.text);
-      assert.deepEqual(r.json.config.sources[0].packages.sort(), ["dnp", "nfx"]);
       assert.equal(r.json.sources[0].country, "ES");
       assert.equal(r.json.sources[0].providers, 2);
       // "edit" is just the configure page pre-filled from this segment.
@@ -383,8 +382,9 @@ describe("accounts enabled", () => {
       const { cookie } = await signIn("replace@example.com");
       await call("PUT", "/api/me/config", { cookie, body: { legacy: "ES_es_nfx" } });
       const r = await call("PUT", "/api/me/config", { cookie, body: { legacy: "ES_es_dnp" } });
-      assert.equal(r.json.config.sources.length, 1);
-      assert.deepEqual(r.json.config.sources[0].packages, ["dnp"]);
+      assert.equal(r.json.sources.length, 1);
+      assert.equal(r.json.sources[0].providers, 1);
+      assert.match(r.json.sources[0].legacy, /dnp$/, "replaced, not merged");
     });
 
     test("a third selection needs a paid plan, and a merge keeps the others", async () => {
@@ -394,7 +394,7 @@ describe("accounts enabled", () => {
       await call("PUT", "/api/me/config", { cookie, body: { legacy: "ES_es_nfx" } });
       const second = await call("PUT", "/api/me/config", { cookie, body: { legacy: "MY_en_nfx" } });
       assert.equal(second.status, 200, "the second one is within free");
-      assert.deepEqual(second.json.config.sources.map((s) => s.country), ["ES", "MY"]);
+      assert.deepEqual(second.json.sources.map((s) => s.country), ["ES", "MY"]);
 
       const blocked = await call("PUT", "/api/me/config", { cookie, body: { legacy: "US_en_nfx" } });
       assert.equal(blocked.status, 400);
@@ -402,17 +402,17 @@ describe("accounts enabled", () => {
       // ...but editing one you already have is not "adding" one.
       const edit = await call("PUT", "/api/me/config", { cookie, body: { legacy: "MY_en_dnp" } });
       assert.equal(edit.status, 200, edit.text);
-      assert.deepEqual(edit.json.config.sources.map((s) => s.country), ["ES", "MY"]);
+      assert.deepEqual(edit.json.sources.map((s) => s.country), ["ES", "MY"]);
 
       await store.setPlan((await store.findByEmail("merge@example.com")).id, "plus", null);
       accounts.invalidate(me.uid);
       const ok = await call("PUT", "/api/me/config", { cookie, body: { legacy: "US_en_nfx" } });
       assert.equal(ok.status, 200, ok.text);
-      assert.deepEqual(ok.json.config.sources.map((s) => s.country), ["ES", "MY", "US"]);
+      assert.deepEqual(ok.json.sources.map((s) => s.country), ["ES", "MY", "US"]);
 
       // merge:false starts over with just this country.
       const fresh = await call("PUT", "/api/me/config", { cookie, body: { legacy: "MY_en_nfx", merge: false } });
-      assert.deepEqual(fresh.json.config.sources.map((s) => s.country), ["MY"]);
+      assert.deepEqual(fresh.json.sources.map((s) => s.country), ["MY"]);
     });
 
     test("paid plans are unlimited: many selections, all in the one manifest", async () => {
@@ -441,7 +441,7 @@ describe("accounts enabled", () => {
 
       const r = await call("DELETE", "/api/me/sources/MY", { cookie, body: {} });
       assert.equal(r.status, 200, r.text);
-      assert.deepEqual(r.json.config.sources.map((s) => s.country), ["ES"]);
+      assert.deepEqual(r.json.sources.map((s) => s.country), ["ES"]);
       assert.equal((await call("DELETE", "/api/me/sources/MY", { cookie, body: {} })).status, 404);
     });
 
@@ -453,11 +453,119 @@ describe("accounts enabled", () => {
       }
     });
 
-    test("the segment is checked against the plan like any other config", async () => {
+    test("only the selection is taken from the segment — the account's settings are not", async () => {
       const { cookie } = await signIn("rnd@example.com");
-      const r = await call("PUT", "/api/me/config", { cookie, body: { legacy: "ES_es_rnd_nfx" } });
-      assert.equal(r.status, 400);
-      assert.equal(r.json.code, "plan_feature");
+      // rnd_ and a poster in the segment would once have been applied to the whole account.
+      const r = await call("PUT", "/api/me/config", { cookie, body: { legacy: "ES_es_rnd_poster-rpdb-abcdefgh_nfx" } });
+      assert.equal(r.status, 200, r.text);
+      assert.deepEqual(r.json.settings, { posterProvider: null, posterKey: { set: false, hint: null }, randomize: false, hideCountry: false });
+    });
+  });
+
+  describe("account settings — cover ratings, randomize, hide country", () => {
+    const put = (cookie, body) => call("PUT", "/api/me/settings", { cookie, body });
+    const KEYED = "rpdb";
+
+    test("a fresh account has none set, and the profile lists the plans", async () => {
+      const { cookie } = await signIn("s0@example.com");
+      const me = (await call("GET", "/api/me", { cookie })).json;
+      assert.deepEqual(me.settings, { posterProvider: null, posterKey: { set: false, hint: null }, randomize: false, hideCountry: false });
+      assert.deepEqual(me.plans.map((p) => p.id), ["free", "plus", "pro"]);
+      assert.equal(me.plans[0].maxCountries, 2);
+      assert.equal(me.plans[1].maxCountries, null);
+      assert.equal(me.catalogs, 0);
+    });
+
+    test("the poster provider and key are stored, masked in the profile, and never echoed", async () => {
+      const { cookie } = await signIn("s1@example.com");
+      const r = await put(cookie, { posterProvider: KEYED, posterApiKey: "t0-free-rpdb-secretkey1234" });
+      assert.equal(r.status, 200, r.text);
+      assert.equal(r.json.settings.posterProvider, KEYED);
+      assert.deepEqual(r.json.settings.posterKey, { set: true, hint: "…1234" });
+      assert.ok(!r.text.includes("secretkey1234"));
+      assert.ok(!(await call("GET", "/api/me", { cookie })).text.includes("secretkey1234"));
+    });
+
+    test("saving other settings keeps the stored key; changing provider drops it", async () => {
+      const store = createMemoryStore();
+      setStore(store);
+      const { cookie } = await signIn("s2@example.com");
+      await put(cookie, { posterProvider: KEYED, posterApiKey: "t0-free-rpdb-secretkey1234" });
+      const other = await put(cookie, { hideCountry: true });
+      assert.equal(other.json.settings.posterKey.set, true, "untouched");
+      assert.equal(other.json.settings.hideCountry, true);
+      const blank = await put(cookie, { posterProvider: KEYED, posterApiKey: "" });
+      assert.equal(blank.json.settings.posterKey.set, true, "blank key = keep");
+      const off = await put(cookie, { posterProvider: null });
+      assert.deepEqual(off.json.settings.posterKey, { set: false, hint: null }, "no provider, no key");
+      const user = await store.findByEmail("s2@example.com");
+      assert.equal((await store.getConfig(user.id)).posterApiKey, null);
+    });
+
+    test("a provider that needs a key is refused without one; an unknown one is refused", async () => {
+      const { cookie } = await signIn("s3@example.com");
+      const noKey = await put(cookie, { posterProvider: KEYED });
+      assert.equal(noKey.status, 400);
+      assert.equal(noKey.json.code, "invalid_poster");
+      const unknown = await put(cookie, { posterProvider: "nope", posterApiKey: "x" });
+      assert.equal(unknown.json.code, "invalid_poster");
+    });
+
+    test("randomize is a paid feature, checked here too", async () => {
+      const store = createMemoryStore();
+      setStore(store);
+      const { cookie, me } = await signIn("s4@example.com");
+      const denied = await put(cookie, { randomize: true });
+      assert.equal(denied.status, 400);
+      assert.equal(denied.json.code, "plan_feature");
+      await store.setPlan((await store.findByEmail("s4@example.com")).id, "plus", null);
+      accounts.invalidate(me.uid);
+      assert.equal((await put(cookie, { randomize: true })).json.settings.randomize, true);
+    });
+
+    test("settings reach the live manifest, and adding a selection doesn't reset them", async () => {
+      const store = createMemoryStore();
+      setStore(store);
+      const { cookie, me } = await signIn("s5@example.com");
+      await store.setPlan((await store.findByEmail("s5@example.com")).id, "plus", null);
+      accounts.invalidate(me.uid);
+      await put(cookie, { randomize: true, hideCountry: true });
+      await call("PUT", "/api/me/config", { cookie, body: { legacy: "ES_es_nfx" } });
+      await call("PUT", "/api/me/config", { cookie, body: { legacy: "MY_en_nfx" } });
+      const m = await call("GET", `/api/${me.uid}/manifest.json`);
+      assert.ok(m.json.catalogs.every((c) => c.id.startsWith("r_")), "randomized ids");
+      const profile = (await call("GET", "/api/me", { cookie })).json;
+      assert.equal(profile.settings.randomize, true);
+      assert.equal(profile.settings.hideCountry, true);
+    });
+
+    test("settings can be saved before any selection exists, and don't lose the TMDb key", async () => {
+      tmdbAuth = "ok";
+      const { cookie } = await signIn("s6@example.com");
+      await call("PUT", "/api/me/tmdb-key", { cookie, body: { key: "abcdef0123456789abcdef0123456789" } });
+      const r = await put(cookie, { hideCountry: true });
+      assert.equal(r.status, 200, r.text);
+      assert.equal(r.json.tmdbKey.set, true);
+      assert.equal(r.json.sources.length, 0);
+    });
+
+    test("the selection links no longer carry the poster key", async () => {
+      const { cookie } = await signIn("s7@example.com");
+      await put(cookie, { posterProvider: KEYED, posterApiKey: "t0-free-rpdb-secretkey1234" });
+      const r = await call("PUT", "/api/me/config", { cookie, body: { legacy: "ES_es_nfx" } });
+      assert.ok(!r.text.includes("secretkey1234") && !r.json.sources[0].legacy.includes("poster"));
+    });
+
+    test("bad bodies are 400s", async () => {
+      const { cookie } = await signIn("s8@example.com");
+      assert.equal((await put(cookie, "nope")).status, 400);
+      assert.equal((await put(cookie, [1])).status, 400);
+    });
+
+    test("catalog count is reported", async () => {
+      const { cookie } = await signIn("s9@example.com");
+      const r = await call("PUT", "/api/me/config", { cookie, body: { legacy: "ES_es_nfx" } });
+      assert.equal(r.json.catalogs, 6, "3 sorts × 2 types");
     });
   });
 

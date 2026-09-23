@@ -20,24 +20,6 @@ services:
       timeout: 5s
       retries: 5
 
-  duckdns:
-    image: alpine:3.20
-    container_name: omnicatalogs-duckdns
-    restart: unless-stopped
-    environment:
-      DUCKDNS_DOMAIN: ${DUCKDNS_DOMAIN:?set DUCKDNS_DOMAIN in .env}
-      DUCKDNS_TOKEN: ${DUCKDNS_TOKEN:?set DUCKDNS_TOKEN in .env}
-    entrypoint:
-      - sh
-      - -c
-      - |
-        apk add --no-cache curl >/dev/null
-        while true; do
-          curl -fsS "https://www.duckdns.org/update?domains=${DUCKDNS_DOMAIN}&token=${DUCKDNS_TOKEN}&ip=" -o /tmp/duck.log \
-            || echo "[duckdns] update failed"
-          sleep 300
-        done
-
 volumes:
   pgdata:
   pgcerts:

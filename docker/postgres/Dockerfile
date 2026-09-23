@@ -1,7 +1,11 @@
 # Postgres for the Jetson Nano (arm64). Adds a self-signed TLS cert generated
 # on first boot (so it covers whatever DuckDNS hostname you configure) and a
 # pg_hba.conf that requires SSL + scram-sha-256 for every remote connection.
-FROM postgres:16-alpine
+FROM postgres:18-alpine
+
+# The alpine image ships libssl but not the openssl CLI, which the entrypoint
+# below needs to generate the self-signed cert.
+RUN apk add --no-cache openssl
 
 COPY pg_hba.conf /etc/postgresql/pg_hba.conf
 COPY docker-entrypoint-ssl.sh /usr/local/bin/docker-entrypoint-ssl.sh

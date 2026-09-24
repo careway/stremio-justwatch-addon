@@ -18,7 +18,7 @@ require.cache[jwPath] = {
   filename: jwPath,
   loaded: true,
   exports: {
-    searchTitles: async ({ query }) => searchResults[query] || [],
+    searchTitlesWithOriginal: async ({ query }) => searchResults[query] || [],
   },
 };
 

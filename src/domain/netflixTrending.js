@@ -1,6 +1,6 @@
 "use strict";
 
-const { searchTitles } = require("../infra/justwatch");
+const { searchTitlesWithOriginal } = require("../infra/justwatch");
 const { peekTop10 } = require("../infra/netflixTop10");
 const { nodeToMetaWithFallback } = require("./meta");
 const { normalizeTitle } = require("../data/titleMatch");
@@ -82,18 +82,34 @@ async function getOfficialNetflixTrending({ jwType, country, language, config })
   return [...confident, ...fallback];
 }
 
+// Netflix's Top10 export always titles a show in English, whatever country
+// it's for; JustWatch's `content.title` is localized to `language`. So the
+// exact-title match this needs has to check both: the localized title (the
+// common case where they happen to agree, e.g. most English-language
+// markets) and JustWatch's own English title for this same node (fetched
+// alongside it — see searchTitlesWithOriginal), which is what actually lines
+// up with Netflix's title everywhere JustWatch's site isn't in English.
+// Confirmed live 2026-09-24: matching only the localized title resolved just
+// 4/10 of Spain's Netflix Top10 films (2/10 for Mexico) — almost every
+// correct match was JustWatch's own top search result, just titled in
+// Spanish — while checking both resolves 8-9/10.
 async function matchOnJustWatch(title, jwType, country, language) {
-  const nodes = await searchTitles({
+  const nodes = await searchTitlesWithOriginal({
     query: title,
     objectTypes: [jwType],
     packages: [NETFLIX_PACKAGE],
     country,
     language,
     first: 5,
-    offset: 0,
   });
   const target = normalizeTitle(title);
-  return nodes.find((n) => normalizeTitle(n?.content?.title) === target) || null;
+  return (
+    nodes.find((n) => {
+      const localized = normalizeTitle(n?.content?.title);
+      const original = normalizeTitle(n?.original?.title);
+      return localized === target || original === target;
+    }) || null
+  );
 }
 
 module.exports = { getOfficialNetflixTrending };

@@ -9,7 +9,7 @@ const { test, describe, beforeEach } = require("node:test");
 const jwPath = require.resolve("../src/infra/justwatch");
 const top10Path = require.resolve("../src/infra/netflixTop10");
 
-let queries; // every searchTitles() call, in order
+let queries; // every searchTitles()/searchTitlesWithOriginal() call, in order
 let chart; // what peekTop10()/getTop10() returns
 let peekCalls;
 let peekShouldThrow; // checked at call time — netflixTrending.js destructures
@@ -22,24 +22,9 @@ require.cache[jwPath] = {
   filename: jwPath,
   loaded: true,
   exports: {
+    // The plain JustWatch-ranked path (blank query, paged).
     searchTitles: async (args) => {
       queries.push(args);
-      if (args.query) {
-        // Title lookup from the Top10-enrichment path.
-        return [
-          {
-            objectType: args.objectTypes[0] || "MOVIE",
-            content: {
-              title: args.query,
-              shortDescription: "",
-              genres: [],
-              externalIds: { imdbId: `tt-${args.query}` },
-              posterUrl: null,
-            },
-          },
-        ];
-      }
-      // The plain JustWatch-ranked path (blank query, paged).
       return Array.from({ length: 5 }, (_, i) => ({
         objectType: "MOVIE",
         content: {
@@ -50,6 +35,23 @@ require.cache[jwPath] = {
           posterUrl: null,
         },
       }));
+    },
+    // The Top10-enrichment path's title lookup (see ../src/domain/netflixTrending).
+    searchTitlesWithOriginal: async (args) => {
+      queries.push(args);
+      return [
+        {
+          objectType: args.objectTypes[0] || "MOVIE",
+          content: {
+            title: args.query,
+            shortDescription: "",
+            genres: [],
+            externalIds: { imdbId: `tt-${args.query}` },
+            posterUrl: null,
+          },
+          original: { title: args.query },
+        },
+      ];
     },
     getPackages: async () => [],
   },

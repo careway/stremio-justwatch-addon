@@ -120,10 +120,97 @@ function dueClause() {
 
 // ─── Public: called from the request path (fire-and-forget) ──────────────────
 
+// Request-path writes are buffered and flushed in bulk rather than sent one
+// query each. A single served catalog used to fire four (touch, store,
+// registerRow, store for the sibling), and when a manifest loads Stremio asks
+// for every catalog at once — dozens of concurrent INSERT/UPDATEs against a
+// pool of WARM_POOL_MAX, queued past connectionTimeoutMillis and failing with
+// "timeout exceeded when trying to connect". Batched, the whole burst costs a
+// handful of statements every FLUSH_MS on one connection at a time.
+const FLUSH_MS = Number(process.env.WARM_FLUSH_MS || 2000);
+// Payloads are ~tens of KB each; keep one UPDATE's parameter reasonable.
+const STORE_CHUNK = 25;
+const pendingTouch = new Map(); // key -> { vars, count }
+const pendingRegister = new Map(); // key -> vars
+const pendingStore = new Map(); // key -> payload (latest wins)
+let flushTimer = null;
+let flushing = null; // Promise while a flush is in flight
+
+function scheduleFlush() {
+  if (flushTimer || !pool) return;
+  flushTimer = setTimeout(() => {
+    flushTimer = null;
+    flush();
+  }, FLUSH_MS);
+  flushTimer.unref();
+}
+
+const sortedEntries = (map) =>
+  [...map.entries()].sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0));
+
+async function flush() {
+  if (flushing) return flushing;
+  if (!pool) return;
+  const touches = sortedEntries(pendingTouch);
+  const registers = sortedEntries(pendingRegister);
+  const stores = sortedEntries(pendingStore);
+  pendingTouch.clear();
+  pendingRegister.clear();
+  pendingStore.clear();
+  if (!touches.length && !registers.length && !stores.length) return;
+
+  flushing = (async () => {
+    // Best-effort: a failed batch is dropped, not retried — the next request
+    // for the same key queues it again, and the warmer refills payloads.
+    try {
+      if (touches.length) {
+        await pool.query(
+          `INSERT INTO query_cache (key, vars, last_requested_at, request_count)
+           SELECT k, v, now(), c FROM jsonb_to_recordset($1::jsonb) AS t(k text, v jsonb, c bigint)
+           ON CONFLICT (key) DO UPDATE SET
+             last_requested_at = now(),
+             request_count     = query_cache.request_count + EXCLUDED.request_count,
+             vars              = EXCLUDED.vars`,
+          [JSON.stringify(touches.map(([k, { vars, count }]) => ({ k, v: vars, c: count })))],
+        );
+        stats.bump("warm.touch", touches.length);
+      }
+      if (registers.length) {
+        await pool.query(
+          `INSERT INTO query_cache (key, vars, last_requested_at, request_count)
+           SELECT k, v, now(), 0 FROM jsonb_to_recordset($1::jsonb) AS t(k text, v jsonb)
+           ON CONFLICT (key) DO UPDATE SET vars = EXCLUDED.vars`,
+          [JSON.stringify(registers.map(([k, v]) => ({ k, v })))],
+        );
+      }
+      for (let i = 0; i < stores.length; i += STORE_CHUNK) {
+        const chunk = stores.slice(i, i + STORE_CHUNK);
+        await pool.query(
+          `UPDATE query_cache q SET payload = t.p, payload_at = now()
+             FROM jsonb_to_recordset($1::jsonb) AS t(k text, p jsonb)
+            WHERE q.key = t.k`,
+          [JSON.stringify(chunk.map(([k, p]) => ({ k, p })))],
+        );
+      }
+    } catch (err) {
+      stats.bump("warm.flush.fail");
+      console.warn(
+        `[warmCache] flush failed (${touches.length} touch, ${registers.length} register, ` +
+          `${stores.length} store dropped): ${err.message}`,
+      );
+    } finally {
+      flushing = null;
+      // Writes that arrived mid-flush found the timer already spent.
+      if (pendingTouch.size || pendingRegister.size || pendingStore.size) scheduleFlush();
+    }
+  })();
+  return flushing;
+}
+
 /**
  * Record that `key` was requested. Creates the registry row if new, bumps its
- * recency/count otherwise. Debounced in-process; never throws, never awaited by
- * the caller.
+ * recency/count otherwise. Debounced in-process and buffered (see flush());
+ * never throws, never awaited by the caller.
  */
 function touch(key, vars) {
   if (!pool) return Promise.resolve();
@@ -137,18 +224,10 @@ function touch(key, vars) {
   lastTouch.set(key, now);
   if (lastTouch.size > 5000) lastTouch.clear(); // cheap unbounded-growth guard
 
-  return pool
-    .query(
-      `INSERT INTO query_cache (key, vars, last_requested_at, request_count)
-       VALUES ($1, $2::jsonb, now(), 1)
-       ON CONFLICT (key) DO UPDATE SET
-         last_requested_at = now(),
-         request_count     = query_cache.request_count + 1,
-         vars              = EXCLUDED.vars`,
-      [key, JSON.stringify(vars)],
-    )
-    .then(() => stats.bump("warm.touch"))
-    .catch((err) => console.warn("[warmCache] touch failed:", err.message));
+  const queued = pendingTouch.get(key);
+  pendingTouch.set(key, { vars, count: (queued?.count || 0) + 1 });
+  scheduleFlush();
+  return Promise.resolve();
 }
 
 /**
@@ -164,30 +243,21 @@ function touch(key, vars) {
 function registerRow(key, vars) {
   if (!pool) return Promise.resolve();
   if (vars?.country && !VALID_COUNTRIES.has(vars.country)) return Promise.resolve();
-  return pool
-    .query(
-      `INSERT INTO query_cache (key, vars, last_requested_at, request_count)
-       VALUES ($1, $2::jsonb, now(), 0)
-       ON CONFLICT (key) DO UPDATE SET vars = EXCLUDED.vars`,
-      [key, JSON.stringify(vars)],
-    )
-    .catch((err) => console.warn("[warmCache] registerRow failed:", err.message));
+  pendingRegister.set(key, vars);
+  scheduleFlush();
+  return Promise.resolve();
 }
 
 /**
  * Store the payload a live request just produced, so a cold start can seed L1
- * from it. UPDATE-only: if the row isn't there yet, the next touch() creates it
- * and the warmer fills the payload in.
+ * from it. UPDATE-only: if the row isn't there yet, it is created by a
+ * touch()/registerRow() in the same flush (those run first), or else by the
+ * next touch() and the warmer fills the payload in.
  */
 function store(key, payload) {
   if (!pool) return;
-  pool
-    .query(
-      `UPDATE query_cache SET payload = $2::jsonb, payload_at = now()
-       WHERE key = $1`,
-      [key, JSON.stringify(payload)],
-    )
-    .catch((err) => console.warn("[warmCache] store failed:", err.message));
+  pendingStore.set(key, payload);
+  scheduleFlush();
 }
 
 // ─── Startup + background loop ───────────────────────────────────────────────
@@ -208,6 +278,11 @@ async function ensureSchema() {
   // touch() below), safe to rank real per-provider demand on.
   await pool.query(
     `ALTER TABLE query_cache ADD COLUMN IF NOT EXISTS seed_priority bigint NOT NULL DEFAULT 0`,
+  );
+  // Set while tick() is refetching a row, so the row is claimed without
+  // holding a connection (and a transaction) open across the network call.
+  await pool.query(
+    `ALTER TABLE query_cache ADD COLUMN IF NOT EXISTS leased_until timestamptz`,
   );
   await pool.query(
     `CREATE INDEX IF NOT EXISTS query_cache_last_requested
@@ -240,14 +315,21 @@ async function seedL1(L1Cache) {
   );
 }
 
+// How long a claimed row stays off-limits to other ticks/instances. Longer
+// than the upstream timeout, so a slow refetch isn't double-claimed; also acts
+// as the retry backoff when a refetch fails (the lease just runs out).
+const LEASE_S = 60;
+
 async function tick(refetch, L1Cache, breaker) {
   if (tickRunning) return;
   if (breaker && breaker.isOpen()) return; // upstream is refusing us — don't dig
   tickRunning = true;
-  const client = await pool.connect();
   try {
-    await client.query("BEGIN");
-    const { rows } = await client.query(
+    // Claim one due row with a lease, in a single statement — no connection
+    // is held while refetch() goes to the network. (It used to keep a
+    // transaction open across the upstream call, pinning one of the pool's
+    // few connections for up to the 10s upstream timeout every tick.)
+    const { rows } = await pool.query(
       // request_count (real traffic) decides once there's any; seed_priority
       // (the backfill script's country/provider ranking — see register() in
       // scripts/seed-warm-cache.js) breaks ties among rows nobody has asked
@@ -256,67 +338,62 @@ async function tick(refetch, L1Cache, breaker) {
       // The inner subquery caps eligible *search* rows to the top WARM_TOP_N
       // by that same ranking — see its comment above for why. `packages:*`
       // rows skip the cap entirely.
-      `SELECT key, vars FROM query_cache
-        WHERE last_requested_at > now() - interval '${RETENTION_DAYS} days'
-          AND ${dueClause()}
-          AND (
-            key LIKE 'packages:%'
-            OR key IN (
-              SELECT key FROM query_cache
-               WHERE key NOT LIKE 'packages:%'
-                 AND last_requested_at > now() - interval '${RETENTION_DAYS} days'
-               ORDER BY request_count DESC, seed_priority DESC
-               LIMIT ${WARM_TOP_N}
-            )
-          )
-        ORDER BY (payload IS NOT NULL), request_count DESC, seed_priority DESC
-        LIMIT 1
-        FOR UPDATE SKIP LOCKED`,
+      `UPDATE query_cache SET leased_until = now() + interval '${LEASE_S} seconds'
+        WHERE key = (
+          SELECT key FROM query_cache
+           WHERE last_requested_at > now() - interval '${RETENTION_DAYS} days'
+             AND ${dueClause()}
+             AND (leased_until IS NULL OR leased_until < now())
+             AND (
+               key LIKE 'packages:%'
+               OR key IN (
+                 SELECT key FROM query_cache
+                  WHERE key NOT LIKE 'packages:%'
+                    AND last_requested_at > now() - interval '${RETENTION_DAYS} days'
+                  ORDER BY request_count DESC, seed_priority DESC
+                  LIMIT ${WARM_TOP_N}
+               )
+             )
+           ORDER BY (payload IS NOT NULL), request_count DESC, seed_priority DESC
+           LIMIT 1
+           FOR UPDATE SKIP LOCKED)
+        RETURNING key, vars`,
     );
-    if (!rows.length) {
-      await client.query("COMMIT");
-      return;
-    }
+    if (!rows.length) return;
     const { key, vars } = rows[0];
     let payload, sibling;
     try {
       ({ payload, sibling } = await refetch(key, vars)); // network; may throw
     } catch (err) {
-      await client.query("ROLLBACK"); // release the row for a later retry
+      // Lease left in place: the row is retried once it expires.
       stats.bump("warm.refresh.fail");
       console.warn(`[warmCache] refresh failed for ${key}: ${err.message}`);
       return;
     }
-    await client.query(
-      `UPDATE query_cache SET payload = $2::jsonb, payload_at = now()
+    await pool.query(
+      `UPDATE query_cache
+          SET payload = $2::jsonb, payload_at = now(), leased_until = NULL
         WHERE key = $1`,
       [key, JSON.stringify(payload)],
     );
-    await client.query("COMMIT");
     await L1Cache.set(key, payload, ttlFor(key));
     markWarm(key);
     stats.bump("warm.refresh.ok");
 
     // The block fetch above already paid for the adjacent 50-page — persist
     // it too (registers the row if new) so it's warm before its own turn
-    // comes up. Outside the transaction and best-effort: a failure here just
-    // leaves the sibling due for its own tick later.
+    // comes up. Buffered and best-effort: a failure here just leaves the
+    // sibling due for its own tick later.
     if (sibling) {
-      await registerRow(sibling.key, sibling.vars);
+      registerRow(sibling.key, sibling.vars);
       store(sibling.key, sibling.payload);
       L1Cache.set(sibling.key, sibling.payload, ttlFor(sibling.key));
       markWarm(sibling.key);
       stats.bump("warm.refresh.sibling");
     }
   } catch (err) {
-    try {
-      await client.query("ROLLBACK");
-    } catch {
-      /* connection already gone */
-    }
     console.warn("[warmCache] tick error:", err.message);
   } finally {
-    client.release();
     tickRunning = false;
   }
 }
@@ -354,12 +431,26 @@ async function start({ L1Cache, refetch, breaker }) {
       connectionString: CONN,
       ssl: { rejectUnauthorized: false }, // Neon is always TLS
       max: Number(process.env.WARM_POOL_MAX || 4),
-      idleTimeoutMillis: 30_000,
+      // Postgres may sit across the internet (self-hosted behind DuckDNS, ~60ms
+      // from BeamUp): a fresh connection is TCP + TLS + SCRAM, ~7 round trips.
+      // Keep connections around between the warmer's ticks instead of paying
+      // that every 30s.
+      idleTimeoutMillis: 5 * 60_000,
       connectionTimeoutMillis: 10_000,
+      keepAlive: true,
+      // Everything this pool writes is a regenerable cache, so don't wait on
+      // a WAL fsync per commit — on the self-hosted box that's an eMMC card
+      // whose latency spikes during checkpoints. A crash loses at most the
+      // last few hundred ms of cache writes, never consistency. Session-scoped
+      // (a startup parameter, no extra query): the accounts pool in
+      // ../infra/userStore keeps durable commits. Skipped on Neon, whose
+      // pooler doesn't accept arbitrary startup parameters.
+      ...(/\.neon\.tech\b/.test(CONN) ? {} : { options: "-c synchronous_commit=off" }),
     });
     pool.on("error", (err) =>
       console.warn("[warmCache] idle client error:", err.message),
     );
+
     await ensureSchema();
     await seedL1(L1Cache);
 
@@ -387,6 +478,9 @@ async function start({ L1Cache, refetch, breaker }) {
 async function stop() {
   if (warmTimer) clearInterval(warmTimer);
   if (pruneTimer) clearInterval(pruneTimer);
+  if (flushTimer) clearTimeout(flushTimer);
+  flushTimer = null;
+  await flush();
   if (pool) await pool.end().catch(() => {});
   pool = null;
 }

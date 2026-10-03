@@ -337,6 +337,11 @@ async function handleCatalog({ type, id, extra }, config) {
       offsetInBatch,
       offsetInBatch + batchSize,
     );
+    // Past the first page, empty just means "end of catalog" — Stremio stops
+    // paging on an empty list. Only page 1 gets the placeholder; serving it on
+    // a later page appended an "Oh No! This catalog is empty" card after the
+    // real titles of every short catalog (e.g. Crunchyroll movies in MY: 3).
+    if (metas.length == 0 && offset > 0) return { ok: true, metas: [] };
     if (metas.length == 0) {
       return {
         ok: true,

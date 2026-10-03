@@ -8,3 +8,5 @@ cache.json
 beamup.json
 contrib/promo/*.webm
 contrib/promo/*.mp4
+
+neon_dump.custom

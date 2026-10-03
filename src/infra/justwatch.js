@@ -60,6 +60,61 @@ const GET_POPULAR_TITLES_QUERY = `
   }
 `;
 
+// Same shape as GET_POPULAR_TITLES_QUERY, plus one extra field: `original`
+// aliases a second `content` lookup pinned to English, alongside the
+// caller's own localized one. Used only for matching Netflix's official
+// Top10 export (../domain/netflixTrending) against JustWatch — Netflix
+// always publishes English titles regardless of country, while JustWatch's
+// `content.title` is localized (e.g. ES: "¿Por qué me casé, entonces?" for
+// "Why Did I Get Married Again?"), so a plain title comparison rejects the
+// correct top match everywhere JustWatch's site isn't in English. Confirmed
+// live 2026-09-24: matching only against the localized title resolved just
+// 4/10 of Spain's Netflix Top10 films, and 2/10 in Mexico, vs. 8-9/10 with
+// this fallback. Kept out of the everyday GET_POPULAR_TITLES_QUERY (used by
+// every catalog fetch) so ordinary browsing doesn't pay for a field nothing
+// there reads.
+const GET_POPULAR_TITLES_WITH_ORIGINAL_QUERY = `
+  query GetPopularTitlesWithOriginal(
+    $country: Country!
+    $first: Int! = 70
+    $popularTitlesFilter: TitleFilter
+    $popularTitlesSortBy: PopularTitlesSorting! = POPULAR
+    $language: Language!
+    $sortRandomSeed: Int! = 0
+    $offset: Int = 0
+  ) {
+    popularTitles(
+      country: $country
+      filter: $popularTitlesFilter
+      first: $first
+      sortBy: $popularTitlesSortBy
+      sortRandomSeed: $sortRandomSeed
+      offset: $offset
+    ) {
+      edges {
+        node {
+          objectType
+          content(country: $country, language: $language) {
+            title
+            shortDescription
+            originalReleaseDate
+            genres {
+              shortName
+            }
+            externalIds {
+              imdbId
+            }
+            posterUrl(profile: S718, format: JPG)
+          }
+          original: content(country: $country, language: "en") {
+            title
+          }
+        }
+      }
+    }
+  }
+`;
+
 // includeAddons pulls in the channel/add-on packages — the "X Amazon Channel"
 // and "X Roku Premium Channel" entries. Without it JustWatch simply omits them
 // from `packages`, even though they are real, filterable providers: a title
@@ -536,6 +591,54 @@ async function fetchSearchNodes({
 }
 
 /**
+ * Same as searchTitles(), but each node also carries `original.title` — its
+ * English title alongside the localized one — for matching a title against
+ * an English-only source (see GET_POPULAR_TITLES_WITH_ORIGINAL_QUERY above).
+ * Only ../domain/netflixTrending needs this, hence a separate function and
+ * cache namespace (`searchOrig:`) rather than a flag on searchTitles(): every
+ * other caller goes through the plain query, and its cache stays free of
+ * entries this one produced that lack `content`'s usual sibling fields.
+ * Always a single small network call (first ≤ 5 in practice) — no block
+ * splitting, no warm-cache registration, both pointless at this size.
+ */
+async function searchTitlesWithOriginal(opts = {}) {
+  const {
+    query = "",
+    objectTypes = [],
+    packages = [],
+    country = "US",
+    language = "en",
+    first = 5,
+  } = opts;
+  // Always POPULAR/offset 0 (the only way this is ever called) — no need to
+  // carry those in the key, unlike buildSearchKey's general-purpose one.
+  const cacheKey = `searchOrig:${query}:${objectTypes.join(",")}:${packages.join(",")}:${country}:${language}:${first}`;
+
+  const cached = await cacheGet(cacheKey, TTL_S);
+  if (cached) return cached;
+
+  const filter = {};
+  if (query) filter.searchQuery = query;
+  if (objectTypes.length) filter.objectTypes = objectTypes;
+  if (packages.length) filter.packages = packages;
+  filter.releaseYear = { max: new Date().getFullYear() };
+
+  const data = await gql(GET_POPULAR_TITLES_WITH_ORIGINAL_QUERY, {
+    popularTitlesFilter: filter,
+    country,
+    first: Math.min(first, BLOCK_SIZE),
+    offset: 0,
+    popularTitlesSortBy: "POPULAR",
+    language,
+    sortRandomSeed: 0,
+    platform: "WEB",
+  });
+  const nodes = (data?.popularTitles?.edges || []).map((e) => e?.node).filter(Boolean);
+  await cacheSet(cacheKey, nodes, TTL_S);
+  return nodes;
+}
+
+/**
  * Get available streaming packages for a country.
  *
  * Fetches and resolves icons; **which** packages survive and how they are
@@ -594,6 +697,7 @@ function _warmRefetch(key, vars) {
 
 module.exports = {
   searchTitles,
+  searchTitlesWithOriginal,
   getPackages,
   // Handed to warmCache.start() in index.js so the warmer can replay queries.
   _warmRefetch,

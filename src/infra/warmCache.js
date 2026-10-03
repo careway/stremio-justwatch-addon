@@ -49,10 +49,25 @@ function cleanConn(raw) {
     return raw;
   }
 }
+const CONN_VAR = process.env.DATABASE_URL_POOLED
+  ? "DATABASE_URL_POOLED"
+  : "DATABASE_URL";
 const CONN = cleanConn(
   process.env.DATABASE_URL_POOLED || process.env.DATABASE_URL || "",
 );
 const ENABLED = !!CONN;
+
+// CONN for a log line: the password becomes ****, the rest (user, host, DB
+// name) stays readable. Unparseable → only its first 12 chars.
+function maskConn(conn) {
+  try {
+    const u = new URL(conn);
+    if (u.password) u.password = "****";
+    return u.toString();
+  } catch {
+    return `${conn.slice(0, 12)}****`;
+  }
+}
 
 // Replayed a little before the payload actually expires, so L1 never goes
 // genuinely cold for a query that is still being asked for.
@@ -466,7 +481,7 @@ async function start({ L1Cache, refetch, breaker }) {
     );
   } catch (err) {
     console.warn(
-      `[warmCache] disabled — startup failed: ${err.message}`,
+      `[warmCache] disabled — startup failed: ${err.message} (${CONN_VAR}=${maskConn(CONN)})`,
     );
     if (pool) {
       pool.end().catch(() => {});

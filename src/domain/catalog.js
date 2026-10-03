@@ -242,7 +242,7 @@ async function handleCatalog({ type, id, extra }, config) {
     // country check (2026-09-12) showed the two can diverge sharply — e.g.
     // Malaysia's JustWatch "trending" surfaced Yellowstone/Breaking Bad/Rick
     // and Morty while Netflix's own chart that week was almost entirely
-    // local Malay content — so this replaces page 1 of Netflix's "Trending"
+    // local Malay content — so this replaces page 1 of Netflix's "Popular"
     // catalog specifically with the official chart, each entry matched back
     // onto JustWatch by title for poster/synopsis/genres/imdbId (see
     // ../domain/netflixTrending). Everything else is unaffected: Netflix's
@@ -255,7 +255,7 @@ async function handleCatalog({ type, id, extra }, config) {
       offset === 0 &&
       !randomize &&
       !genreCode &&
-      sortKey === "tnd" &&
+      sortKey === "pop" &&
       packageFilter.length === 1 &&
       packageFilter[0] === NETFLIX_PACKAGE
     ) {

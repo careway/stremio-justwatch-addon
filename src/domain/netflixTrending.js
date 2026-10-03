@@ -34,7 +34,7 @@ const NETFLIX_PACKAGE = "nfx";
  * bottom of that short list is a small cost for not silently dropping it.
  *
  * Only ever covers the ~10 titles Netflix ranks that week per content type —
- * callers should use this for offset 0 of the Netflix "Trending" catalog only
+ * callers should use this for offset 0 of the Netflix "Popular" catalog only
  * and keep paging with the regular JustWatch-backed path beyond that.
  *
  * Uses peekTop10() rather than getTop10(): on a cold cache the ~30MB Netflix

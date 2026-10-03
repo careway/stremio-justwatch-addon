@@ -94,9 +94,9 @@ describe("catalog.js — official Netflix Top10 wiring", () => {
     peekShouldThrow = false;
   });
 
-  test("Netflix Trending, page 1, no genre, not randomized: uses the official chart", async () => {
+  test("Netflix Popular, page 1, no genre, not randomized: uses the official chart", async () => {
     const res = await handleCatalog(
-      { type: "movie", id: "jw_tnd_nfx", extra: {} },
+      { type: "movie", id: "jw_pop_nfx", extra: {} },
       CONFIG,
     );
     assert.equal(res.ok, true);
@@ -111,7 +111,7 @@ describe("catalog.js — official Netflix Top10 wiring", () => {
 
   test("series type reads the tv bucket", async () => {
     const res = await handleCatalog(
-      { type: "series", id: "jw_tnd_nfx", extra: {} },
+      { type: "series", id: "jw_pop_nfx", extra: {} },
       CONFIG,
     );
     assert.deepEqual(
@@ -122,7 +122,7 @@ describe("catalog.js — official Netflix Top10 wiring", () => {
 
   test("paging past page 1 falls back to the plain JustWatch path", async () => {
     const res = await handleCatalog(
-      { type: "movie", id: "jw_tnd_nfx", extra: { skip: "50" } },
+      { type: "movie", id: "jw_pop_nfx", extra: { skip: "50" } },
       CONFIG,
     );
     assert.equal(res.ok, true);
@@ -132,7 +132,7 @@ describe("catalog.js — official Netflix Top10 wiring", () => {
 
   test("a genre filter falls back to the plain JustWatch path", async () => {
     const res = await handleCatalog(
-      { type: "movie", id: "jw_tnd_nfx", extra: { genre: "Action" } },
+      { type: "movie", id: "jw_pop_nfx", extra: { genre: "Action" } },
       { ...CONFIG, language: "en" },
     );
     assert.equal(res.ok, true);
@@ -142,7 +142,7 @@ describe("catalog.js — official Netflix Top10 wiring", () => {
 
   test("a randomized catalog falls back to the plain (shuffled) path", async () => {
     const res = await handleCatalog(
-      { type: "movie", id: "r_jw_tnd_nfx", extra: {} },
+      { type: "movie", id: "r_jw_pop_nfx", extra: {} },
       CONFIG,
     );
     assert.equal(res.ok, true);
@@ -152,7 +152,7 @@ describe("catalog.js — official Netflix Top10 wiring", () => {
 
   test("a non-Netflix provider is never routed through the Top10 path", async () => {
     const res = await handleCatalog(
-      { type: "movie", id: "jw_tnd_dnp", extra: {} },
+      { type: "movie", id: "jw_pop_dnp", extra: {} },
       CONFIG,
     );
     assert.equal(res.ok, true);
@@ -160,20 +160,20 @@ describe("catalog.js — official Netflix Top10 wiring", () => {
     assert.deepEqual(peekCalls, []);
   });
 
-  test("the Popular sort is unaffected — only Trending is enriched", async () => {
+  test("the Trending sort is unaffected — only Popular is enriched", async () => {
     const res = await handleCatalog(
-      { type: "movie", id: "jw_pop_nfx", extra: {} },
+      { type: "movie", id: "jw_tnd_nfx", extra: {} },
       CONFIG,
     );
     assert.equal(res.ok, true);
-    assert.ok(queries.some((q) => q.query === "" && q.sortBy === "POPULAR"));
+    assert.ok(queries.some((q) => q.query === "" && q.sortBy === "TRENDING"));
     assert.deepEqual(peekCalls, []);
   });
 
   test("no official chart for the country: falls back cleanly", async () => {
     chart = null;
     const res = await handleCatalog(
-      { type: "movie", id: "jw_tnd_nfx", extra: {} },
+      { type: "movie", id: "jw_pop_nfx", extra: {} },
       CONFIG,
     );
     assert.equal(res.ok, true);
@@ -183,7 +183,7 @@ describe("catalog.js — official Netflix Top10 wiring", () => {
   test("a lookup failure degrades to the plain path instead of failing the request", async () => {
     peekShouldThrow = true;
     const res = await handleCatalog(
-      { type: "movie", id: "jw_tnd_nfx", extra: {} },
+      { type: "movie", id: "jw_pop_nfx", extra: {} },
       CONFIG,
     );
     assert.equal(res.ok, true);

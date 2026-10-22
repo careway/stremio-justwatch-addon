@@ -277,7 +277,23 @@ function store(key, payload) {
 
 // ─── Startup + background loop ───────────────────────────────────────────────
 
+// The app role only has SELECT/INSERT/UPDATE/DELETE (see
+// docker/postgres/harden-roles.sql), and Postgres demands ownership even for an
+// `ALTER TABLE ... IF NOT EXISTS` that would change nothing — so DDL is only
+// attempted when the schema is actually behind.
+async function schemaIsCurrent() {
+  const { rows } = await pool.query(
+    `SELECT (SELECT count(*) FROM information_schema.columns
+              WHERE table_schema = 'public' AND table_name = 'query_cache'
+                AND column_name IN ('key','vars','payload','payload_at',
+                  'last_requested_at','request_count','seed_priority','leased_until')) = 8
+        AND to_regclass('public.query_cache_last_requested') IS NOT NULL AS ok`,
+  );
+  return rows[0].ok === true;
+}
+
 async function ensureSchema() {
+  if (await schemaIsCurrent()) return;
   await pool.query(`
     CREATE TABLE IF NOT EXISTS query_cache (
       key               text PRIMARY KEY,

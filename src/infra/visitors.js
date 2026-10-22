@@ -133,7 +133,14 @@ async function hourlySeries() {
   return out;
 }
 
+// DDL needs table ownership, which the least-privilege app role lacks, so it
+// only runs when the table or its index is missing (see warmCache.js).
 async function ensureSchema() {
+  const { rows } = await pool.query(
+    `SELECT to_regclass('public.hourly_visitors') IS NOT NULL
+        AND to_regclass('public.hourly_visitors_hour') IS NOT NULL AS ok`,
+  );
+  if (rows[0].ok === true) return;
   await pool.query(`
     CREATE TABLE IF NOT EXISTS hourly_visitors (
       hour_bucket timestamptz NOT NULL,
